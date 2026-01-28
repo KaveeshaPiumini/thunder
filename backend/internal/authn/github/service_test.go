@@ -26,13 +26,16 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/idp"
+	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/user"
 	"github.com/asgardeo/thunder/tests/mocks/authn/oauthmock"
 	"github.com/asgardeo/thunder/tests/mocks/httpmock"
@@ -41,8 +44,10 @@ import (
 )
 
 const (
-	testGithubIDPID = "github_idp"
-	testAccessToken = "access_token"
+	testGithubIDPID         = "github_idp"
+	testAccessToken         = "access_token"
+	githubUserInfoEndpoint  = "https://api.github.com/user"
+	githubUserEmailEndpoint = "https://api.github.com/user/emails"
 )
 
 type GithubOAuthAuthnServiceTestSuite struct {
@@ -63,8 +68,17 @@ func (suite *GithubOAuthAuthnServiceTestSuite) SetupTest() {
 	service := &githubOAuthAuthnService{
 		internal:   suite.mockOAuthService,
 		httpClient: suite.mockHTTPClient,
+		logger:     log.GetLogger().With(log.String(log.LoggerKeyComponentName, "GithubAuthnService")),
 	}
 	suite.service = service
+
+	thunderConfig := &config.Config{
+		TLS: config.TLSConfig{
+			MinVersion: "1.3",
+		},
+	}
+	err := config.InitializeThunderRuntime("", thunderConfig)
+	assert.NoError(suite.T(), err)
 }
 
 func (suite *GithubOAuthAuthnServiceTestSuite) TestBuildAuthorizeURLSuccess() {
@@ -128,7 +142,7 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoSuccess() {
 	config := &oauth.OAuthClientConfig{
 		Scopes: []string{"user", "user:email"},
 		OAuthEndpoints: oauth.OAuthEndpoints{
-			UserInfoEndpoint: UserInfoEndpoint,
+			UserInfoEndpoint: githubUserInfoEndpoint,
 		},
 	}
 
@@ -160,7 +174,8 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoSuccessWithEmail
 	config := &oauth.OAuthClientConfig{
 		Scopes: []string{"user:email"},
 		OAuthEndpoints: oauth.OAuthEndpoints{
-			UserInfoEndpoint: UserInfoEndpoint,
+			UserInfoEndpoint:  githubUserInfoEndpoint,
+			UserEmailEndpoint: githubUserEmailEndpoint,
 		},
 	}
 
@@ -169,7 +184,8 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoSuccessWithEmail
 		Body:       io.NopCloser(bytes.NewReader(emailJSON)),
 	}
 
-	suite.mockOAuthService.On("GetOAuthClientConfig", testGithubIDPID).Return(config, nil)
+	// Mock GetOAuthClientConfig once for FetchUserInfo (config is passed to fetchPrimaryEmail)
+	suite.mockOAuthService.On("GetOAuthClientConfig", testGithubIDPID).Return(config, nil).Once()
 	suite.mockOAuthService.On("FetchUserInfoWithClientConfig", config, accessToken).Return(userInfo, nil)
 	suite.mockHTTPClient.On("Do", mock.Anything).Return(resp, nil)
 
@@ -199,7 +215,7 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoWithFailure() {
 				config := &oauth.OAuthClientConfig{
 					Scopes: []string{"user"},
 					OAuthEndpoints: oauth.OAuthEndpoints{
-						UserInfoEndpoint: UserInfoEndpoint,
+						UserInfoEndpoint: githubUserInfoEndpoint,
 					},
 				}
 				suite.mockOAuthService.On("GetOAuthClientConfig", testGithubIDPID).
@@ -239,7 +255,8 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoWithEmailFetchFa
 				config := &oauth.OAuthClientConfig{
 					Scopes: []string{"user:email"},
 					OAuthEndpoints: oauth.OAuthEndpoints{
-						UserInfoEndpoint: UserInfoEndpoint,
+						UserInfoEndpoint:  githubUserInfoEndpoint,
+						UserEmailEndpoint: githubUserEmailEndpoint,
 					},
 				}
 
@@ -250,7 +267,7 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoWithEmailFetchFa
 				suite.mockHTTPClient.On("Do", mock.Anything).
 					Return(nil, errors.New("http error")).Once()
 			},
-			errCode: oauth.ErrorUnexpectedServerError.Code,
+			errCode: serviceerror.InternalServerError.Code,
 		},
 		{
 			name: "EmailFetchNon200Status",
@@ -262,7 +279,8 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoWithEmailFetchFa
 				config := &oauth.OAuthClientConfig{
 					Scopes: []string{"user:email"},
 					OAuthEndpoints: oauth.OAuthEndpoints{
-						UserInfoEndpoint: UserInfoEndpoint,
+						UserInfoEndpoint:  githubUserInfoEndpoint,
+						UserEmailEndpoint: githubUserEmailEndpoint,
 					},
 				}
 
@@ -277,7 +295,7 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoWithEmailFetchFa
 					Return(userInfo, nil).Once()
 				suite.mockHTTPClient.On("Do", mock.Anything).Return(resp, nil).Once()
 			},
-			errCode: oauth.ErrorUnexpectedServerError.Code,
+			errCode: serviceerror.InternalServerError.Code,
 		},
 		{
 			name: "EmailFetchInvalidJSON",
@@ -289,7 +307,8 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoWithEmailFetchFa
 				config := &oauth.OAuthClientConfig{
 					Scopes: []string{"user:email"},
 					OAuthEndpoints: oauth.OAuthEndpoints{
-						UserInfoEndpoint: UserInfoEndpoint,
+						UserInfoEndpoint:  githubUserInfoEndpoint,
+						UserEmailEndpoint: githubUserEmailEndpoint,
 					},
 				}
 
@@ -304,7 +323,7 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoWithEmailFetchFa
 					Return(userInfo, nil).Once()
 				suite.mockHTTPClient.On("Do", mock.Anything).Return(resp, nil).Once()
 			},
-			errCode: oauth.ErrorUnexpectedServerError.Code,
+			errCode: serviceerror.InternalServerError.Code,
 		},
 	}
 
@@ -366,6 +385,20 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestShouldFetchEmailAndGetMetadat
 	suite.Equal(idp.IDPTypeGitHub, meta.AssociatedIDP)
 }
 
+func (suite *GithubOAuthAuthnServiceTestSuite) TestGetOAuthClientConfig() {
+	expectedConfig := &oauth.OAuthClientConfig{
+		ClientID:     "test-client",
+		ClientSecret: "test-secret",
+		Scopes:       []string{"user"},
+	}
+	suite.mockOAuthService.On("GetOAuthClientConfig", testGithubIDPID).Return(expectedConfig, nil)
+
+	config, err := suite.service.GetOAuthClientConfig(testGithubIDPID)
+	suite.Nil(err)
+	suite.NotNil(config)
+	suite.Equal("test-client", config.ClientID)
+}
+
 func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchPrimaryEmailEdgeCases() {
 	// no primary present
 	emailData := []map[string]interface{}{
@@ -379,12 +412,18 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchPrimaryEmailEdgeCases() 
 		Body:       io.NopCloser(bytes.NewReader(emailJSON)),
 	}
 
+	config := &oauth.OAuthClientConfig{
+		OAuthEndpoints: oauth.OAuthEndpoints{
+			UserEmailEndpoint: githubUserEmailEndpoint,
+		},
+	}
+
 	suite.mockHTTPClient.On("Do", mock.Anything).Return(resp, nil).Once()
 
 	gsvc, ok := suite.service.(*githubOAuthAuthnService)
 	suite.True(ok)
 
-	email, svcErr := gsvc.fetchPrimaryEmail(testAccessToken)
+	email, svcErr := gsvc.fetchPrimaryEmail(config, testAccessToken)
 	suite.Nil(svcErr)
 	suite.Equal("", email)
 
@@ -394,7 +433,7 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchPrimaryEmailEdgeCases() 
 	resp2 := &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(badJSON))}
 
 	suite.mockHTTPClient.On("Do", mock.Anything).Return(resp2, nil).Once()
-	email2, svcErr2 := gsvc.fetchPrimaryEmail(testAccessToken)
+	email2, svcErr2 := gsvc.fetchPrimaryEmail(config, testAccessToken)
 	suite.Nil(svcErr2)
 	suite.Equal("", email2)
 }
@@ -438,7 +477,7 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoNoEmailScope() {
 	config := &oauth.OAuthClientConfig{
 		Scopes: []string{"profile"},
 		OAuthEndpoints: oauth.OAuthEndpoints{
-			UserInfoEndpoint: UserInfoEndpoint,
+			UserInfoEndpoint: githubUserInfoEndpoint,
 		},
 	}
 
@@ -449,4 +488,69 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoNoEmailScope() {
 	suite.Nil(err)
 	suite.NotNil(result)
 	suite.Equal("12345", result["sub"])
+}
+
+func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchPrimaryEmailWithEmptyEndpoint() {
+	accessToken := testAccessToken
+	userInfo := map[string]interface{}{
+		"id":    float64(12345),
+		"login": "testuser",
+	}
+
+	config := &oauth.OAuthClientConfig{
+		Scopes: []string{"user:email"},
+		OAuthEndpoints: oauth.OAuthEndpoints{
+			UserInfoEndpoint:  githubUserInfoEndpoint,
+			UserEmailEndpoint: "", // Empty - should return error
+		},
+	}
+
+	suite.mockOAuthService.On("GetOAuthClientConfig", testGithubIDPID).Return(config, nil).Once()
+	suite.mockOAuthService.On("FetchUserInfoWithClientConfig", config, accessToken).Return(userInfo, nil)
+
+	result, err := suite.service.FetchUserInfo(testGithubIDPID, accessToken)
+	suite.NotNil(err)
+	suite.Equal(serviceerror.InternalServerError.Code, err.Code)
+	suite.Nil(result)
+}
+
+func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchUserInfoWithEmptyPrimaryEmail() {
+	accessToken := testAccessToken
+	userInfo := map[string]interface{}{
+		"id":    float64(12345),
+		"login": "testuser",
+	}
+	emailData := []map[string]interface{}{
+		{
+			"email":    "test@example.com",
+			"primary":  false, // Not primary
+			"verified": true,
+		},
+	}
+	emailJSON, _ := json.Marshal(emailData)
+
+	config := &oauth.OAuthClientConfig{
+		Scopes: []string{"user:email"},
+		OAuthEndpoints: oauth.OAuthEndpoints{
+			UserInfoEndpoint:  githubUserInfoEndpoint,
+			UserEmailEndpoint: githubUserEmailEndpoint,
+		},
+	}
+
+	resp := &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewReader(emailJSON)),
+	}
+
+	suite.mockOAuthService.On("GetOAuthClientConfig", testGithubIDPID).Return(config, nil).Once()
+	suite.mockOAuthService.On("FetchUserInfoWithClientConfig", config, accessToken).Return(userInfo, nil)
+	suite.mockHTTPClient.On("Do", mock.Anything).Return(resp, nil)
+
+	result, err := suite.service.FetchUserInfo(testGithubIDPID, accessToken)
+	suite.Nil(err)
+	suite.NotNil(result)
+	suite.Equal("12345", result["sub"])
+	// Email should not be added since no primary email found
+	_, hasEmail := result["email"]
+	suite.False(hasEmail)
 }

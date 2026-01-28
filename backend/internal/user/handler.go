@@ -19,7 +19,6 @@
 package user
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -31,6 +30,7 @@ import (
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/system/security"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
 
@@ -54,7 +54,7 @@ func (uh *userHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 
 	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
@@ -64,25 +64,18 @@ func (uh *userHandler) HandleUserListRequest(w http.ResponseWriter, r *http.Requ
 
 	filters, svcErr := parseFilterParams(r.URL.Query())
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
 	// Get the user list using the user service.
 	userListResponse, svcErr := uh.userService.GetUserList(limit, offset, filters)
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(userListResponse); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	sysutils.WriteSuccessResponse(w, http.StatusOK, userListResponse)
 
 	logger.Debug("Successfully listed users with pagination",
 		log.Int("limit", limit), log.Int("offset", offset),
@@ -97,25 +90,23 @@ func (uh *userHandler) HandleUserPostRequest(w http.ResponseWriter, r *http.Requ
 
 	createRequest, err := sysutils.DecodeJSONBody[User](r)
 	if err != nil {
-		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        ErrorInvalidRequestFormat.Code,
+			Message:     ErrorInvalidRequestFormat.Error,
+			Description: ErrorInvalidRequestFormat.ErrorDescription,
+		}
+		sysutils.WriteErrorResponse(w, http.StatusBadRequest, errResp)
 		return
 	}
 
 	// Create the user using the user service.
-	createdUser, svcErr := uh.userService.CreateUser(createRequest)
+	createdUser, svcErr := uh.userService.CreateUser(r.Context(), createRequest)
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(createdUser); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
+	sysutils.WriteSuccessResponse(w, http.StatusCreated, createdUser)
 
 	// Log the user creation response.
 	logger.Debug("User POST response sent", log.String("user id", createdUser.ID))
@@ -127,23 +118,23 @@ func (uh *userHandler) HandleUserGetRequest(w http.ResponseWriter, r *http.Reque
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Bad Request: Missing user id.", http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        ErrorMissingUserID.Code,
+			Message:     ErrorMissingUserID.Error,
+			Description: ErrorMissingUserID.ErrorDescription,
+		}
+		sysutils.WriteErrorResponse(w, http.StatusBadRequest, errResp)
 		return
 	}
 
 	// Get the user using the user service.
 	user, svcErr := uh.userService.GetUser(id)
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(user); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
+	sysutils.WriteSuccessResponse(w, http.StatusOK, user)
 
 	// Log the user response.
 	logger.Debug("User GET response sent", log.String("user id", id))
@@ -155,13 +146,13 @@ func (ah *userHandler) HandleUserGroupsGetRequest(w http.ResponseWriter, r *http
 
 	id := r.PathValue("id")
 	if id == "" {
-		handleError(w, logger, &ErrorMissingUserID)
+		handleError(w, &ErrorMissingUserID)
 		return
 	}
 
 	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
@@ -171,18 +162,11 @@ func (ah *userHandler) HandleUserGroupsGetRequest(w http.ResponseWriter, r *http
 
 	groupListResponse, svcErr := ah.userService.GetUserGroups(id, limit, offset)
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(groupListResponse); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	sysutils.WriteSuccessResponse(w, http.StatusOK, groupListResponse)
 
 	logger.Debug("Successfully retrieved user groups", log.String("user id", id),
 		log.Int("limit", limit), log.Int("offset", offset),
@@ -196,13 +180,23 @@ func (uh *userHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 
 	id := strings.TrimPrefix(r.URL.Path, "/users/")
 	if id == "" {
-		http.Error(w, "Bad Request: Missing user id.", http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        ErrorMissingUserID.Code,
+			Message:     ErrorMissingUserID.Error,
+			Description: ErrorMissingUserID.ErrorDescription,
+		}
+		sysutils.WriteErrorResponse(w, http.StatusBadRequest, errResp)
 		return
 	}
 
 	updateRequest, err := sysutils.DecodeJSONBody[User](r)
 	if err != nil {
-		http.Error(w, "Bad Request: The request body is malformed or contains invalid data.", http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        ErrorInvalidRequestFormat.Code,
+			Message:     ErrorInvalidRequestFormat.Error,
+			Description: ErrorInvalidRequestFormat.ErrorDescription,
+		}
+		sysutils.WriteErrorResponse(w, http.StatusBadRequest, errResp)
 		return
 	}
 	updateRequest.ID = id
@@ -210,16 +204,11 @@ func (uh *userHandler) HandleUserPutRequest(w http.ResponseWriter, r *http.Reque
 	// Update the user using the user service.
 	user, svcErr := uh.userService.UpdateUser(id, updateRequest)
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(user); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
+	sysutils.WriteSuccessResponse(w, http.StatusOK, user)
 
 	// Log the user response.
 	logger.Debug("User PUT response sent", log.String("user id", id))
@@ -231,18 +220,23 @@ func (uh *userHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Re
 
 	id := strings.TrimPrefix(r.URL.Path, "/users/")
 	if id == "" {
-		http.Error(w, "Bad Request: Missing user id.", http.StatusBadRequest)
+		errResp := apierror.ErrorResponse{
+			Code:        ErrorMissingUserID.Code,
+			Message:     ErrorMissingUserID.Error,
+			Description: ErrorMissingUserID.ErrorDescription,
+		}
+		sysutils.WriteErrorResponse(w, http.StatusBadRequest, errResp)
 		return
 	}
 
 	// Delete the user using the user service.
 	svcErr := uh.userService.DeleteUser(id)
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	sysutils.WriteSuccessResponse(w, http.StatusNoContent, nil)
 
 	// Log the user response.
 	logger.Debug("User DELETE response sent", log.String("user id", id))
@@ -252,14 +246,14 @@ func (uh *userHandler) HandleUserDeleteRequest(w http.ResponseWriter, r *http.Re
 func (uh *userHandler) HandleUserListByPathRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, handlerLoggerComponentName))
 
-	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	path, pathValidationFailed := extractAndValidatePath(w, r)
 	if pathValidationFailed {
 		return
 	}
 
 	limit, offset, svcErr := parsePaginationParams(r.URL.Query())
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
@@ -269,24 +263,17 @@ func (uh *userHandler) HandleUserListByPathRequest(w http.ResponseWriter, r *htt
 
 	filters, svcErr := parseFilterParams(r.URL.Query())
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
 	userListResponse, svcErr := uh.userService.GetUsersByPath(path, limit, offset, filters)
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(userListResponse); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	sysutils.WriteSuccessResponse(w, http.StatusOK, userListResponse)
 
 	logger.Debug("Successfully listed users by path", log.String("path", path),
 		log.Int("limit", limit), log.Int("offset", offset),
@@ -299,45 +286,114 @@ func (uh *userHandler) HandleUserListByPathRequest(w http.ResponseWriter, r *htt
 func (uh *userHandler) HandleUserPostByPathRequest(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, handlerLoggerComponentName))
 
-	path, pathValidationFailed := extractAndValidatePath(w, r, logger)
+	path, pathValidationFailed := extractAndValidatePath(w, r)
 	if pathValidationFailed {
 		return
 	}
 
 	createRequest, err := sysutils.DecodeJSONBody[CreateUserByPathRequest](r)
 	if err != nil {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
-
 		errResp := apierror.ErrorResponse{
 			Code:        ErrorInvalidRequestFormat.Code,
 			Message:     ErrorInvalidRequestFormat.Error,
 			Description: "Failed to parse request body: " + err.Error(),
 		}
-
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+		sysutils.WriteErrorResponse(w, http.StatusBadRequest, errResp)
 		return
 	}
 
-	user, svcErr := uh.userService.CreateUserByPath(path, *createRequest)
+	user, svcErr := uh.userService.CreateUserByPath(r.Context(), path, *createRequest)
 	if svcErr != nil {
-		handleError(w, logger, svcErr)
+		handleError(w, svcErr)
 		return
 	}
 
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(user); err != nil {
-		logger.Error("Error encoding response", log.Error(err))
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	sysutils.WriteSuccessResponse(w, http.StatusCreated, user)
 
 	logger.Debug("Successfully created user by path", log.String("path", path), log.String("userType", user.Type))
+}
+
+// HandleSelfUserGetRequest handles the self user retrieval.
+func (uh *userHandler) HandleSelfUserGetRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, handlerLoggerComponentName))
+
+	userID := security.GetUserID(r.Context())
+	if strings.TrimSpace(userID) == "" {
+		handleError(w, &ErrorAuthenticationFailed)
+		return
+	}
+
+	user, svcErr := uh.userService.GetUser(userID)
+	if svcErr != nil {
+		handleError(w, svcErr)
+		return
+	}
+
+	sysutils.WriteSuccessResponse(w, http.StatusOK, user)
+
+	logger.Debug("Self user GET response sent", log.String("user id", userID))
+}
+
+// HandleSelfUserPutRequest handles the self user update.
+func (uh *userHandler) HandleSelfUserPutRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, handlerLoggerComponentName))
+
+	userID := security.GetUserID(r.Context())
+	if strings.TrimSpace(userID) == "" {
+		handleError(w, &ErrorAuthenticationFailed)
+		return
+	}
+
+	updateRequest, err := sysutils.DecodeJSONBody[UpdateSelfUserRequest](r)
+	if err != nil {
+		handleError(w, &ErrorInvalidRequestFormat)
+		return
+	}
+
+	if updateRequest == nil || len(updateRequest.Attributes) == 0 {
+		handleError(w, &ErrorInvalidRequestFormat)
+		return
+	}
+
+	updatedUser, svcErr := uh.userService.UpdateUserAttributes(userID, updateRequest.Attributes)
+	if svcErr != nil {
+		handleError(w, svcErr)
+		return
+	}
+
+	sysutils.WriteSuccessResponse(w, http.StatusOK, updatedUser)
+
+	logger.Debug("Self user PUT response sent", log.String("user id", userID))
+}
+
+// HandleSelfUserCredentialUpdateRequest handles the credential update for the authenticated user.
+func (uh *userHandler) HandleSelfUserCredentialUpdateRequest(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, handlerLoggerComponentName))
+
+	userID := security.GetUserID(r.Context())
+	if strings.TrimSpace(userID) == "" {
+		handleError(w, &ErrorAuthenticationFailed)
+		return
+	}
+
+	updateRequest, err := sysutils.DecodeJSONBody[UpdateSelfUserRequest](r)
+	if err != nil {
+		handleError(w, &ErrorInvalidRequestFormat)
+		return
+	}
+
+	if updateRequest == nil || len(updateRequest.Attributes) == 0 || string(updateRequest.Attributes) == "{}" {
+		handleError(w, &ErrorMissingCredentials)
+		return
+	}
+
+	if svcErr := uh.userService.UpdateUserCredentials(userID, updateRequest.Attributes); svcErr != nil {
+		handleError(w, svcErr)
+		return
+	}
+
+	sysutils.WriteSuccessResponse(w, http.StatusNoContent, nil)
+	logger.Debug("Self user credential update response sent", log.String("user id", userID))
 }
 
 // parsePaginationParams parses limit and offset query parameters from the request.
@@ -369,9 +425,7 @@ func parsePaginationParams(query url.Values) (int, int, *serviceerror.ServiceErr
 }
 
 // handleError handles service errors and writes appropriate HTTP responses.
-func handleError(w http.ResponseWriter, logger *log.Logger, svcErr *serviceerror.ServiceError) {
-	w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-
+func handleError(w http.ResponseWriter, svcErr *serviceerror.ServiceError) {
 	var statusCode int
 	if svcErr.Type == serviceerror.ClientErrorType {
 		switch svcErr.Code {
@@ -396,35 +450,25 @@ func handleError(w http.ResponseWriter, logger *log.Logger, svcErr *serviceerror
 		statusCode = http.StatusInternalServerError
 	}
 
-	w.WriteHeader(statusCode)
-
 	errResp := apierror.ErrorResponse{
 		Code:        svcErr.Code,
 		Message:     svcErr.Error,
 		Description: svcErr.ErrorDescription,
 	}
 
-	if err := json.NewEncoder(w).Encode(errResp); err != nil {
-		logger.Error("Error encoding error response", log.Error(err))
-		http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-	}
+	sysutils.WriteErrorResponse(w, statusCode, errResp)
 }
 
 // extractAndValidatePath extracts and validates the path parameter from the request.
-func extractAndValidatePath(w http.ResponseWriter, r *http.Request, logger *log.Logger) (string, bool) {
+func extractAndValidatePath(w http.ResponseWriter, r *http.Request) (string, bool) {
 	path := r.PathValue("path")
 	if path == "" {
-		w.Header().Set(serverconst.ContentTypeHeaderName, serverconst.ContentTypeJSON)
-		w.WriteHeader(http.StatusBadRequest)
 		errResp := apierror.ErrorResponse{
 			Code:        ErrorHandlePathRequired.Code,
 			Message:     ErrorHandlePathRequired.Error,
 			Description: ErrorHandlePathRequired.ErrorDescription,
 		}
-		if err := json.NewEncoder(w).Encode(errResp); err != nil {
-			logger.Error("Error encoding error response", log.Error(err))
-			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-		}
+		sysutils.WriteErrorResponse(w, http.StatusBadRequest, errResp)
 		return "", true
 	}
 	return path, false

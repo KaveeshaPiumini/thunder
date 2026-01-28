@@ -7,7 +7,7 @@ import (
 
 func TestNewEvent(t *testing.T) {
 	traceID := "trace-123"
-	eventType := string(EventTypeAuthenticationStarted)
+	eventType := string(EventTypeTokenIssuanceStarted)
 	component := "TestComponent"
 
 	evt := NewEvent(traceID, eventType, component)
@@ -46,17 +46,14 @@ func TestNewEvent(t *testing.T) {
 }
 
 func TestEventBuilderPattern(t *testing.T) {
-	evt := NewEvent("trace-123", string(EventTypeTokenIssued), "TokenHandler")
+	evt := NewEvent("trace-123", string(EventTypeTokenIssuanceStarted), "test-component")
 
 	result := evt.
 		WithStatus(StatusSuccess).
 		WithData(DataKey.UserID, "user-456").
 		WithData(DataKey.ClientID, "client-789").
-		WithData(DataKey.SessionID, "session-abc").
-		WithData(DataKey.Message, "Token issued successfully").
-		WithData(DataKey.DurationMs, 500).
-		WithData(DataKey.IPAddress, "192.168.1.1").
-		WithData(DataKey.UserAgent, "Mozilla/5.0")
+		WithData(DataKey.Message, "Authentication completed successfully").
+		WithData(DataKey.DurationMs, 500)
 
 	if result != evt {
 		t.Error("Builder methods should return the same event instance")
@@ -74,24 +71,12 @@ func TestEventBuilderPattern(t *testing.T) {
 		t.Errorf("Expected Data[client_id] %s, got %v", "client-789", evt.Data["client_id"])
 	}
 
-	if evt.Data["session_id"] != "session-abc" {
-		t.Errorf("Expected Data[session_id] %s, got %v", "session-abc", evt.Data["session_id"])
-	}
-
-	if evt.Data["message"] != "Token issued successfully" {
-		t.Errorf("Expected Data[message] %s, got %v", "Token issued successfully", evt.Data["message"])
+	if evt.Data["message"] != "Authentication completed successfully" {
+		t.Errorf("Expected Data[message] %s, got %v", "Authentication completed successfully", evt.Data["message"])
 	}
 
 	if evt.Data["duration_ms"] != 500 {
 		t.Errorf("Expected Data[duration_ms] %d, got %v", 500, evt.Data["duration_ms"])
-	}
-
-	if evt.Data["ip_address"] != "192.168.1.1" {
-		t.Errorf("Expected Data[ip_address] %s, got %v", "192.168.1.1", evt.Data["ip_address"])
-	}
-
-	if evt.Data["user_agent"] != "Mozilla/5.0" {
-		t.Errorf("Expected Data[user_agent] %s, got %v", "Mozilla/5.0", evt.Data["user_agent"])
 	}
 }
 
@@ -128,7 +113,7 @@ func TestEventValidate(t *testing.T) {
 			event: &Event{
 				TraceID:   "trace-123",
 				EventID:   "event-456",
-				Type:      string(EventTypeAuthenticationStarted),
+				Type:      string(EventTypeTokenIssuanceStarted),
 				Component: "TestComponent",
 				Timestamp: time.Now(),
 			},
@@ -144,7 +129,7 @@ func TestEventValidate(t *testing.T) {
 			name: "missing trace ID",
 			event: &Event{
 				EventID:   "event-456",
-				Type:      string(EventTypeAuthenticationStarted),
+				Type:      string(EventTypeTokenIssuanceStarted),
 				Component: "TestComponent",
 				Timestamp: time.Now(),
 			},
@@ -155,7 +140,7 @@ func TestEventValidate(t *testing.T) {
 			name: "missing event ID",
 			event: &Event{
 				TraceID:   "trace-123",
-				Type:      string(EventTypeAuthenticationStarted),
+				Type:      string(EventTypeTokenIssuanceStarted),
 				Component: "TestComponent",
 				Timestamp: time.Now(),
 			},
@@ -178,7 +163,7 @@ func TestEventValidate(t *testing.T) {
 			event: &Event{
 				TraceID:   "trace-123",
 				EventID:   "event-456",
-				Type:      string(EventTypeAuthenticationStarted),
+				Type:      string(EventTypeTokenIssuanceStarted),
 				Timestamp: time.Now(),
 			},
 			wantErr: true,
@@ -189,7 +174,7 @@ func TestEventValidate(t *testing.T) {
 			event: &Event{
 				TraceID:   "trace-123",
 				EventID:   "event-456",
-				Type:      string(EventTypeAuthenticationStarted),
+				Type:      string(EventTypeTokenIssuanceStarted),
 				Component: "TestComponent",
 			},
 			wantErr: true,
@@ -215,7 +200,7 @@ func TestEventDataNilSafety(t *testing.T) {
 	evt := &Event{
 		TraceID:   "trace-123",
 		EventID:   "event-456",
-		Type:      string(EventTypeAuthenticationStarted),
+		Type:      string(EventTypeTokenIssuanceStarted),
 		Component: "TestComponent",
 		Timestamp: time.Now(),
 		Data:      nil, // Explicitly nil
@@ -235,16 +220,16 @@ func TestEventDataNilSafety(t *testing.T) {
 
 func TestEventTypeConstants(t *testing.T) {
 	// Just verify some key constants exist
-	if EventTypeAuthenticationStarted == "" {
-		t.Error("EventTypeAuthenticationStarted should not be empty")
+	if EventTypeTokenIssuanceStarted == "" {
+		t.Error("EventTypeTokenIssuanceStarted should not be empty")
 	}
 
 	if EventTypeTokenIssued == "" {
 		t.Error("EventTypeTokenIssued should not be empty")
 	}
 
-	if EventTypeAuthorizationStarted == "" {
-		t.Error("EventTypeAuthorizationStarted should not be empty")
+	if EventTypeTokenIssuanceFailed == "" {
+		t.Error("EventTypeTokenIssuanceFailed should not be empty")
 	}
 }
 

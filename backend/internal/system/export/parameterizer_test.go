@@ -19,11 +19,28 @@
 package export
 
 import (
+	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+
+	immutableresource "github.com/asgardeo/thunder/internal/system/immutable_resource"
 )
+
+// Helper to convert local resourceRules to immutableresource.ResourceRules for testing
+func toImmutableResourceRules(r *resourceRules) *immutableresource.ResourceRules {
+	if r == nil {
+		return nil
+	}
+	return &immutableresource.ResourceRules{
+		Variables:             r.Variables,
+		ArrayVariables:        r.ArrayVariables,
+		DynamicPropertyFields: r.DynamicPropertyFields,
+	}
+}
 
 // Test struct with omitempty tags
 type TestApp struct {
@@ -67,7 +84,8 @@ func TestToParameterizedYAML_WithOmitemptyFields(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		app, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 	require.NotEmpty(t, result)
@@ -118,7 +136,8 @@ func TestToParameterizedYAML_WithPopulatedFields(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		app, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 	require.NotEmpty(t, result)
@@ -169,7 +188,8 @@ func TestToParameterizedYAML_MixedEmptyAndPopulated(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		app, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 	require.NotEmpty(t, result)
@@ -297,7 +317,7 @@ func TestOmitempty_EmptyFieldsWithoutRules(t *testing.T) {
 
 	// No parameterization rules - omitempty should work normally
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, result)
@@ -324,7 +344,7 @@ func TestOmitempty_EmptyArraysOmitted(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 	assert.NotContains(t, result, "grantTypes:", "Empty GrantTypes array should be omitted")
@@ -342,7 +362,7 @@ func TestOmitempty_NilSlicesOmitted(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 	assert.NotContains(t, result, "grantTypes:", "Nil GrantTypes should be omitted")
@@ -357,7 +377,7 @@ func TestOmitempty_NilPointersOmitted(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 	assert.NotContains(t, result, "oauth:", "Nil OAuth pointer should be omitted")
@@ -387,7 +407,8 @@ func TestParameterization_OverridesOmitemptyForVariables(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		app, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 
@@ -416,7 +437,8 @@ func TestParameterization_OverridesOmitemptyForArrays(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		app, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 
@@ -448,7 +470,8 @@ func TestParameterization_NestedFieldsWithOmitempty(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		app, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 
@@ -484,7 +507,8 @@ func TestParameterization_MixedRulesAndOmitempty(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		app, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 
@@ -523,7 +547,7 @@ func TestFieldOrder_TopLevelFieldsPreserved(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -551,7 +575,7 @@ func TestFieldOrder_WithOmittedFields(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -593,7 +617,7 @@ func TestFieldOrder_NestedFieldsPreserved(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -653,7 +677,7 @@ func TestEdgeCase_DeeplyNestedStructures(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 	assert.Contains(t, result, "level1:")
@@ -685,7 +709,7 @@ func TestEdgeCase_ArraysOfStructs(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 	assert.Contains(t, result, "items:")
@@ -708,7 +732,7 @@ func TestEdgeCase_EmptyStructWithOmitempty(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(app, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -775,7 +799,7 @@ func TestIsEmptyValue_IntegerTypes(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -798,7 +822,7 @@ func TestIsEmptyValue_UnsignedIntegerTypes(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -818,7 +842,7 @@ func TestIsEmptyValue_FloatTypes(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -834,7 +858,7 @@ func TestIsEmptyValue_BoolType(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -853,7 +877,7 @@ func TestIsEmptyValue_NonZeroValues(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -1005,7 +1029,8 @@ func TestRenderNode_ComplexTemplateStructures(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		obj, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 
@@ -1027,7 +1052,7 @@ func TestRenderNode_ArrayOfMaps(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -1038,21 +1063,27 @@ func TestRenderNode_ArrayOfMaps(t *testing.T) {
 	assert.Contains(t, result, "key3: value3")
 }
 
-// TestToParameterizedYAML_UnknownResourceType tests error handling for unknown resource types
-func TestToParameterizedYAML_UnknownResourceType(t *testing.T) {
+// TestToParameterizedYAML_NilRules tests behavior with nil rules
+func TestToParameterizedYAML_NilRules(t *testing.T) {
 	obj := &TestApp{
-		Name: "TestApp",
+		Name:     "TestApp",
+		ClientID: "test-client-id",
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	_, err := parameterizer.ToParameterizedYAML(obj, "UnknownType", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown resource type")
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	// With nil rules, fields should just be serialized normally without parameterization
+	assert.Contains(t, result, "name: TestApp")
+	assert.Contains(t, result, "clientId: test-client-id")
+	assert.NotContains(t, result, "{{.") // No template variables
 }
 
-// TestToParameterizedYAML_NilRules tests behavior with nil rules
-func TestToParameterizedYAML_NilRules(t *testing.T) {
+// TestToParameterizedYAML_NilRulesWithOmitempty tests behavior with nil rules and omitempty fields
+func TestToParameterizedYAML_NilRulesWithOmitempty(t *testing.T) {
 	obj := &TestApp{
 		Name:     "TestApp",
 		ClientID: "test-client",
@@ -1063,7 +1094,8 @@ func TestToParameterizedYAML_NilRules(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		obj, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 	require.NotEmpty(t, result)
@@ -1112,7 +1144,7 @@ func TestRenderNode_NestedArraysInSequence(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -1132,7 +1164,7 @@ func TestFieldToNode_NilPointer(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(templatingRules{})
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp", nil)
 
 	require.NoError(t, err)
 
@@ -1156,7 +1188,8 @@ func TestConvertPathToYAMLPath_NonStructType(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		obj, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 	// Should still generate output, even though path doesn't fully resolve
@@ -1178,9 +1211,586 @@ func TestFindFieldByNameCaseInsensitive_NotFound(t *testing.T) {
 	}
 
 	parameterizer := newParameterizer(rules)
-	result, err := parameterizer.ToParameterizedYAML(obj, "Application", "TestApp")
+	result, err := parameterizer.ToParameterizedYAML(
+		obj, "Application", "TestApp", toImmutableResourceRules(rules.Application))
 
 	require.NoError(t, err)
 	// Should generate output without the non-existent field
 	assert.Contains(t, result, "name: TestApp")
+}
+
+// TestToParameterizedYAML_InvalidStruct tests error when passing non-struct type.
+func TestToParameterizedYAML_InvalidStruct(t *testing.T) {
+	p := newParameterizer(templatingRules{
+		Application: &resourceRules{
+			Variables: []string{"Name"},
+		},
+	})
+
+	// Pass non-struct type
+	var notAStruct int = 42
+
+	_, err := p.ToParameterizedYAML(notAStruct, "Application", "Test", nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to convert object to node")
+	assert.Contains(t, err.Error(), "expected struct")
+}
+
+// TestHandleInterfaceValue_WithComplexObject tests handleInterfaceValue with complex nested objects
+func TestHandleInterfaceValue_WithComplexObject(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	// Create a complex interface{} value
+	complexData := map[string]interface{}{
+		"title":       "Login Page",
+		"description": "Please enter your credentials",
+		"components": []interface{}{
+			map[string]interface{}{
+				"id":       "username_field",
+				"type":     "TEXT_INPUT",
+				"label":    "Username",
+				"required": true,
+			},
+			map[string]interface{}{
+				"id":       "password_field",
+				"type":     "PASSWORD_INPUT",
+				"label":    "Password",
+				"required": true,
+			},
+		},
+		"theme": map[string]interface{}{
+			"primaryColor":   "#0066cc",
+			"secondaryColor": "#6c757d",
+			"fonts": map[string]interface{}{
+				"heading": "Arial",
+				"body":    "Helvetica",
+			},
+		},
+	}
+
+	// Wrap in interface{} to get the right reflect type
+	var interfaceValue interface{} = complexData
+	reflectValue := reflect.ValueOf(&interfaceValue).Elem()
+
+	node := p.handleInterfaceValue(reflectValue)
+
+	require.NotNil(t, node)
+	assert.Equal(t, yaml.ScalarNode, node.Kind)
+	assert.Equal(t, "!!str", node.Tag)
+
+	// Verify it's valid JSON
+	var parsed interface{}
+	err := json.Unmarshal([]byte(node.Value), &parsed)
+	require.NoError(t, err)
+
+	// Verify structure is preserved
+	parsedMap, ok := parsed.(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "Login Page", parsedMap["title"])
+	assert.Equal(t, "Please enter your credentials", parsedMap["description"])
+
+	components, ok := parsedMap["components"].([]interface{})
+	require.True(t, ok)
+	assert.Len(t, components, 2)
+
+	theme, ok := parsedMap["theme"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "#0066cc", theme["primaryColor"])
+}
+
+// TestHandleInterfaceValue_WithNilInterface tests handleInterfaceValue with nil interface
+func TestHandleInterfaceValue_WithNilInterface(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	var nilInterface interface{}
+	reflectValue := reflect.ValueOf(&nilInterface).Elem()
+
+	node := p.handleInterfaceValue(reflectValue)
+
+	require.NotNil(t, node)
+	assert.Equal(t, yaml.ScalarNode, node.Kind)
+	assert.Equal(t, "!!null", node.Tag)
+	assert.Equal(t, "null", node.Value)
+}
+
+// TestHandleInterfaceValue_WithPrimitiveTypes tests handleInterfaceValue with various primitive types
+func TestHandleInterfaceValue_WithPrimitiveTypes(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	testCases := []struct {
+		name          string
+		value         interface{}
+		expectedValue string
+	}{
+		{
+			name:          "string value",
+			value:         "test string",
+			expectedValue: `"test string"`,
+		},
+		{
+			name:          "integer value",
+			value:         42,
+			expectedValue: "42",
+		},
+		{
+			name:          "float value",
+			value:         3.14,
+			expectedValue: "3.14",
+		},
+		{
+			name:          "boolean true",
+			value:         true,
+			expectedValue: "true",
+		},
+		{
+			name:          "boolean false",
+			value:         false,
+			expectedValue: "false",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Wrap in interface{} to get the right reflect type
+			var interfaceValue interface{} = tc.value
+			reflectValue := reflect.ValueOf(&interfaceValue).Elem()
+
+			node := p.handleInterfaceValue(reflectValue)
+
+			require.NotNil(t, node)
+			assert.Equal(t, yaml.ScalarNode, node.Kind)
+			assert.Equal(t, "!!str", node.Tag)
+			assert.Equal(t, tc.expectedValue, node.Value)
+		})
+	}
+}
+
+// TestHandleInterfaceValue_WithArrays tests handleInterfaceValue with arrays
+func TestHandleInterfaceValue_WithArrays(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	testCases := []struct {
+		name  string
+		value interface{}
+	}{
+		{
+			name:  "string array",
+			value: []string{"one", "two", "three"},
+		},
+		{
+			name:  "integer array",
+			value: []int{1, 2, 3, 4, 5},
+		},
+		{
+			name: "mixed array",
+			value: []interface{}{
+				"string",
+				42,
+				true,
+				map[string]interface{}{"key": "value"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Wrap in interface{} to get the right reflect type
+			var interfaceValue interface{} = tc.value
+			reflectValue := reflect.ValueOf(&interfaceValue).Elem()
+
+			node := p.handleInterfaceValue(reflectValue)
+
+			require.NotNil(t, node)
+			assert.Equal(t, yaml.ScalarNode, node.Kind)
+			assert.Equal(t, "!!str", node.Tag)
+
+			// Verify it's valid JSON
+			var parsed interface{}
+			err := json.Unmarshal([]byte(node.Value), &parsed)
+			require.NoError(t, err, "Should produce valid JSON")
+		})
+	}
+}
+
+// TestHandleInterfaceValue_WithNestedStructures tests handleInterfaceValue with deeply nested structures
+func TestHandleInterfaceValue_WithNestedStructures(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	deeplyNested := map[string]interface{}{
+		"level1": map[string]interface{}{
+			"level2": map[string]interface{}{
+				"level3": map[string]interface{}{
+					"level4": map[string]interface{}{
+						"level5": "deep value",
+						"array": []interface{}{
+							map[string]interface{}{
+								"nested_key": "nested_value",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Wrap in interface{} to get the right reflect type
+	var interfaceValue interface{} = deeplyNested
+	reflectValue := reflect.ValueOf(&interfaceValue).Elem()
+
+	node := p.handleInterfaceValue(reflectValue)
+
+	require.NotNil(t, node)
+	assert.Equal(t, yaml.ScalarNode, node.Kind)
+	assert.Equal(t, "!!str", node.Tag)
+
+	// Verify it's valid JSON and structure is preserved
+	var parsed map[string]interface{}
+	err := json.Unmarshal([]byte(node.Value), &parsed)
+	require.NoError(t, err)
+
+	// Navigate to the deep value
+	level1, ok := parsed["level1"].(map[string]interface{})
+	require.True(t, ok)
+	level2, ok := level1["level2"].(map[string]interface{})
+	require.True(t, ok)
+	level3, ok := level2["level3"].(map[string]interface{})
+	require.True(t, ok)
+	level4, ok := level3["level4"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "deep value", level4["level5"])
+}
+
+// TestHandleInterfaceValue_WithEmptyStructures tests handleInterfaceValue with empty containers
+func TestHandleInterfaceValue_WithEmptyStructures(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	testCases := []struct {
+		name  string
+		value interface{}
+	}{
+		{
+			name:  "empty map",
+			value: map[string]interface{}{},
+		},
+		{
+			name:  "empty slice",
+			value: []interface{}{},
+		},
+		{
+			name:  "empty string slice",
+			value: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Wrap in interface{} to get the right reflect type
+			var interfaceValue interface{} = tc.value
+			reflectValue := reflect.ValueOf(&interfaceValue).Elem()
+
+			node := p.handleInterfaceValue(reflectValue)
+
+			require.NotNil(t, node)
+			assert.Equal(t, yaml.ScalarNode, node.Kind)
+			assert.Equal(t, "!!str", node.Tag)
+
+			// Verify it's valid JSON
+			var parsed interface{}
+			err := json.Unmarshal([]byte(node.Value), &parsed)
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestHandleInterfaceValue_WithUnmarshallableType tests fallback to fmt.Sprintf when JSON marshaling fails
+func TestHandleInterfaceValue_WithUnmarshallableType(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	// Create a type that json.Marshal cannot handle but doesn't panic
+	// Use a map with non-string keys (json.Marshal will fail for this)
+	type customKey struct {
+		ID int
+	}
+
+	problemMap := map[customKey]string{
+		{ID: 1}: "value1",
+		{ID: 2}: "value2",
+	}
+
+	// Wrap in interface{} to get the right reflect type
+	var interfaceValue interface{} = problemMap
+	reflectValue := reflect.ValueOf(&interfaceValue).Elem()
+
+	node := p.handleInterfaceValue(reflectValue)
+
+	require.NotNil(t, node)
+	assert.Equal(t, yaml.ScalarNode, node.Kind)
+	assert.Equal(t, "!!str", node.Tag)
+
+	// Verify it uses the fmt.Sprintf fallback (should contain "map[")
+	assert.Contains(t, node.Value, "map[")
+
+	// Verify it's NOT valid JSON (because it used the fallback)
+	var parsed interface{}
+	err := json.Unmarshal([]byte(node.Value), &parsed)
+	assert.Error(t, err, "Should not be valid JSON since it used fmt.Sprintf fallback")
+}
+
+// TestFieldToNode_JSONRawMessage tests that json.RawMessage fields are properly converted to JSON strings.
+func TestFieldToNode_JSONRawMessage(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	// Test with a JSON object - should be exported as a JSON string
+	jsonObj := json.RawMessage(
+		`{"username":{"type":"string","required":true},"email":{"type":"string","required":true}}`)
+	v := reflect.ValueOf(jsonObj)
+	node, err := p.fieldToNode(v, nil, "", "TestSchema")
+
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.Equal(t, yaml.ScalarNode, node.Kind)
+	assert.Equal(t, "!!str", node.Tag)
+
+	// Verify it's a valid JSON string
+	assert.JSONEq(t,
+		`{"username":{"type":"string","required":true},"email":{"type":"string","required":true}}`, node.Value)
+}
+
+// TestFieldToNode_JSONRawMessageArray tests that json.RawMessage with JSON array is properly converted to JSON string.
+func TestFieldToNode_JSONRawMessageArray(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	// Test with a JSON array - should be exported as a JSON string
+	jsonArr := json.RawMessage(`["item1","item2","item3"]`)
+	v := reflect.ValueOf(jsonArr)
+	node, err := p.fieldToNode(v, nil, "", "TestSchema")
+
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.Equal(t, yaml.ScalarNode, node.Kind)
+	assert.Equal(t, "!!str", node.Tag)
+
+	// Verify it's a valid JSON string
+	assert.JSONEq(t, `["item1","item2","item3"]`, node.Value)
+}
+
+// TestFieldToNode_JSONRawMessageEmpty tests that empty json.RawMessage is handled correctly.
+func TestFieldToNode_JSONRawMessageEmpty(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	// Test with empty JSON
+	jsonEmpty := json.RawMessage(``)
+	v := reflect.ValueOf(jsonEmpty)
+	node, err := p.fieldToNode(v, nil, "", "TestSchema")
+
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.Equal(t, yaml.ScalarNode, node.Kind)
+	// Empty json.RawMessage should return null
+	assert.Equal(t, "!!null", node.Tag)
+	assert.Equal(t, "null", node.Value)
+}
+
+// TestFieldToNode_JSONRawMessageNil tests that nil json.RawMessage is handled correctly.
+func TestFieldToNode_JSONRawMessageNil(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	// Test with nil json.RawMessage (nil slice)
+	var jsonNil json.RawMessage // nil slice
+	v := reflect.ValueOf(jsonNil)
+	node, err := p.fieldToNode(v, nil, "", "TestSchema")
+
+	require.NoError(t, err)
+	require.NotNil(t, node)
+	assert.Equal(t, yaml.ScalarNode, node.Kind)
+	// Nil json.RawMessage (nil slice with Len() == 0) should return null
+	assert.Equal(t, "!!null", node.Tag)
+	assert.Equal(t, "null", node.Value)
+}
+
+// TestFieldToNode_JSONRawMessageInvalid tests that invalid JSON in RawMessage returns an error.
+func TestFieldToNode_JSONRawMessageInvalid(t *testing.T) {
+	p := newParameterizer(templatingRules{})
+
+	// Test with invalid JSON
+	jsonInvalid := json.RawMessage(`{invalid json}`)
+	v := reflect.ValueOf(jsonInvalid)
+	node, err := p.fieldToNode(v, nil, "", "TestSchema")
+
+	// Should return an error for invalid JSON
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid JSON in RawMessage")
+	assert.Nil(t, node)
+}
+
+// TestToParameterizedYAML_JSONRawMessageInvalid tests that ToParameterizedYAML propagates
+// errors when a struct contains invalid json.RawMessage
+func TestToParameterizedYAML_JSONRawMessageInvalid(t *testing.T) {
+	type TestSchema struct {
+		ID     string          `yaml:"id"`
+		Name   string          `yaml:"name"`
+		Schema json.RawMessage `yaml:"schema"`
+	}
+
+	p := newParameterizer(templatingRules{})
+
+	// Create a schema with invalid JSON
+	schema := TestSchema{
+		ID:     "test-id",
+		Name:   "TestSchema",
+		Schema: json.RawMessage(`{invalid json}`),
+	}
+
+	// Should return an error
+	result, err := p.ToParameterizedYAML(schema, "UserSchema", "TestSchema", nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid JSON in RawMessage")
+	assert.Empty(t, result)
+}
+
+// TestToParameterizedYAML_NestedStructWithInvalidJSON tests error propagation
+// when a nested struct contains invalid json.RawMessage
+func TestToParameterizedYAML_NestedStructWithInvalidJSON(t *testing.T) {
+	type NestedConfig struct {
+		Name   string          `yaml:"name"`
+		Config json.RawMessage `yaml:"config"`
+	}
+
+	type OuterStruct struct {
+		ID     string        `yaml:"id"`
+		Nested *NestedConfig `yaml:"nested"`
+	}
+
+	p := newParameterizer(templatingRules{})
+
+	// Create a struct with nested invalid JSON
+	obj := OuterStruct{
+		ID: "test-id",
+		Nested: &NestedConfig{
+			Name:   "NestedConfig",
+			Config: json.RawMessage(`{corrupted: json without quotes}`),
+		},
+	}
+
+	// Should return an error from the nested structure
+	result, err := p.ToParameterizedYAML(obj, "Config", "TestConfig", nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid JSON in RawMessage")
+	assert.Empty(t, result)
+}
+
+// =============================================================================
+// User Schema Import/Export Symmetry Tests
+// =============================================================================
+
+// TestUserSchemaImportExportSymmetry verifies that exported user schemas can be re-imported
+// This test ensures alignment between the export format and the import format used in
+// userschema.UserSchemaRequestWithID
+func TestUserSchemaImportExportSymmetry(t *testing.T) {
+	// Define the export format (UserSchema struct)
+	type UserSchema struct {
+		ID                    string          `yaml:"id"`
+		Name                  string          `yaml:"name"`
+		OrganizationUnitID    string          `yaml:"organization_unit_id"`
+		AllowSelfRegistration bool            `yaml:"allow_self_registration,omitempty"`
+		Schema                json.RawMessage `yaml:"schema"`
+	}
+
+	// Define the import format (UserSchemaRequestWithID struct)
+	type UserSchemaRequestWithID struct {
+		ID                    string `yaml:"id"`
+		Name                  string `yaml:"name"`
+		OrganizationUnitID    string `yaml:"organization_unit_id"`
+		AllowSelfRegistration bool   `yaml:"allow_self_registration,omitempty"`
+		Schema                string `yaml:"schema"` // Note: This is a string, not json.RawMessage
+	}
+
+	// Original schema with json.RawMessage
+	originalSchema := UserSchema{
+		ID:                    "93e861d5-531a-4495-b373-e3db5250e76a",
+		Name:                  "Person",
+		OrganizationUnitID:    "14abcc09-4a7f-417e-be47-88e332148a82",
+		AllowSelfRegistration: true,
+		Schema: json.RawMessage(
+			`{"username":{"type":"string","required":true,"unique":true},"email":{"type":"string","required":true}}`),
+	}
+
+	// Export using the parameterizer
+	p := newParameterizer(templatingRules{})
+	yamlOutput, err := p.ToParameterizedYAML(originalSchema, "UserSchema", "Person", nil)
+	require.NoError(t, err)
+
+	t.Logf("Exported YAML:\n%s", yamlOutput)
+
+	// Parse the exported YAML back as if importing (using UserSchemaRequestWithID format)
+	var importedSchema UserSchemaRequestWithID
+	err = yaml.Unmarshal([]byte(yamlOutput), &importedSchema)
+	require.NoError(t, err)
+
+	// Verify the imported values match the original
+	assert.Equal(t, originalSchema.ID, importedSchema.ID)
+	assert.Equal(t, originalSchema.Name, importedSchema.Name)
+	assert.Equal(t, originalSchema.OrganizationUnitID, importedSchema.OrganizationUnitID)
+	assert.Equal(t, originalSchema.AllowSelfRegistration, importedSchema.AllowSelfRegistration)
+
+	// Verify the schema is a string (as required by import format)
+	assert.IsType(t, "", importedSchema.Schema)
+
+	// Verify the schema string contains valid JSON
+	assert.True(t, json.Valid([]byte(importedSchema.Schema)), "Schema should be valid JSON")
+
+	// Verify the JSON content is equivalent
+	var originalJSON, importedJSON map[string]interface{}
+	err = json.Unmarshal(originalSchema.Schema, &originalJSON)
+	require.NoError(t, err)
+	err = json.Unmarshal([]byte(importedSchema.Schema), &importedJSON)
+	require.NoError(t, err)
+
+	assert.Equal(t, originalJSON, importedJSON, "Schema JSON content should match")
+
+	// Verify the schema is NOT an array (the original bug)
+	var yamlParsed map[string]interface{}
+	err = yaml.Unmarshal([]byte(yamlOutput), &yamlParsed)
+	require.NoError(t, err)
+
+	_, isArray := yamlParsed["schema"].([]interface{})
+	assert.False(t, isArray, "Schema should NOT be exported as an array of bytes")
+
+	_, isString := yamlParsed["schema"].(string)
+	assert.True(t, isString, "Schema should be exported as a string")
+}
+
+// TestUserSchemaExportFormat verifies the exact export format
+func TestUserSchemaExportFormat(t *testing.T) {
+	type UserSchema struct {
+		ID                    string          `yaml:"id"`
+		Name                  string          `yaml:"name"`
+		OrganizationUnitID    string          `yaml:"organization_unit_id"`
+		AllowSelfRegistration bool            `yaml:"allow_self_registration,omitempty"`
+		Schema                json.RawMessage `yaml:"schema"`
+	}
+
+	schema := UserSchema{
+		ID:                    "test-id",
+		Name:                  "TestSchema",
+		OrganizationUnitID:    "test-ou",
+		AllowSelfRegistration: false,
+		Schema:                json.RawMessage(`{"field1":"value1"}`),
+	}
+
+	p := newParameterizer(templatingRules{})
+	yamlOutput, err := p.ToParameterizedYAML(schema, "UserSchema", "TestSchema", nil)
+	require.NoError(t, err)
+
+	// Verify the schema field is a plain string in the YAML, not a structured object
+	// This ensures it can be imported using the string type in UserSchemaRequestWithID
+	assert.Contains(t, yamlOutput, `schema: '{"field1":"value1"}'`,
+		"Schema should be exported as a quoted JSON string")
+	assert.NotContains(t, yamlOutput, "schema:\n  field1:",
+		"Schema should NOT be exported as a nested YAML structure")
+	assert.NotContains(t, yamlOutput, "schema:\n  - ",
+		"Schema should NOT be exported as a YAML array")
 }

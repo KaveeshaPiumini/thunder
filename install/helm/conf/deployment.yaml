@@ -15,8 +15,10 @@
 # under the License.
 
 server:
-  hostname: {{ .Values.configuration.server.hostname | quote }}
+  hostname: "0.0.0.0"
   port: {{ .Values.configuration.server.port }}
+  http_only: {{ .Values.configuration.server.httpOnly }}
+  public_url: {{ .Values.configuration.server.publicUrl | quote }}
 
 gate_client:
   hostname: {{ .Values.configuration.gateClient.hostname | quote }}
@@ -25,10 +27,14 @@ gate_client:
   login_path: {{ .Values.configuration.gateClient.loginPath | quote }}
   error_path: {{ .Values.configuration.gateClient.errorPath | quote }}
 
-security:
-  cert_file: {{ .Values.configuration.security.certFile | quote }}
-  key_file: {{ .Values.configuration.security.keyFile | quote }}
-  crypto_file: {{ .Values.configuration.security.cryptoFile | quote }}
+tls:
+  min_version: {{ .Values.configuration.tls.minVersion | quote }}
+  cert_file: {{ .Values.configuration.tls.certFile | quote }}
+  key_file: {{ .Values.configuration.tls.keyFile | quote }}
+
+crypto:
+  encryption:
+    key: {{ .Values.configuration.crypto.encryption.key | quote }}
 
 database:
   identity:
@@ -88,14 +94,22 @@ oauth:
   refresh_token:
     renew_on_grant: {{ .Values.configuration.oauth.refreshToken.renewOnGrant }}
     validity_period: {{ .Values.configuration.oauth.refreshToken.validityPeriod }}
+  authorization_code:
+    validity_period: {{ .Values.configuration.oauth.authorizationCode.validityPeriod }}
 
 flow:
-  graph_directory: {{ .Values.configuration.flow.graphDirectory | quote }}
-  authn:
-    default_flow: {{ .Values.configuration.flow.authn.defaultFlow | quote }}
+  default_auth_flow_handle: {{ .Values.configuration.flow.defaultAuthFlowHandle | quote }}
+  max_version_history: {{ .Values.configuration.flow.maxVersionHistory }}
+  auto_infer_registration: {{ .Values.configuration.flow.autoInferRegistration }}
 
 cors:
   allowed_origins:
   {{- range .Values.configuration.cors.allowedOrigins }}
+    - {{ . | quote }}
+  {{- end }}
+
+passkey:
+  allowed_origins:
+  {{- range .Values.configuration.passkey.allowedOrigins }}
     - {{ . | quote }}
   {{- end }}

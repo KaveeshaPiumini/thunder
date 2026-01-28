@@ -26,6 +26,8 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/common"
 	"github.com/asgardeo/thunder/internal/flow/core"
 	"github.com/asgardeo/thunder/internal/flow/executor"
+	"github.com/asgardeo/thunder/internal/observability"
+	"github.com/asgardeo/thunder/internal/observability/event"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
@@ -39,12 +41,17 @@ type flowEngineInterface interface {
 // FlowEngine is the main engine implementation for orchestrating flow executions.
 type flowEngine struct {
 	executorRegistry executor.ExecutorRegistryInterface
+	observabilitySvc observability.ObservabilityServiceInterface
 }
 
-// GetFlowEngine returns a singleton instance of FlowEngine.
-func newFlowEngine(executorRegistry executor.ExecutorRegistryInterface) flowEngineInterface {
+// newFlowEngine creates a new flow engine with the given dependencies.
+func newFlowEngine(
+	executorRegistry executor.ExecutorRegistryInterface,
+	observabilitySvc observability.ObservabilityServiceInterface,
+) flowEngineInterface {
 	return &flowEngine{
 		executorRegistry: executorRegistry,
+		observabilitySvc: observabilitySvc,
 	}
 }
 
@@ -56,8 +63,18 @@ func (fe *flowEngine) Execute(ctx *EngineContext) (FlowStep, *serviceerror.Servi
 		FlowID: ctx.FlowID,
 	}
 
+	// Track flow execution start time
+	flowStartTime := time.Now().UnixMilli()
+
+	// Publish flow started event (only if this is the first execution - check if ExecutionHistory is empty)
+	if len(ctx.ExecutionHistory) == 0 {
+		publishFlowStartedEvent(ctx, fe.observabilitySvc)
+	}
+
 	currentNode, err := fe.setCurrentExecutionNode(ctx, logger)
 	if err != nil {
+		// Publish flow failed event before returning error
+		publishFlowFailedEvent(ctx, err, flowStartTime, time.Now().UnixMilli(), fe.observabilitySvc)
 		return flowStep, err
 	}
 
@@ -66,51 +83,84 @@ func (fe *flowEngine) Execute(ctx *EngineContext) (FlowStep, *serviceerror.Servi
 		logger.Debug("Executing node", log.String("nodeID", currentNode.GetID()),
 			log.String("nodeType", string(currentNode.GetType())))
 
-		svcErr := fe.setNodeExecutor(currentNode, logger)
-		if svcErr != nil {
-			return flowStep, svcErr
-		}
-
 		nodeCtx := &core.NodeContext{
+			Context:           ctx.Context,
 			FlowID:            ctx.FlowID,
 			FlowType:          ctx.FlowType,
 			AppID:             ctx.AppID,
-			CurrentActionID:   ctx.CurrentActionID,
-			NodeInputData:     ctx.CurrentNode.GetInputData(),
-			UserInputData:     ctx.UserInputData,
+			CurrentAction:     ctx.CurrentAction,
+			Verbose:           ctx.Verbose,
+			NodeInputs:        getNodeInputs(ctx.CurrentNode),
+			UserInputs:        ctx.UserInputs,
+			CurrentNodeID:     ctx.CurrentNode.GetID(),
 			RuntimeData:       ctx.RuntimeData,
+			HTTPContext:       ctx.HTTPContext,
 			Application:       ctx.Application,
 			AuthenticatedUser: ctx.AuthenticatedUser,
 			ExecutionHistory:  ctx.ExecutionHistory,
 		}
-		if nodeCtx.NodeInputData == nil {
-			nodeCtx.NodeInputData = make([]common.InputData, 0)
+		if nodeCtx.NodeInputs == nil {
+			nodeCtx.NodeInputs = make([]common.Input, 0)
 		}
-		if nodeCtx.UserInputData == nil {
-			nodeCtx.UserInputData = make(map[string]string)
+		if nodeCtx.UserInputs == nil {
+			nodeCtx.UserInputs = make(map[string]string)
 		}
 		if nodeCtx.RuntimeData == nil {
 			nodeCtx.RuntimeData = make(map[string]string)
 		}
 
-		executionStartTime := time.Now().Unix()
+		// Check if the node should be executed based on its condition
+		if !currentNode.ShouldExecute(nodeCtx) {
+			logger.Debug("Skipping node due to unmet condition", log.String("nodeID", currentNode.GetID()))
+			nextNode, svcErr := fe.skipToNextNode(ctx, currentNode, logger)
+			if svcErr != nil {
+				return flowStep, svcErr
+			}
+			currentNode = nextNode
+			continue
+		}
+
+		svcErr := fe.setNodeExecutor(currentNode, logger)
+		if svcErr != nil {
+			return flowStep, svcErr
+		}
+
+		executionStartTime := time.Now().UnixMilli()
+
+		// Publish node execution started event
+		publishNodeExecutionStartedEvent(ctx, currentNode, fe.observabilitySvc)
+
 		nodeResp, nodeErr := currentNode.Execute(nodeCtx)
-		executionEndTime := time.Now().Unix()
+		executionEndTime := time.Now().UnixMilli()
 
 		recordNodeExecution(ctx, currentNode, nodeResp, nodeErr, executionStartTime, executionEndTime)
 
+		// Publish node execution completed or failed event
+		publishNodeExecutionCompletedEvent(
+			ctx, currentNode, nodeResp, nodeErr,
+			executionStartTime, executionEndTime, fe.observabilitySvc,
+		)
+
 		if nodeErr != nil {
+			// Publish flow failed event before returning error
+			publishFlowFailedEvent(ctx, nodeErr, flowStartTime, time.Now().UnixMilli(), fe.observabilitySvc)
 			return flowStep, nodeErr
 		}
 
 		fe.updateContextWithNodeResponse(ctx, nodeResp)
 
-		nextNode, continueExecution, svcErr := fe.processNodeResponse(ctx, currentNode, nodeResp,
-			&flowStep, logger)
+		nextNode, continueExecution, svcErr := fe.processNodeResponse(ctx, nodeResp, &flowStep, logger)
 		if svcErr != nil {
+			// Publish flow failed event before returning error
+			publishFlowFailedEvent(ctx, svcErr, flowStartTime, time.Now().UnixMilli(), fe.observabilitySvc)
 			return flowStep, svcErr
 		}
 		if !continueExecution {
+			// Check if flow failed or just incomplete
+			if flowStep.Status == common.FlowStatusError {
+				publishFlowFailedEvent(ctx, nil, flowStartTime, time.Now().UnixMilli(), fe.observabilitySvc)
+			}
+			// Don't publish completed event here - flow is incomplete (waiting for user input)
 			return flowStep, nil
 		}
 		currentNode = nextNode
@@ -118,9 +168,13 @@ func (fe *flowEngine) Execute(ctx *EngineContext) (FlowStep, *serviceerror.Servi
 
 	// If we reach here, it means the flow has been executed successfully.
 	flowStep.Status = common.FlowStatusComplete
-	if ctx.CurrentNodeResponse != nil && ctx.CurrentNodeResponse.Assertion != "" {
-		flowStep.Assertion = ctx.CurrentNodeResponse.Assertion
+	if ctx.Assertion != "" {
+		flowStep.Assertion = ctx.Assertion
 	}
+
+	// Publish flow completed event
+	flowEndTime := time.Now().UnixMilli()
+	publishFlowCompletedEvent(ctx, flowStartTime, flowEndTime, fe.observabilitySvc)
 
 	return flowStep, nil
 }
@@ -152,6 +206,21 @@ func (fe *flowEngine) setCurrentExecutionNode(ctx *EngineContext, logger *log.Lo
 	}
 
 	return currentNode, nil
+}
+
+// getNodeInputs extracts required inputs for a node.
+func getNodeInputs(node core.NodeInterface) []common.Input {
+	if execNode, ok := node.(core.ExecutorBackedNodeInterface); ok {
+		return execNode.GetInputs()
+	}
+	if promptNode, ok := node.(core.PromptNodeInterface); ok {
+		var inputs []common.Input
+		for _, prompt := range promptNode.GetPrompts() {
+			inputs = append(inputs, prompt.Inputs...)
+		}
+		return inputs
+	}
+	return nil
 }
 
 // setNodeExecutor sets the executor for the given node if it is not already set.
@@ -203,7 +272,11 @@ func (fe *flowEngine) getExecutorByName(executorName string) (core.ExecutorInter
 // updateContextWithNodeResponse updates the engine context with the node response and authenticated user.
 func (fe *flowEngine) updateContextWithNodeResponse(engineCtx *EngineContext, nodeResp *common.NodeResponse) {
 	engineCtx.CurrentNodeResponse = nodeResp
-	engineCtx.CurrentActionID = ""
+
+	// Clear action only when node completes or forwards
+	if nodeResp.Status == common.NodeStatusComplete || nodeResp.Status == common.NodeStatusForward {
+		engineCtx.CurrentAction = ""
+	}
 
 	// Handle runtime data from the node response
 	if len(nodeResp.RuntimeData) > 0 {
@@ -211,6 +284,14 @@ func (fe *flowEngine) updateContextWithNodeResponse(engineCtx *EngineContext, no
 			engineCtx.RuntimeData = make(map[string]string)
 		}
 		engineCtx.RuntimeData = sysutils.MergeStringMaps(engineCtx.RuntimeData, nodeResp.RuntimeData)
+	}
+
+	// Handle additional data from the node response (e.g., passkeyCreationOptions, passkeyChallenge)
+	if len(nodeResp.AdditionalData) > 0 {
+		if engineCtx.AdditionalData == nil {
+			engineCtx.AdditionalData = make(map[string]string)
+		}
+		engineCtx.AdditionalData = sysutils.MergeStringMaps(engineCtx.AdditionalData, nodeResp.AdditionalData)
 	}
 
 	// Handle authenticated user from the node response
@@ -240,6 +321,11 @@ func (fe *flowEngine) updateContextWithNodeResponse(engineCtx *EngineContext, no
 			}
 		}
 	}
+
+	// Add assertion to the context
+	if nodeResp.Assertion != "" {
+		engineCtx.Assertion = nodeResp.Assertion
+	}
 }
 
 // shouldUpdateAuthenticatedUser determines if the authenticated user should be updated in the context.
@@ -261,13 +347,26 @@ func (fe *flowEngine) shouldUpdateAuthenticatedUser(engineCtx *EngineContext) bo
 		return false
 	}
 
-	// For authentication flows, only update from authentication executors
+	// For authentication flows, only update from authentication executors or conditionally
+	// from provisioning executor
 	if engineCtx.FlowType == common.FlowTypeAuthentication {
-		return executorInst.GetType() == common.ExecutorTypeAuthentication
+		if executorInst.GetType() == common.ExecutorTypeAuthentication {
+			return true
+		}
+		if engineCtx.RuntimeData != nil &&
+			engineCtx.RuntimeData[common.RuntimeKeyUserEligibleForProvisioning] == "true" {
+			return executorInst.GetName() == executor.ExecutorNameProvisioning
+		}
+		return false
 	}
 
-	// For registration flows, only update from provisioning executor
+	// For registration flows, only update from provisioning executor or conditionally
+	// from authentication executors
 	if engineCtx.FlowType == common.FlowTypeRegistration {
+		if engineCtx.RuntimeData != nil && engineCtx.RuntimeData[common.RuntimeKeySkipProvisioning] == "true" {
+			return executorInst.GetType() == common.ExecutorTypeAuthentication
+		}
+
 		return executorInst.GetName() == executor.ExecutorNameProvisioning
 	}
 
@@ -279,8 +378,8 @@ func (fe *flowEngine) shouldUpdateAuthenticatedUser(engineCtx *EngineContext) bo
 // - The next node to execute.
 // - Whether to continue execution.
 // - Any service error.
-func (fe *flowEngine) processNodeResponse(ctx *EngineContext, currentNode core.NodeInterface,
-	nodeResp *common.NodeResponse, flowStep *FlowStep, logger *log.Logger) (
+func (fe *flowEngine) processNodeResponse(ctx *EngineContext, nodeResp *common.NodeResponse,
+	flowStep *FlowStep, logger *log.Logger) (
 	core.NodeInterface, bool, *serviceerror.ServiceError) {
 	if nodeResp.Status == "" {
 		logger.Error("Node response status not found in the flow graph")
@@ -289,17 +388,23 @@ func (fe *flowEngine) processNodeResponse(ctx *EngineContext, currentNode core.N
 
 	switch nodeResp.Status {
 	case common.NodeStatusComplete:
-		nextNode, svcErr := fe.handleCompletedResponse(ctx, currentNode, nodeResp, logger)
+		nextNode, svcErr := fe.handleCompletedResponse(ctx, nodeResp, logger)
 		if svcErr != nil {
 			return nil, false, svcErr
 		}
 		return nextNode, true, nil
 	case common.NodeStatusIncomplete:
-		svcErr := fe.handleIncompleteResponse(nodeResp, flowStep, logger)
+		svcErr := fe.handleIncompleteResponse(ctx, nodeResp, flowStep, logger)
 		if svcErr != nil {
 			return nil, false, svcErr
 		}
 		return nil, false, nil
+	case common.NodeStatusForward:
+		nextNode, svcErr := fe.handleForwardResponse(ctx, nodeResp, logger)
+		if svcErr != nil {
+			return nil, false, svcErr
+		}
+		return nextNode, true, nil
 	case common.NodeStatusFailure:
 		flowStep.Status = common.FlowStatusError
 		flowStep.FailureReason = nodeResp.FailureReason
@@ -313,9 +418,9 @@ func (fe *flowEngine) processNodeResponse(ctx *EngineContext, currentNode core.N
 
 // handleCompletedResponse handles the completed node and returns the next node to execute.
 func (fe *flowEngine) handleCompletedResponse(ctx *EngineContext,
-	currentNode core.NodeInterface, nodeResp *common.NodeResponse, logger *log.Logger) (
+	nodeResp *common.NodeResponse, logger *log.Logger) (
 	core.NodeInterface, *serviceerror.ServiceError) {
-	nextNode, err := fe.resolveToNextNode(ctx.Graph, currentNode, nodeResp)
+	nextNode, err := fe.resolveToNextNode(ctx.Graph, nodeResp)
 	if err != nil {
 		logger.Error("Error moving to the next node", log.Error(err))
 		return nil, &serviceerror.InternalServerError
@@ -327,18 +432,18 @@ func (fe *flowEngine) handleCompletedResponse(ctx *EngineContext,
 // handleIncompleteResponse handles the node response when the status is incomplete.
 // It resolves the flow step details based on the type of node response. The same node will be executed again
 // in the next request with the required data.
-func (fe *flowEngine) handleIncompleteResponse(nodeResp *common.NodeResponse, flowStep *FlowStep,
-	logger *log.Logger) *serviceerror.ServiceError {
+func (fe *flowEngine) handleIncompleteResponse(ctx *EngineContext, nodeResp *common.NodeResponse,
+	flowStep *FlowStep, logger *log.Logger) *serviceerror.ServiceError {
 	switch nodeResp.Type {
 	case common.NodeResponseTypeRedirection:
-		err := fe.resolveStepForRedirection(nodeResp, flowStep)
+		err := fe.resolveStepForRedirection(ctx, nodeResp, flowStep)
 		if err != nil {
 			logger.Error("Error while resolving step for redirection", log.Error(err))
 			return &serviceerror.InternalServerError
 		}
 		return nil
 	case common.NodeResponseTypeView:
-		err := fe.resolveStepDetailsForPrompt(nodeResp, flowStep)
+		err := fe.resolveStepDetailsForPrompt(ctx, nodeResp, flowStep)
 		if err != nil {
 			logger.Error("Error while resolving step details for prompt", log.Error(err))
 			return &serviceerror.InternalServerError
@@ -352,33 +457,62 @@ func (fe *flowEngine) handleIncompleteResponse(nodeResp *common.NodeResponse, fl
 	// TODO: Handle retry scenarios with nodeResp.Type == common.NodeResponseTypeRetry
 }
 
-// resolveToNextNode resolves the next node to execute based on the current node.
-func (fe *flowEngine) resolveToNextNode(graph core.GraphInterface, currentNode core.NodeInterface,
-	nodeResp *common.NodeResponse) (core.NodeInterface, error) {
+// handleForwardResponse handles forwarding to the next node (e.g., onFailure handler)
+func (fe *flowEngine) handleForwardResponse(ctx *EngineContext,
+	nodeResp *common.NodeResponse, logger *log.Logger) (
+	core.NodeInterface, *serviceerror.ServiceError) {
+	logger.Debug("Forwarding to next node",
+		log.String("nextNodeID", nodeResp.NextNodeID),
+		log.String("failureReason", nodeResp.FailureReason))
+
+	nextNode, err := fe.resolveToNextNode(ctx.Graph, nodeResp)
+	if err != nil {
+		logger.Error("Error resolving to next node", log.Error(err))
+		return nil, &serviceerror.InternalServerError
+	}
+	ctx.CurrentNode = nextNode
+	return nextNode, nil
+}
+
+// skipToNextNode skips the current node and moves to the next node. It updates the context with the
+// next node and returns it.
+func (fe *flowEngine) skipToNextNode(ctx *EngineContext, currentNode core.NodeInterface,
+	logger *log.Logger) (core.NodeInterface, *serviceerror.ServiceError) {
+	condition := currentNode.GetCondition()
+
+	// Condition must specify where to skip to
+	if condition == nil || condition.OnSkip == "" {
+		logger.Error("Node has condition but onSkip is not specified",
+			log.String("nodeID", currentNode.GetID()))
+		return nil, &serviceerror.InternalServerError
+	}
+
+	logger.Debug("Using condition's onSkip for skipped node",
+		log.String("nodeID", currentNode.GetID()), log.String("onSkip", condition.OnSkip))
+
+	nodeResp := &common.NodeResponse{NextNodeID: condition.OnSkip}
+
+	// Resolve to the next node
+	nextNode, err := fe.resolveToNextNode(ctx.Graph, nodeResp)
+	if err != nil {
+		logger.Error("Error moving to the next node after skipping", log.Error(err))
+		return nil, &serviceerror.InternalServerError
+	}
+	ctx.CurrentNode = nextNode
+	return nextNode, nil
+}
+
+// resolveToNextNode resolves the next node to execute based on nodeResp.NextNodeID.
+func (fe *flowEngine) resolveToNextNode(graph core.GraphInterface, nodeResp *common.NodeResponse) (
+	core.NodeInterface, error) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "FlowEngine"))
 
-	nextNodeID := ""
-	if currentNode.GetType() == common.NodeTypeDecision {
-		logger.Debug("Current node is a decision node. Trying to resolve next node based on decision.")
-		if nodeResp == nil || nodeResp.NextNodeID == "" {
-			logger.Debug("No next node ID found in the node response. Returning nil.")
-			return nil, nil
-		}
-		nextNodeID = nodeResp.NextNodeID
-	} else {
-		// Set the first element of the next node list assuming only decision nodes can have multiple next nodes.
-		if len(currentNode.GetNextNodeList()) == 0 {
-			logger.Debug("No next node found in the current node. Returning nil.")
-			return nil, nil
-		}
-		nextNodeID = currentNode.GetNextNodeList()[0]
-	}
-	if nextNodeID == "" {
-		logger.Debug("No next node found. Returning nil.")
+	if nodeResp == nil || nodeResp.NextNodeID == "" {
+		logger.Debug("No next node ID in response. Returning nil.")
 		return nil, nil
 	}
 
-	nextNode, ok := graph.GetNode(nextNodeID)
+	nextNode, ok := graph.GetNode(nodeResp.NextNodeID)
 	if !ok {
 		return nil, errors.New("next node not found in the graph")
 	}
@@ -388,7 +522,8 @@ func (fe *flowEngine) resolveToNextNode(graph core.GraphInterface, currentNode c
 }
 
 // resolveStepForRedirection resolves the flow step details for a redirection response.
-func (fe *flowEngine) resolveStepForRedirection(nodeResp *common.NodeResponse, flowStep *FlowStep) error {
+func (fe *flowEngine) resolveStepForRedirection(ctx *EngineContext, nodeResp *common.NodeResponse,
+	flowStep *FlowStep) error {
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
@@ -396,24 +531,19 @@ func (fe *flowEngine) resolveStepForRedirection(nodeResp *common.NodeResponse, f
 		return errors.New("redirect URL not found in the node response")
 	}
 
-	if flowStep.Data.AdditionalData == nil {
-		flowStep.Data.AdditionalData = make(map[string]string)
-		flowStep.Data.AdditionalData = nodeResp.AdditionalData
-	} else {
-		// Append to the existing additional info
-		for key, value := range nodeResp.AdditionalData {
-			flowStep.Data.AdditionalData[key] = value
-		}
+	// Copy additional data from context (accumulated from all node responses)
+	if len(ctx.AdditionalData) > 0 {
+		flowStep.Data.AdditionalData = ctx.AdditionalData
 	}
 
 	flowStep.Data.RedirectURL = nodeResp.RedirectURL
 
 	if flowStep.Data.Inputs == nil {
-		flowStep.Data.Inputs = make([]common.InputData, 0)
-		flowStep.Data.Inputs = nodeResp.RequiredData
+		flowStep.Data.Inputs = make([]common.Input, 0)
+		flowStep.Data.Inputs = nodeResp.Inputs
 	} else {
-		// Append to the existing input data
-		flowStep.Data.Inputs = append(flowStep.Data.Inputs, nodeResp.RequiredData...)
+		// Append to the existing inputs
+		flowStep.Data.Inputs = append(flowStep.Data.Inputs, nodeResp.Inputs...)
 	}
 
 	flowStep.Status = common.FlowStatusIncomplete
@@ -422,21 +552,22 @@ func (fe *flowEngine) resolveStepForRedirection(nodeResp *common.NodeResponse, f
 }
 
 // resolveStepDetailsForPrompt resolves the step details for a user prompt response.
-func (fe *flowEngine) resolveStepDetailsForPrompt(nodeResp *common.NodeResponse, flowStep *FlowStep) error {
+func (fe *flowEngine) resolveStepDetailsForPrompt(ctx *EngineContext, nodeResp *common.NodeResponse,
+	flowStep *FlowStep) error {
 	if nodeResp == nil {
 		return errors.New("node response is nil")
 	}
-	if len(nodeResp.RequiredData) == 0 && len(nodeResp.Actions) == 0 {
+	if len(nodeResp.Inputs) == 0 && len(nodeResp.Actions) == 0 {
 		return errors.New("no required data or actions found in the node response")
 	}
 
-	if len(nodeResp.RequiredData) > 0 {
+	if len(nodeResp.Inputs) > 0 {
 		if flowStep.Data.Inputs == nil {
-			flowStep.Data.Inputs = make([]common.InputData, 0)
-			flowStep.Data.Inputs = nodeResp.RequiredData
+			flowStep.Data.Inputs = make([]common.Input, 0)
+			flowStep.Data.Inputs = nodeResp.Inputs
 		} else {
-			// Append to the existing input data
-			flowStep.Data.Inputs = append(flowStep.Data.Inputs, nodeResp.RequiredData...)
+			// Append to the existing inputs
+			flowStep.Data.Inputs = append(flowStep.Data.Inputs, nodeResp.Inputs...)
 		}
 	}
 
@@ -445,6 +576,31 @@ func (fe *flowEngine) resolveStepDetailsForPrompt(nodeResp *common.NodeResponse,
 			flowStep.Data.Actions = make([]common.Action, 0)
 		}
 		flowStep.Data.Actions = nodeResp.Actions
+	}
+
+	// Copy additional data from context (accumulated from all node responses)
+	if len(ctx.AdditionalData) > 0 {
+		flowStep.Data.AdditionalData = ctx.AdditionalData
+	}
+
+	// Include meta in the flow step if present
+	if nodeResp.Meta != nil {
+		flowStep.Data.Meta = nodeResp.Meta
+	}
+
+	// Include additionalData in the flow step if present
+	if len(nodeResp.AdditionalData) > 0 {
+		if flowStep.Data.AdditionalData == nil {
+			flowStep.Data.AdditionalData = make(map[string]string)
+		}
+		for key, value := range nodeResp.AdditionalData {
+			flowStep.Data.AdditionalData[key] = value
+		}
+	}
+
+	// Set failure reason if present (e.g., when handling onFailure)
+	if nodeResp.FailureReason != "" {
+		flowStep.FailureReason = nodeResp.FailureReason
 	}
 
 	flowStep.Status = common.FlowStatusIncomplete
@@ -492,6 +648,7 @@ func createExecutionRecord(node core.NodeInterface, step int) common.NodeExecuti
 				record.ExecutorName = executor.GetName()
 				record.ExecutorType = executor.GetType()
 			}
+			record.ExecutorMode = executableNode.GetMode()
 		}
 	}
 
@@ -525,4 +682,226 @@ func createExecutionAttempt(nodeRecord *common.NodeExecutionRecord, nodeResp *co
 	}
 
 	return attempt
+}
+
+// publishNodeExecutionStartedEvent publishes an observability event when node execution starts.
+func publishNodeExecutionStartedEvent(
+	ctx *EngineContext,
+	node core.NodeInterface,
+	obsSvc observability.ObservabilityServiceInterface,
+) {
+	if obsSvc == nil || !obsSvc.IsEnabled() {
+		return
+	}
+
+	// Get node execution record to determine step number and attempt
+	record := ctx.ExecutionHistory[node.GetID()]
+	stepNumber := len(ctx.ExecutionHistory) + 1
+	attemptNumber := 1
+	if record != nil {
+		stepNumber = record.Step
+		attemptNumber = len(record.Executions) + 1
+	}
+
+	evt := event.NewEvent(
+		ctx.FlowID, // Use FlowID as TraceID
+		string(event.EventTypeFlowNodeExecutionStarted),
+		event.ComponentFlowEngine,
+	).
+		WithStatus(event.StatusInProgress).
+		WithData(event.DataKey.FlowID, ctx.FlowID).
+		WithData(event.DataKey.FlowType, string(ctx.FlowType)).
+		WithData(event.DataKey.NodeID, node.GetID()).
+		WithData(event.DataKey.NodeType, string(node.GetType())).
+		WithData(event.DataKey.StepNumber, fmt.Sprintf("%d", stepNumber)).
+		WithData(event.DataKey.AttemptNumber, fmt.Sprintf("%d", attemptNumber)).
+		WithData(event.DataKey.AppID, ctx.AppID)
+
+	obsSvc.PublishEvent(evt)
+}
+
+// publishNodeExecutionCompletedEvent publishes an observability event when node execution completes or fails.
+func publishNodeExecutionCompletedEvent(ctx *EngineContext, node core.NodeInterface,
+	nodeResp *common.NodeResponse, nodeErr *serviceerror.ServiceError,
+	executionStartTime int64, executionEndTime int64, obsSvc observability.ObservabilityServiceInterface) {
+	if obsSvc == nil || !obsSvc.IsEnabled() {
+		return
+	}
+
+	// Get node execution record to determine step number and attempt
+	record := ctx.ExecutionHistory[node.GetID()]
+	if record == nil {
+		return
+	}
+
+	stepNumber := record.Step
+	attemptNumber := len(record.Executions)
+
+	// Determine event type and status based on outcome
+	var eventType event.EventType
+	var status string
+	var nodeStatus string
+
+	if nodeErr != nil {
+		eventType = event.EventTypeFlowNodeExecutionFailed
+		status = event.StatusFailure
+		nodeStatus = string(common.FlowStatusError)
+	} else if nodeResp != nil {
+		switch nodeResp.Status {
+		case common.NodeStatusComplete:
+			eventType = event.EventTypeFlowNodeExecutionCompleted
+			status = event.StatusSuccess
+			nodeStatus = string(common.FlowStatusComplete)
+		case common.NodeStatusIncomplete:
+			eventType = event.EventTypeFlowNodeExecutionCompleted
+			status = event.StatusSuccess
+			nodeStatus = string(common.FlowStatusIncomplete)
+		case common.NodeStatusFailure:
+			eventType = event.EventTypeFlowNodeExecutionFailed
+			status = event.StatusFailure
+			nodeStatus = string(common.FlowStatusError)
+		default:
+			eventType = event.EventTypeFlowNodeExecutionCompleted
+			status = event.StatusSuccess
+			nodeStatus = string(nodeResp.Status)
+		}
+	} else {
+		eventType = event.EventTypeFlowNodeExecutionCompleted
+		status = event.StatusSuccess
+		nodeStatus = string(common.FlowStatusComplete)
+	}
+
+	// Calculate duration in milliseconds
+	durationMs := executionEndTime - executionStartTime
+
+	evt := event.NewEvent(
+		ctx.FlowID, // Use FlowID as TraceID
+		string(eventType),
+		event.ComponentFlowEngine,
+	).
+		WithStatus(status).
+		WithData(event.DataKey.FlowID, ctx.FlowID).
+		WithData(event.DataKey.FlowType, string(ctx.FlowType)).
+		WithData(event.DataKey.NodeID, node.GetID()).
+		WithData(event.DataKey.NodeType, string(node.GetType())).
+		WithData(event.DataKey.NodeStatus, nodeStatus).
+		WithData(event.DataKey.StepNumber, fmt.Sprintf("%d", stepNumber)).
+		WithData(event.DataKey.AttemptNumber, fmt.Sprintf("%d", attemptNumber)).
+		WithData(event.DataKey.DurationMs, fmt.Sprintf("%d", durationMs)).
+		WithData(event.DataKey.AppID, ctx.AppID)
+
+	// Add error or failure details
+	if nodeErr != nil {
+		evt.WithData(event.DataKey.Error, nodeErr.Error).
+			WithData(event.DataKey.ErrorCode, nodeErr.Code).
+			WithData(event.DataKey.ErrorType, string(nodeErr.Type))
+		if nodeErr.ErrorDescription != "" {
+			evt.WithData(event.DataKey.Message, nodeErr.ErrorDescription)
+		}
+	} else if nodeResp != nil && nodeResp.FailureReason != "" {
+		evt.WithData(event.DataKey.FailureReason, nodeResp.FailureReason)
+	}
+
+	// Add user ID if authenticated
+	if ctx.AuthenticatedUser.IsAuthenticated && ctx.AuthenticatedUser.UserID != "" {
+		evt.WithData(event.DataKey.UserID, ctx.AuthenticatedUser.UserID)
+	}
+
+	obsSvc.PublishEvent(evt)
+}
+
+// publishFlowStartedEvent publishes an observability event when flow execution starts.
+func publishFlowStartedEvent(ctx *EngineContext, obsSvc observability.ObservabilityServiceInterface) {
+	if obsSvc == nil || !obsSvc.IsEnabled() {
+		return
+	}
+
+	evt := event.NewEvent(
+		ctx.TraceID, // Use TraceID from context
+		string(event.EventTypeFlowStarted),
+		event.ComponentFlowEngine,
+	).
+		WithStatus(event.StatusInProgress).
+		WithData(event.DataKey.FlowID, ctx.FlowID).
+		WithData(event.DataKey.FlowType, string(ctx.FlowType)).
+		WithData(event.DataKey.AppID, ctx.AppID)
+
+	// Add user ID if already authenticated
+	if ctx.AuthenticatedUser.IsAuthenticated && ctx.AuthenticatedUser.UserID != "" {
+		evt.WithData(event.DataKey.UserID, ctx.AuthenticatedUser.UserID)
+	}
+
+	obsSvc.PublishEvent(evt)
+}
+
+// publishFlowCompletedEvent publishes an observability event when flow execution completes successfully.
+func publishFlowCompletedEvent(
+	ctx *EngineContext,
+	flowStartTime int64,
+	flowEndTime int64,
+	obsSvc observability.ObservabilityServiceInterface,
+) {
+	if obsSvc == nil || !obsSvc.IsEnabled() {
+		return
+	}
+
+	// Calculate duration in milliseconds
+	durationMs := flowEndTime - flowStartTime
+
+	evt := event.NewEvent(
+		ctx.FlowID, // Use FlowID as TraceID
+		string(event.EventTypeFlowCompleted),
+		event.ComponentFlowEngine,
+	).
+		WithStatus(event.StatusSuccess).
+		WithData(event.DataKey.FlowID, ctx.FlowID).
+		WithData(event.DataKey.FlowType, string(ctx.FlowType)).
+		WithData(event.DataKey.AppID, ctx.AppID).
+		WithData(event.DataKey.DurationMs, fmt.Sprintf("%d", durationMs))
+
+	// Add user ID if authenticated
+	if ctx.AuthenticatedUser.IsAuthenticated && ctx.AuthenticatedUser.UserID != "" {
+		evt.WithData(event.DataKey.UserID, ctx.AuthenticatedUser.UserID)
+	}
+
+	obsSvc.PublishEvent(evt)
+}
+
+// publishFlowFailedEvent publishes an observability event when flow execution fails.
+func publishFlowFailedEvent(ctx *EngineContext, svcErr *serviceerror.ServiceError,
+	flowStartTime int64, flowEndTime int64, obsSvc observability.ObservabilityServiceInterface) {
+	if obsSvc == nil || !obsSvc.IsEnabled() {
+		return
+	}
+
+	// Calculate duration in milliseconds
+	durationMs := flowEndTime - flowStartTime
+
+	evt := event.NewEvent(
+		ctx.TraceID, // Use TraceID from context
+		string(event.EventTypeFlowFailed),
+		event.ComponentFlowEngine,
+	).
+		WithStatus(event.StatusFailure).
+		WithData(event.DataKey.FlowID, ctx.FlowID).
+		WithData(event.DataKey.FlowType, string(ctx.FlowType)).
+		WithData(event.DataKey.AppID, ctx.AppID).
+		WithData(event.DataKey.DurationMs, fmt.Sprintf("%d", durationMs))
+
+	// Add error details if available
+	if svcErr != nil {
+		evt.WithData(event.DataKey.Error, svcErr.Error).
+			WithData(event.DataKey.ErrorCode, svcErr.Code).
+			WithData(event.DataKey.ErrorType, string(svcErr.Type))
+		if svcErr.ErrorDescription != "" {
+			evt.WithData(event.DataKey.Message, svcErr.ErrorDescription)
+		}
+	}
+
+	// Add user ID if authenticated
+	if ctx.AuthenticatedUser.IsAuthenticated && ctx.AuthenticatedUser.UserID != "" {
+		evt.WithData(event.DataKey.UserID, ctx.AuthenticatedUser.UserID)
+	}
+
+	obsSvc.PublishEvent(evt)
 }

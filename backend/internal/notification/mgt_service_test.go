@@ -20,8 +20,6 @@ package notification
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -50,24 +48,14 @@ func TestNotificationSenderMgtServiceTestSuite(t *testing.T) {
 }
 
 func (suite *NotificationSenderMgtServiceTestSuite) SetupSuite() {
-	// Get the current working directory.
-	cwd, err := os.Getwd()
-	if err != nil {
-		suite.T().Fatalf("Failed to get working directory: %v", err)
-	}
-	suite.T().Logf("Current working directory: %s", cwd)
-	cryptoFile := filepath.Join(cwd, "..", "..", "tests", "resources", "testKey")
-
-	if _, err := os.Stat(cryptoFile); os.IsNotExist(err) {
-		suite.T().Fatalf("Crypto file not found at expected path: %s", cryptoFile)
-	}
-
 	testConfig := &config.Config{
-		Security: config.SecurityConfig{
-			CryptoFile: cryptoFile,
+		Crypto: config.CryptoConfig{
+			Encryption: config.EncryptionConfig{
+				Key: "0579f866ac7c9273580d0ff163fa01a7b2401a7ff3ddc3e3b14ae3136fa6025e",
+			},
 		},
 	}
-	err = config.InitializeThunderRuntime("", testConfig)
+	err := config.InitializeThunderRuntime("", testConfig)
 	if err != nil {
 		suite.T().Fatalf("Failed to initialize ThunderRuntime: %v", err)
 	}
@@ -555,6 +543,61 @@ func (suite *NotificationSenderMgtServiceTestSuite) TestDeleteSender_StoreError(
 	err := suite.service.DeleteSender(testSenderID)
 	suite.NotNil(err)
 	suite.Equal(ErrorInternalServerError.Code, err.Code)
+}
+
+// TestCreateSender_ImmutableResourcesEnabled tests that CreateSender returns error when immutable resources enabled
+func (suite *NotificationSenderMgtServiceTestSuite) TestCreateSender_ImmutableResourcesEnabled() {
+	// Save original config
+	originalConfig := config.GetThunderRuntime().Config
+	defer func() {
+		config.GetThunderRuntime().Config = originalConfig
+	}()
+
+	// Enable immutable resources
+	config.GetThunderRuntime().Config.ImmutableResources.Enabled = true
+
+	sender := suite.getValidTwilioSender()
+	result, err := suite.service.CreateSender(sender)
+
+	suite.Nil(result)
+	suite.NotNil(err)
+	suite.Equal("FBR-1001", err.Code)
+}
+
+// TestUpdateSender_ImmutableResourcesEnabled tests that UpdateSender returns error when immutable resources enabled
+func (suite *NotificationSenderMgtServiceTestSuite) TestUpdateSender_ImmutableResourcesEnabled() {
+	// Save original config
+	originalConfig := config.GetThunderRuntime().Config
+	defer func() {
+		config.GetThunderRuntime().Config = originalConfig
+	}()
+
+	// Enable immutable resources
+	config.GetThunderRuntime().Config.ImmutableResources.Enabled = true
+
+	sender := suite.getValidTwilioSender()
+	result, err := suite.service.UpdateSender(testSenderID, sender)
+
+	suite.Nil(result)
+	suite.NotNil(err)
+	suite.Equal("FBR-1002", err.Code)
+}
+
+// TestDeleteSender_ImmutableResourcesEnabled tests that DeleteSender returns error when immutable resources enabled
+func (suite *NotificationSenderMgtServiceTestSuite) TestDeleteSender_ImmutableResourcesEnabled() {
+	// Save original config
+	originalConfig := config.GetThunderRuntime().Config
+	defer func() {
+		config.GetThunderRuntime().Config = originalConfig
+	}()
+
+	// Enable immutable resources
+	config.GetThunderRuntime().Config.ImmutableResources.Enabled = true
+
+	err := suite.service.DeleteSender(testSenderID)
+
+	suite.NotNil(err)
+	suite.Equal("FBR-1003", err.Code)
 }
 
 func createTestProperty(name, value string, isSecret bool) cmodels.Property {

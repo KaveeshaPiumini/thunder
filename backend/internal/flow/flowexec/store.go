@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/asgardeo/thunder/internal/system/config"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 )
@@ -36,13 +37,15 @@ type flowStoreInterface interface {
 
 // flowStore implements the FlowStoreInterface for managing flow contexts.
 type flowStore struct {
-	dbProvider provider.DBProviderInterface
+	dbProvider   provider.DBProviderInterface
+	deploymentID string
 }
 
 // newFlowStore creates a new instance of FlowStore.
 func newFlowStore(dbProvider provider.DBProviderInterface) flowStoreInterface {
 	return &flowStore{
-		dbProvider: dbProvider,
+		dbProvider:   dbProvider,
+		deploymentID: config.GetThunderRuntime().Config.Server.Identifier,
 	}
 }
 
@@ -56,15 +59,16 @@ func (s *flowStore) StoreFlowContext(ctx EngineContext) error {
 
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateFlowContext.Query, dbModel.FlowID, dbModel.AppID,
-				dbModel.CurrentNodeID, dbModel.CurrentActionID, dbModel.GraphID,
-				dbModel.RuntimeData, dbModel.ExecutionHistory)
+			_, err := tx.Exec(QueryCreateFlowContext,
+				dbModel.FlowID, dbModel.AppID, dbModel.Verbose,
+				dbModel.CurrentNodeID, dbModel.CurrentAction, dbModel.GraphID,
+				dbModel.RuntimeData, dbModel.ExecutionHistory, s.deploymentID)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryCreateFlowUserData.Query, dbModel.FlowID,
-				dbModel.IsAuthenticated, dbModel.UserID,
-				dbModel.UserInputs, dbModel.UserAttributes)
+			_, err := tx.Exec(QueryCreateFlowUserData, dbModel.FlowID,
+				dbModel.IsAuthenticated, dbModel.UserID, dbModel.OrganizationUnitID,
+				dbModel.UserType, dbModel.UserInputs, dbModel.UserAttributes, s.deploymentID)
 			return err
 		},
 	}
@@ -79,7 +83,7 @@ func (s *flowStore) GetFlowContext(flowID string) (*FlowContextWithUserDataDB, e
 		return nil, fmt.Errorf("failed to get database client: %w", err)
 	}
 
-	results, err := dbClient.Query(QueryGetFlowContextWithUserData, flowID)
+	results, err := dbClient.Query(QueryGetFlowContextWithUserData, flowID, s.deploymentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -106,13 +110,15 @@ func (s *flowStore) UpdateFlowContext(ctx EngineContext) error {
 
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryUpdateFlowContext.Query, dbModel.FlowID,
-				dbModel.CurrentNodeID, dbModel.CurrentActionID, dbModel.RuntimeData, dbModel.ExecutionHistory)
+			_, err := tx.Exec(QueryUpdateFlowContext, dbModel.FlowID,
+				dbModel.CurrentNodeID, dbModel.CurrentAction, dbModel.RuntimeData, dbModel.ExecutionHistory,
+				s.deploymentID)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryUpdateFlowUserData.Query, dbModel.FlowID, dbModel.IsAuthenticated,
-				dbModel.UserID, dbModel.UserInputs, dbModel.UserAttributes)
+			_, err := tx.Exec(QueryUpdateFlowUserData, dbModel.FlowID, dbModel.IsAuthenticated,
+				dbModel.UserID, dbModel.OrganizationUnitID, dbModel.UserType,
+				dbModel.UserInputs, dbModel.UserAttributes, s.deploymentID)
 			return err
 		},
 	}
@@ -124,11 +130,11 @@ func (s *flowStore) UpdateFlowContext(ctx EngineContext) error {
 func (s *flowStore) DeleteFlowContext(flowID string) error {
 	queries := []func(tx dbmodel.TxInterface) error{
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryDeleteFlowUserData.Query, flowID)
+			_, err := tx.Exec(QueryDeleteFlowUserData, flowID, s.deploymentID)
 			return err
 		},
 		func(tx dbmodel.TxInterface) error {
-			_, err := tx.Exec(QueryDeleteFlowContext.Query, flowID)
+			_, err := tx.Exec(QueryDeleteFlowContext, flowID, s.deploymentID)
 			return err
 		},
 	}
@@ -184,28 +190,34 @@ func (s *flowStore) buildFlowContextFromResultRow(row map[string]interface{}) (*
 
 	// Parse optional fields
 	currentNodeID := s.parseOptionalString(row["current_node_id"])
-	currentActionID := s.parseOptionalString(row["current_action_id"])
+	currentAction := s.parseOptionalString(row["current_action"])
 	userID := s.parseOptionalString(row["user_id"])
+	organizationUnitID := s.parseOptionalString(row["ou_id"])
+	userType := s.parseOptionalString(row["user_type"])
 	userInputs := s.parseOptionalString(row["user_inputs"])
 	runtimeData := s.parseOptionalString(row["runtime_data"])
 	userAttributes := s.parseOptionalString(row["user_attributes"])
 	executionHistory := s.parseOptionalString(row["execution_history"])
 
-	// Parse boolean field with type conversion support
+	// Parse boolean fields with type conversion support
 	isAuthenticated := s.parseBoolean(row["is_authenticated"])
+	verbose := s.parseBoolean(row["verbose"])
 
 	return &FlowContextWithUserDataDB{
-		FlowID:           flowID,
-		AppID:            appID,
-		CurrentNodeID:    currentNodeID,
-		CurrentActionID:  currentActionID,
-		GraphID:          graphID,
-		RuntimeData:      runtimeData,
-		IsAuthenticated:  isAuthenticated,
-		UserID:           userID,
-		UserInputs:       userInputs,
-		UserAttributes:   userAttributes,
-		ExecutionHistory: executionHistory,
+		FlowID:             flowID,
+		AppID:              appID,
+		CurrentNodeID:      currentNodeID,
+		CurrentAction:      currentAction,
+		GraphID:            graphID,
+		RuntimeData:        runtimeData,
+		Verbose:            verbose,
+		IsAuthenticated:    isAuthenticated,
+		UserID:             userID,
+		OrganizationUnitID: organizationUnitID,
+		UserType:           userType,
+		UserInputs:         userInputs,
+		UserAttributes:     userAttributes,
+		ExecutionHistory:   executionHistory,
 	}, nil
 }
 

@@ -17,7 +17,7 @@
  */
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
-import {renderHook, waitFor} from '@testing-library/react';
+import {waitFor, renderHook} from '@testing-library/react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
 import useUpdateApplication from '../useUpdateApplication';
@@ -30,9 +30,13 @@ vi.mock('@asgardeo/react', () => ({
   useAsgardeo: vi.fn(),
 }));
 
-vi.mock('@thunder/commons-contexts', () => ({
-  useConfig: vi.fn(),
-}));
+vi.mock('@thunder/commons-contexts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@thunder/commons-contexts')>();
+  return {
+    ...actual,
+    useConfig: vi.fn(),
+  };
+});
 
 const {useAsgardeo} = await import('@asgardeo/react');
 const {useConfig} = await import('@thunder/commons-contexts');
@@ -51,8 +55,8 @@ describe('useUpdateApplication', () => {
     tos_uri: 'https://updated-test-app.com/terms',
     policy_uri: 'https://updated-test-app.com/privacy',
     contacts: ['admin@updated-test-app.com'],
-    auth_flow_graph_id: 'auth_flow_config_advanced',
-    registration_flow_graph_id: 'registration_flow_config_advanced',
+    auth_flow_id: 'edc013d0-e893-4dc0-990c-3e1d203e005b',
+    registration_flow_id: '80024fb3-29ed-4c33-aa48-8aee5e96d522',
     is_registration_flow_enabled: true,
     inbound_auth_config: [
       {
@@ -99,8 +103,8 @@ describe('useUpdateApplication', () => {
     tos_uri: 'https://updated-test-app.com/terms',
     policy_uri: 'https://updated-test-app.com/privacy',
     contacts: ['admin@updated-test-app.com'],
-    auth_flow_graph_id: 'auth_flow_config_advanced',
-    registration_flow_graph_id: 'registration_flow_config_advanced',
+    auth_flow_id: 'edc013d0-e893-4dc0-990c-3e1d203e005b',
+    registration_flow_id: '80024fb3-29ed-4c33-aa48-8aee5e96d522',
     is_registration_flow_enabled: true,
     inbound_auth_config: {
       grant_types: ['authorization_code', 'refresh_token'],
@@ -349,6 +353,30 @@ describe('useUpdateApplication', () => {
     );
   });
 
+  it('should handle invalidateQueries rejection gracefully', async () => {
+    mockHttpRequest.mockResolvedValueOnce({
+      data: mockApplication,
+    });
+
+    const applicationId = '550e8400-e29b-41d4-a716-446655440000';
+
+    // Mock invalidateQueries to reject
+    vi.spyOn(queryClient, 'invalidateQueries').mockRejectedValue(new Error('Invalidation failed'));
+
+    const {result} = renderHook(() => useUpdateApplication(), {
+      wrapper: createWrapper(),
+    });
+
+    result.current.mutate({applicationId, data: mockUpdateRequest});
+
+    // The mutation should still succeed even if invalidateQueries fails
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(result.current.data).toEqual(mockApplication);
+  });
+
   it('should handle 404 Not Found error for non-existent application', async () => {
     const notFoundError = new Error('Application not found');
     mockHttpRequest.mockRejectedValueOnce(notFoundError);
@@ -480,8 +508,8 @@ describe('useUpdateApplication', () => {
     const minimalApp: Application = {
       id: '550e8400-e29b-41d4-a716-446655440000',
       name: 'Minimal App',
-      auth_flow_graph_id: 'auth_flow_config_basic',
-      registration_flow_graph_id: 'registration_flow_config_basic',
+      auth_flow_id: 'edc013d0-e893-4dc0-990c-3e1d203e005b',
+      registration_flow_id: '80024fb3-29ed-4c33-aa48-8aee5e96d522',
       is_registration_flow_enabled: false,
       created_at: '2025-11-13T10:00:00Z',
       updated_at: '2025-11-14T15:30:00Z',

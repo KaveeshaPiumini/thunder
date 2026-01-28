@@ -17,8 +17,8 @@
  */
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
-import {renderHook, waitFor} from '@testing-library/react';
-
+import {waitFor} from '@testing-library/react';
+import {renderHook} from '../../../../test/test-utils';
 import useDeleteUserType from '../useDeleteUserType';
 
 const mockHttpRequest = vi.fn();
@@ -31,17 +31,23 @@ vi.mock('@asgardeo/react', () => ({
 }));
 
 // Mock useConfig
-vi.mock('@thunder/commons-contexts', () => ({
-  useConfig: () => ({
-    getServerUrl: () => 'https://localhost:8090',
-  }),
-}));
+const mockGetServerUrl = vi.fn<() => string | undefined>(() => 'https://localhost:8090');
+vi.mock('@thunder/commons-contexts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@thunder/commons-contexts')>();
+  return {
+    ...actual,
+    useConfig: () => ({
+      getServerUrl: mockGetServerUrl,
+    }),
+  };
+});
 
 describe('useDeleteUserType', () => {
   const mockUserTypeId = '123';
 
   beforeEach(() => {
     mockHttpRequest.mockReset();
+    mockGetServerUrl.mockReturnValue('https://localhost:8090');
   });
 
   afterEach(() => {
@@ -159,9 +165,7 @@ describe('useDeleteUserType', () => {
   });
 
   it('should clear previous error when starting new request', async () => {
-    mockHttpRequest
-      .mockRejectedValueOnce(new Error('Previous error'))
-      .mockResolvedValueOnce({data: null});
+    mockHttpRequest.mockRejectedValueOnce(new Error('Previous error')).mockResolvedValueOnce({data: null});
 
     const {result} = renderHook(() => useDeleteUserType());
 
@@ -180,5 +184,40 @@ describe('useDeleteUserType', () => {
     await waitFor(() => {
       expect(result.current.error).toBeNull();
     });
+  });
+
+  it('should handle non-Error rejection', async () => {
+    mockHttpRequest.mockRejectedValueOnce('String error');
+
+    const {result} = renderHook(() => useDeleteUserType());
+
+    await expect(result.current.deleteUserType(mockUserTypeId)).rejects.toBe('String error');
+
+    await waitFor(() => {
+      expect(result.current.error).toEqual({
+        code: 'DELETE_USER_TYPE_ERROR',
+        message: 'An unknown error occurred',
+        description: 'Failed to delete user type',
+      });
+      expect(result.current.loading).toBe(false);
+    });
+  });
+
+  it('should fallback to env variable when getServerUrl returns undefined', async () => {
+    mockGetServerUrl.mockReturnValue(undefined);
+    mockHttpRequest.mockResolvedValueOnce({data: null});
+
+    const {result} = renderHook(() => useDeleteUserType());
+
+    const deleteResult = await result.current.deleteUserType(mockUserTypeId);
+
+    expect(deleteResult).toBe(true);
+
+    expect(mockHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('/user-schemas/') as string,
+        method: 'DELETE',
+      }),
+    );
   });
 });

@@ -17,8 +17,8 @@
  */
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
-import {renderHook, waitFor} from '@testing-library/react';
-
+import {waitFor} from '@testing-library/react';
+import {renderHook} from '../../../../test/test-utils';
 import useGetUserTypes from '../useGetUserTypes';
 import type {UserSchemaListResponse} from '../../types/user-types';
 
@@ -33,11 +33,16 @@ vi.mock('@asgardeo/react', () => ({
 }));
 
 // Mock useConfig
-vi.mock('@thunder/commons-contexts', () => ({
-  useConfig: () => ({
-    getServerUrl: () => 'https://localhost:8090',
-  }),
-}));
+const mockGetServerUrl = vi.fn<() => string | undefined>(() => 'https://localhost:8090');
+vi.mock('@thunder/commons-contexts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@thunder/commons-contexts')>();
+  return {
+    ...actual,
+    useConfig: () => ({
+      getServerUrl: mockGetServerUrl,
+    }),
+  };
+});
 
 describe('useGetUserTypes', () => {
   const mockUserSchemaList: UserSchemaListResponse = {
@@ -48,13 +53,12 @@ describe('useGetUserTypes', () => {
       {id: '123', name: 'UserType1', ouId: 'root-ou', allowSelfRegistration: false},
       {id: '456', name: 'UserType2', ouId: 'child-ou', allowSelfRegistration: true},
     ],
-    links: [
-      {rel: 'self', href: 'https://localhost:8090/user-schemas'},
-    ],
+    links: [{rel: 'self', href: 'https://localhost:8090/user-schemas'}],
   };
 
   beforeEach(() => {
     mockHttpRequest.mockReset();
+    mockGetServerUrl.mockReturnValue('https://localhost:8090');
   });
 
   afterEach(() => {
@@ -86,7 +90,9 @@ describe('useGetUserTypes', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(mockHttpRequest).toHaveBeenCalledWith(expect.objectContaining({url: 'https://localhost:8090/user-schemas', method: 'GET'}));
+    expect(mockHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({url: 'https://localhost:8090/user-schemas', method: 'GET'}),
+    );
   });
 
   it('should fetch user types with limit parameter', async () => {
@@ -97,7 +103,7 @@ describe('useGetUserTypes', () => {
     await waitFor(() => {
       expect(
         mockHttpRequest.mock.calls.some(
-          (call: unknown[]) => ((call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?limit=10'),
+          (call: unknown[]) => (call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?limit=10',
         ),
       ).toBe(true);
     });
@@ -321,7 +327,7 @@ describe('useGetUserTypes', () => {
     await waitFor(() => {
       expect(
         mockHttpRequest.mock.calls.some(
-          (call: unknown[]) => ((call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?limit=20'),
+          (call: unknown[]) => (call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?limit=20',
         ),
       ).toBe(true);
     });
@@ -347,7 +353,8 @@ describe('useGetUserTypes', () => {
 
     expect(
       mockHttpRequest.mock.calls.some(
-        (call: unknown[]) => ((call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?limit=20&offset=10'),
+        (call: unknown[]) =>
+          (call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?limit=20&offset=10',
       ),
     ).toBe(true);
   });
@@ -368,7 +375,7 @@ describe('useGetUserTypes', () => {
     await waitFor(() => {
       expect(
         mockHttpRequest.mock.calls.some(
-          (call: unknown[]) => ((call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?limit=15'),
+          (call: unknown[]) => (call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?limit=15',
         ),
       ).toBe(true);
     });
@@ -390,7 +397,7 @@ describe('useGetUserTypes', () => {
     await waitFor(() => {
       expect(
         mockHttpRequest.mock.calls.some(
-          (call: unknown[]) => ((call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?offset=5'),
+          (call: unknown[]) => (call[0] as {url?: string})?.url === 'https://localhost:8090/user-schemas?offset=5',
         ),
       ).toBe(true);
     });
@@ -467,4 +474,39 @@ describe('useGetUserTypes', () => {
     // Data should remain from previous successful fetch
     expect(result.current.data).toEqual(mockUserSchemaList);
   });
+
+  it('should handle non-Error thrown in initial fetch', async () => {
+    mockHttpRequest.mockRejectedValueOnce('String error in fetch');
+
+    const {result} = renderHook(() => useGetUserTypes());
+
+    await waitFor(() => {
+      expect(result.current.error).toEqual({
+        code: 'FETCH_USER_TYPES_ERROR',
+        message: 'An unknown error occurred',
+        description: 'Failed to fetch user types',
+      });
+      expect(result.current.data).toBeNull();
+      expect(result.current.loading).toBe(false);
+    });
+  });
+
+  it('should fallback to env variable when getServerUrl returns undefined', async () => {
+    mockGetServerUrl.mockReturnValue(undefined);
+    mockHttpRequest.mockResolvedValueOnce({data: mockUserSchemaList});
+
+    const {result} = renderHook(() => useGetUserTypes());
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockUserSchemaList);
+    });
+
+    expect(mockHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('/user-schemas') as string,
+        method: 'GET',
+      }),
+    );
+  });
+
 });

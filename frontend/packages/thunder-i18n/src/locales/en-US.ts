@@ -25,6 +25,10 @@ const translations = {
   // Common namespace - Shared translations across all Thunder applications
   // ============================================================================
   common: {
+    product: {
+      displayName: 'Thunder',
+    },
+
     // Actions
     actions: {
       add: 'Add',
@@ -53,6 +57,7 @@ const translations = {
       done: 'Done',
       refresh: 'Refresh',
       copy: 'Copy',
+      copied: 'Copied!',
       download: 'Download',
       upload: 'Upload',
       export: 'Export',
@@ -66,6 +71,26 @@ const translations = {
 
     // Dictionary
     'dictionary.unknown': 'Unknown',
+
+    // Short action words (used as button labels, etc.)
+    show: 'Show',
+    publish: 'Publish',
+    saveDraft: 'Save Draft',
+    common: 'Common',
+    new: 'New',
+    edit: 'Edit',
+    delete: 'Delete',
+    close: 'Close',
+    back: 'Back',
+    create: 'Create',
+    update: 'Update',
+    save: 'Save',
+    cancel: 'Cancel',
+    or: 'or',
+
+    // Page names (for breadcrumbs and navigation)
+    home: 'Home',
+    flows: 'Flows',
 
     // Status messages
     status: {
@@ -303,11 +328,13 @@ const translations = {
   // ============================================================================
   navigation: {
     pages: {
+      home: 'Home',
       users: 'Users',
       userTypes: 'User Types',
       integrations: 'Integrations',
       applications: 'Applications',
       dashboard: 'Dashboard',
+      flows: 'Flows',
     },
     breadcrumb: {
       develop: 'Develop',
@@ -321,6 +348,18 @@ const translations = {
     title: 'User Management',
     subtitle: 'Manage users, roles, and permissions across your organization',
     addUser: 'Add User',
+    inviteUser: 'Invite User',
+    inviteUserDescription: 'Send an invite link to a new user to complete their registration',
+    inviteLinkGenerated: 'Invite Link Generated!',
+    inviteLinkDescription: 'Share this link with the user to complete their registration.',
+    inviteLink: 'Invite Link',
+    inviteAnother: 'Invite Another User',
+    invite: {
+      steps: {
+        userdetails: 'User Details',
+        invitelink: 'Invite Link',
+      },
+    },
     editUser: 'Edit User',
     deleteUser: 'Delete User',
     userDetails: 'User Details',
@@ -339,6 +378,12 @@ const translations = {
     userCreatedSuccess: 'User created successfully',
     userUpdatedSuccess: 'User updated successfully',
     userDeletedSuccess: 'User deleted successfully',
+    errors: {
+      failed: {
+        title: 'Error',
+        description: 'An error occurred. Please try again.',
+      },
+    },
   },
 
   // ============================================================================
@@ -519,21 +564,29 @@ const translations = {
     'listing.columns.name': 'Name',
     'listing.columns.clientId': 'Client ID',
     'listing.columns.actions': 'Actions',
+    'listing.columns.template': 'Type',
     'listing.search.placeholder': 'Search ..',
     'delete.title': 'Delete Application',
     'delete.message': 'Are you sure you want to delete this application? This action cannot be undone.',
     'delete.disclaimer': 'Warning: All associated data, configurations, and access tokens will be permanently removed.',
     'onboarding.preview.title': 'Preview',
-    'onboarding.preview.signInTo': 'Sign in to {{appName}}',
-    'onboarding.preview.welcomeMessage': 'Welcome back! Please sign in to continue.',
+    'onboarding.preview.signin': 'Sign In',
     'onboarding.preview.username': 'Username',
     'onboarding.preview.usernamePlaceholder': 'Enter your Username',
     'onboarding.preview.password': 'Password',
     'onboarding.preview.passwordPlaceholder': 'Enter your Password',
+    'onboarding.preview.signInButton': 'Sign In',
+    'onboarding.preview.mobileNumber': 'Mobile Number',
+    'onboarding.preview.mobileNumberPlaceholder': 'Enter your mobile number',
+    'onboarding.preview.sendOtpButton': 'Send OTP',
+    'onboarding.preview.dividerText': 'or',
+    'onboarding.preview.continueWith': 'Continue with {{providerName}}',
     'onboarding.steps.name': 'Create an Application',
     'onboarding.steps.design': 'Design',
     'onboarding.steps.options': 'Sign In Options',
-    'onboarding.steps.configure': 'Configure OAuth',
+    'onboarding.steps.experience': 'Sign-In Experience',
+    'onboarding.steps.stack': 'Technology Stack',
+    'onboarding.steps.configure': 'Configuration',
     'onboarding.steps.summary': 'Summary',
     'onboarding.configure.name.title': "Let's give a name to your application",
     'onboarding.configure.name.fieldLabel': 'Application Name',
@@ -545,30 +598,132 @@ const translations = {
     'onboarding.configure.design.logo.shuffle': 'Shuffle',
     'onboarding.configure.design.color.title': 'Brand Color',
     'onboarding.configure.design.color.customLabel': 'Custom',
+    'onboarding.configure.design.color.defaultBranding.withAppName': 'will use the default brand color',
+    'onboarding.configure.design.color.defaultBranding.withoutAppName': 'Using the default brand color',
+    'onboarding.configure.design.color.pickDifferent': 'Pick a different color',
     'onboarding.configure.SignInOptions.title': 'Sign In Options',
     'onboarding.configure.SignInOptions.subtitle': 'Choose how users will sign-in to your application',
     'onboarding.configure.SignInOptions.usernamePassword': 'Username & Password',
     'onboarding.configure.SignInOptions.google': 'Google',
     'onboarding.configure.SignInOptions.github': 'GitHub',
     'onboarding.configure.SignInOptions.notConfigured': 'Not configured',
+    'onboarding.configure.SignInOptions.noFlowFound':
+      'No flow found for the selected sign-in options. Please try a different combination.',
     'onboarding.configure.SignInOptions.noSelectionWarning':
-      'At least one login option is required. Please select at least one authentication method.',
+      'At least one sign-in option is required. Please select at least one authentication method.',
     'onboarding.configure.SignInOptions.noIntegrations':
-      'No social login integrations available. Please configure an integration first.',
+      'No social sign-in integrations available. Please configure an integration first.',
     'onboarding.configure.SignInOptions.hint':
       'You can always change these settings later in the application settings.',
+    'onboarding.configure.SignInOptions.preConfiguredFlows.selectFlow': 'Select already configured flow',
+    'onboarding.configure.SignInOptions.preConfiguredFlows.searchFlows': 'Search flows...',
+    'onboarding.configure.SignInOptions.smsOtp': 'SMS OTP',
     'onboarding.configure.SignInOptions.loading': 'Loading...',
     'onboarding.configure.SignInOptions.error': 'Failed to load authentication methods: {{error}}',
+    'onboarding.configure.experience.title': 'Sign-In Experience',
+    'onboarding.configure.experience.subtitle': 'Select how and who can access your application',
+    'onboarding.configure.experience.subtitleWithoutUserTypes': 'Select how users access your application',
+    'onboarding.configure.experience.access.userTypes.title': 'User Access',
+    'onboarding.configure.experience.access.userTypes.subtitle': 'Select which user types can access this application',
+    'onboarding.configure.experience.approach.title': 'Sign-In Approach',
+    'onboarding.configure.experience.approach.subtitle': 'Select how users will access this application',
+    'onboarding.configure.approach.inbuilt.title': 'Redirect to {{product}} sign-in/sign-up handling pages',
+    'onboarding.configure.approach.inbuilt.description':
+      'Users will be redirected to system-hosted sign-in and sign-up pages, which can be customized and branded using the Flow Designer and easily integrated with SDKs in just a few steps.',
+    'onboarding.configure.approach.native.title': 'Embedded sign-in/sign-up components in your app',
+    'onboarding.configure.approach.native.description':
+      'Users will sign in or sign up through your app using the UI components or APIs provided by {{product}}. You can customize and brand the flows using the designer or through code.',
+    'onboarding.configure.stack.technology.title': 'Technology',
+    'onboarding.configure.stack.technology.subtitle': 'What technology are you using to build your application?',
+    'onboarding.configure.stack.technology.react.title': 'React',
+    'onboarding.configure.stack.technology.react.description': 'Single-page application built with React',
+    'onboarding.configure.stack.technology.nextjs.title': 'Next.js',
+    'onboarding.configure.stack.technology.nextjs.description': 'Full-stack React framework with server-side rendering',
+    'onboarding.configure.stack.technology.angular.title': 'Angular',
+    'onboarding.configure.stack.technology.angular.description': 'Single-page application built with Angular',
+    'onboarding.configure.stack.technology.vue.title': 'Vue',
+    'onboarding.configure.stack.technology.vue.description': 'Single-page application built with Vue.js',
+    'onboarding.configure.stack.technology.ios.title': 'iOS',
+    'onboarding.configure.stack.technology.ios.description': 'Native iOS application (Swift or Objective-C)',
+    'onboarding.configure.stack.technology.android.title': 'Android',
+    'onboarding.configure.stack.technology.android.description': 'Native Android application (Kotlin or Java)',
+    'onboarding.configure.stack.technology.springboot.title': 'Spring Boot',
+    'onboarding.configure.stack.technology.springboot.description': 'Java backend application with Spring Boot',
+    'onboarding.configure.stack.technology.nodejs.title': 'Node.js',
+    'onboarding.configure.stack.technology.nodejs.description': 'Backend service built with Node.js',
+    'onboarding.configure.stack.platform.title': 'Application Type',
+    'onboarding.configure.stack.platform.subtitle': 'This helps us configure the right settings for your app',
+    'onboarding.configure.stack.dividerLabel': 'OR',
+    'onboarding.configure.stack.platform.browser.title': 'Browser App',
+    'onboarding.configure.stack.platform.browser.description': 'Single-page apps running in browsers',
+    'onboarding.configure.stack.platform.server.title': 'Full-Stack App',
+    'onboarding.configure.stack.platform.server.description': 'Apps with both server and client code',
+    'onboarding.configure.stack.platform.mobile.title': 'Mobile App',
+    'onboarding.configure.stack.platform.mobile.description': 'Native or hybrid mobile applications',
+    'onboarding.configure.stack.platform.backend.title': 'Backend Service',
+    'onboarding.configure.stack.platform.backend.description': 'Server-to-server APIs and services',
+    'onboarding.configure.details.title': 'Configuration',
+    'onboarding.configure.details.description': 'Configure where your application is hosted and callback settings',
+    'onboarding.configure.details.hostingUrl.label': 'Where is your application hosted?',
+    'onboarding.configure.details.hostingUrl.placeholder': 'https://myapp.example.com',
+    'onboarding.configure.details.hostingUrl.helperText': 'The URL where users will access your application',
+    'onboarding.configure.details.hostingUrl.error.required': 'Application hosting URL is required',
+    'onboarding.configure.details.hostingUrl.error.invalid':
+      'Please enter a valid URL (must start with http:// or https://)',
+    'onboarding.configure.details.callbackUrl.label': 'After Sign-in URL (Optional)',
+    'onboarding.configure.details.callbackUrl.placeholder': 'https://myapp.example.com/callback',
+    'onboarding.configure.details.callbackUrl.helperText': 'The URL where users will be redirected after signing in',
+    'onboarding.configure.details.callbackUrl.error.required': 'After sign-in URL is required',
+    'onboarding.configure.details.callbackUrl.error.invalid':
+      'Please enter a valid URL (must start with http:// or https://)',
+    'onboarding.configure.details.callbackUrl.info':
+      'The URL is where users will be redirected after sign-in. For most applications, using the same URL as your application access URL is recommended.',
+    'onboarding.configure.details.sameAsHosting': 'Same as the application URL',
+    'onboarding.configure.details.callbackMode.same': 'Same as Application Access URL',
+    'onboarding.configure.details.callbackMode.custom': 'Custom URL',
+    'onboarding.configure.details.mobile.title': 'Mobile Application Configuration',
+    'onboarding.configure.details.mobile.description':
+      'Configure the deep link or universal link for your mobile application',
+    'onboarding.configure.details.mobile.info':
+      'Deep links (e.g., myapp://callback) or universal links (e.g., https://example.com/callback) are used to redirect users back to your mobile app after authentication.',
+    'onboarding.configure.details.deeplink.label': 'Deep Link / Universal Link',
+    'onboarding.configure.details.deeplink.placeholder': 'myapp://callback or https://example.com/callback',
+    'onboarding.configure.details.deeplink.helperText': 'The custom URL scheme or universal link for your mobile app',
+    'onboarding.configure.details.noConfigRequired.title': 'No Additional Configuration Needed',
+    'onboarding.configure.details.noConfigRequired.description':
+      'Your application is ready to go! You can proceed to the next step.',
+    'onboarding.configure.details.userTypes.description': 'Select which user types can access this application',
+    'onboarding.configure.details.userTypes.error': 'Please select at least one user type',
+    'onboarding.configure.setup.title': 'Application Setup',
+    'onboarding.configure.setup.subtitle': 'Select the technology stack for your application',
+    'onboarding.configure.setup.platform.label': 'What technology are you using?',
+    'onboarding.configure.setup.platform.browser.title': 'Browser',
+    'onboarding.configure.setup.platform.browser.description': 'Single page apps (React, Vue, Angular)',
+    'onboarding.configure.setup.platform.server.title': 'Server + Browser',
+    'onboarding.configure.setup.platform.server.description': 'Full-stack apps (Next.js, Remix)',
+    'onboarding.configure.setup.platform.mobile.title': 'Mobile Device',
+    'onboarding.configure.setup.platform.mobile.description': 'iOS, Android, React Native',
+    'onboarding.configure.setup.platform.desktop.title': 'Desktop',
+    'onboarding.configure.setup.platform.desktop.description': 'Electron, Tauri apps',
+    'onboarding.configure.setup.platform.backend.title': 'Backend Service',
+    'onboarding.configure.setup.platform.backend.description': 'Server-to-server APIs',
+    'onboarding.configure.setup.info':
+      'Your {{platform}} configuration is set up automatically. You can customize these settings later.',
     'onboarding.configure.oauth.title': 'Configure OAuth',
     'onboarding.configure.oauth.subtitle': 'Configure OAuth2/OIDC settings for your application (optional)',
     'onboarding.configure.oauth.optional': 'This step is optional.',
+    'onboarding.configure.oauth.hostedGuidance':
+      'OAuth configuration is recommended for redirect-based authentication. Configure OAuth settings to enable secure authentication flows.',
+    'onboarding.configure.oauth.nativeGuidance':
+      'OAuth configuration is optional for custom sign-in UI. You can skip this step and use the Flow API for authentication instead.',
     'onboarding.configure.oauth.publicClient.label': 'Public Client',
     'onboarding.configure.oauth.pkce.label': 'Enable PKCE',
     'onboarding.configure.oauth.redirectURIs.fieldLabel': 'Redirect URIs',
     'onboarding.configure.oauth.redirectURIs.placeholder': 'https://localhost:3000/callback',
     'onboarding.configure.oauth.redirectURIs.addButton': 'Add',
     'onboarding.configure.oauth.redirectURIs.errors.empty': 'Please enter a redirect URI',
-    'onboarding.configure.oauth.redirectURIs.errors.invalid': 'Please enter a valid URL (must start with http:// or https://)',
+    'onboarding.configure.oauth.redirectURIs.errors.invalid':
+      'Please enter a valid URL (must start with http:// or https://)',
     'onboarding.configure.oauth.redirectURIs.errors.duplicate': 'This redirect URI has already been added',
     'onboarding.configure.oauth.grantTypes.label': 'Grant Types',
     'onboarding.configure.oauth.grantTypes.authorizationCode': 'Authorization Code',
@@ -588,23 +743,14 @@ const translations = {
       'Authorization Code grant type requires at least one redirect URI.',
     'onboarding.configure.oauth.errors.clientCredentialsRequiresAuth':
       'Client Credentials grant type cannot use "None" authentication method.',
-    'onboarding.configure.oauth.errors.atLeastOneGrantTypeRequired':
-      'At least one grant type must be selected.',
+    'onboarding.configure.oauth.errors.atLeastOneGrantTypeRequired': 'At least one grant type must be selected.',
     'onboarding.configure.oauth.errors.refreshTokenRequiresAuthorizationCode':
       'Refresh Token grant type requires Authorization Code grant type to be selected.',
     'onboarding.creating': 'Creating...',
     'onboarding.skipAndCreate': 'Skip & Create',
     'onboarding.createApplication': 'Create Application',
-    'onboarding.summary.title': 'Application Created!',
-    'onboarding.summary.subtitle': 'Your application has been successfully created and is ready to use.',
-    'onboarding.summary.appDetails': 'Application is ready to use',
-    'onboarding.summary.viewApplication': 'View Application',
-    'onboarding.summary.viewAppAriaLabel': 'View application details',
-    'clientSecret.warning':
-      'Please copy your client credentials now. The client secret will not be shown again.',
-    'clientSecret.clientIdLabel': 'Client ID',
-    'clientSecret.clientSecretLabel': 'Client Secret',
-    'clientSecret.copied': 'Copied!',
+    'onboarding.summary.guides.subtitle': 'Choose how you want to integrate sign-in to your application',
+    'onboarding.summary.guides.divider': 'or',
     'view.title': 'Application Details',
     'view.subtitle': 'View application details and configuration',
     'view.back': 'Back to Applications',
@@ -621,8 +767,8 @@ const translations = {
     'view.fields.tosUri': 'Terms of Service URI',
     'view.fields.policyUri': 'Privacy Policy URI',
     'view.fields.contacts': 'Contacts',
-    'view.fields.authFlowGraphId': 'Authentication Flow Graph ID',
-    'view.fields.registrationFlowGraphId': 'Registration Flow Graph ID',
+    'view.fields.authFlowId': 'Authentication Flow ID',
+    'view.fields.registrationFlowId': 'Registration Flow ID',
     'view.fields.registrationFlowEnabled': 'Registration Flow Enabled',
     'view.fields.clientId': 'Client ID',
     'view.fields.redirectUris': 'Redirect URIs',
@@ -635,6 +781,582 @@ const translations = {
     'view.fields.updatedAt': 'Updated At',
     'view.values.yes': 'Yes',
     'view.values.no': 'No',
+    'edit.customization.brandingId.hint':
+      'Choose a theme to customize authentication pages. Select the Default Theme (shared across all applications) or pick an app-specific theme.',
+    'edit.customization.tosUri.hint':
+      "URL to your application's Terms of Service. May be displayed to users during consent or user sign-in, sign-up or recovery flows.",
+    'edit.customization.policyUri.hint':
+      "URL to your application's Privacy Policy. May be displayed to users during consent or user sign-in, sign-up or recovery flows.",
+    'edit.advanced.oauth2Config.intro':
+      'These OAuth 2.0 settings are read-only and were configured during application creation.',
+    'edit.advanced.redirectUris.hint':
+      'Allowed callback URLs where users will be redirected after authentication. Must be exact matches for security.',
+    'edit.advanced.grantTypes.hint':
+      'OAuth 2.0 flows this application can use (e.g., authorization_code, client_credentials, refresh_token).',
+    'edit.advanced.publicClient.public':
+      'This is a public client (SPA, mobile app) that cannot securely store credentials.',
+    'edit.advanced.publicClient.confidential':
+      'This is a confidential client (server-side app) that can securely store credentials.',
+    'edit.advanced.pkce.enabled': 'PKCE is required for authorization code flow, providing additional security.',
+    'edit.advanced.pkce.disabled': 'PKCE is not required. Consider enabling for public clients (SPAs, mobile apps).',
+    'edit.advanced.certificate.intro': 'Configure certificates for client authentication and token encryption.',
+    'edit.advanced.certificate.type.none': 'None',
+    'edit.advanced.certificate.type.jwks': 'JWKS (Inline JSON Web Key Set)',
+    'edit.advanced.certificate.type.jwksUri': 'JWKS URI (URL to JWKS endpoint)',
+    // Logo update modal
+    'logoModal.title': 'Update Application Logo',
+    'logoModal.preview.title': 'Preview',
+    'logoModal.customUrl.title': 'Custom Logo URL',
+    'logoModal.customUrl.placeholder': 'https://example.com/logo.png',
+    'logoModal.customUrl.hint': 'Enter a direct URL to your custom logo image',
+    'logoModal.logos.title': 'Application Logo',
+    'logoModal.logos.shuffle': 'Shuffle',
+    'logoModal.cancel': 'Cancel',
+    'logoModal.update': 'Update Logo',
+    // Edit page
+    'edit.page.description.empty': 'No description',
+    'edit.page.description.placeholder': 'Add a description',
+    'edit.page.tabs.overview': 'Guide',
+    'edit.page.tabs.general': 'General',
+    'edit.page.tabs.flows': 'Flows',
+    'edit.page.tabs.customization': 'Customization',
+    'edit.page.tabs.token': 'Token',
+    'edit.page.tabs.advanced': 'Advanced Settings',
+    'edit.page.unsavedChanges': 'Unsaved changes',
+    'edit.page.reset': 'Reset',
+    'edit.page.save': 'Save',
+    'edit.page.saving': 'Saving...',
+    // Overview settings labels
+    'edit.overview.noGuides': 'No integration guides available for this application type.',
+    // General settings labels
+    'edit.general.sections.quickCopy': 'Quick Copy',
+    'edit.general.sections.quickCopy.description': 'Copy application identifiers for use in your code.',
+    'edit.general.sections.access': 'Access',
+    'edit.general.sections.access.description': "Configure who can access this application, where it's hosted, etc.",
+    'edit.general.sections.contacts': 'Contacts',
+    'edit.general.sections.contacts.description': 'Contact email addresses for application administrators.',
+    'edit.general.labels.applicationId': 'Application ID',
+    'edit.general.labels.clientId': 'Client ID',
+    'edit.general.labels.allowedUserTypes': 'Allowed User Types',
+    'edit.general.labels.applicationUrl': 'Application URL',
+    'edit.general.labels.contacts': 'Contacts',
+    'edit.general.applicationId.hint': 'Unique identifier for your application',
+    'edit.general.clientId.hint': 'OAuth2 client identifier used for authentication',
+    'edit.general.noUserTypes': 'No user types configured',
+    'edit.general.contacts.placeholder': 'admin@example.com, support@example.com',
+    'edit.general.contacts.hint': 'Enter email addresses separated by commas',
+    'edit.general.redirectUris.title': 'Authorized redirect URIs',
+    'edit.general.redirectUris.description': 'For use with requests from a web server',
+    'edit.general.redirectUris.tooltip': 'OAuth2 redirect URIs where users will be redirected after authentication',
+    'edit.general.redirectUris.addUri': 'Add URI',
+    'edit.general.redirectUris.error.empty': 'Invalid Redirect: URI must not be empty.',
+    'edit.general.redirectUris.error.invalid': 'Invalid Redirect: Please enter a valid URL.',
+    'edit.general.allowedUserTypes.placeholder': 'Select user types',
+    'edit.general.allowedUserTypes.hint': 'Users of these types can authenticate with this application',
+    'edit.general.applicationUrl.hint': 'The homepage URL of your application',
+    // Flows settings labels
+    'edit.flows.labels.authFlow': 'Authentication Flow',
+    'edit.flows.labels.authFlow.description': 'Choose the flow that handles user login and authentication.',
+    'edit.flows.labels.registrationFlow': 'Registration Flow',
+    'edit.flows.labels.registrationFlow.description': 'Choose the flow that handles user sign-up and account creation.',
+    'edit.flows.labels.enableRegistration': 'Enable Registration Flow',
+    'edit.flows.authFlow.placeholder': 'Select an authentication flow',
+    'edit.flows.authFlow.hint': 'Select the flow that handles user sign-in for this application.',
+    'edit.flows.authFlow.alert':
+      'To modify the selected flow, <0>open the flow builder</0>. To create a new flow, visit the <1>Flows page</1>.',
+    'edit.flows.registrationFlow.placeholder': 'Select a registration flow',
+    'edit.flows.registrationFlow.hint': 'Select the flow that handles user registration for this application.',
+    'edit.flows.registrationFlow.alert':
+      'To modify the selected flow, <0>open the flow builder</0>. To create a new flow, visit the <1>Flows page</1>.',
+    'edit.flows.enableRegistration.hint': 'Allow users to register new accounts through this application',
+    'edit.flows.editFlow': 'Edit flow',
+    // Customization settings labels
+    'edit.customization.sections.appearance': 'Appearance',
+    'edit.customization.sections.appearance.description': 'Customize the visual appearance of your application.',
+    'edit.customization.sections.urls': 'URLs',
+    'edit.customization.sections.urls.description': 'Configure legal and policy URLs for your application.',
+    'edit.customization.labels.theme': 'Theme',
+    'edit.customization.labels.tosUri': 'Terms of Service URI',
+    'edit.customization.labels.policyUri': 'Privacy Policy URI',
+    'edit.customization.theme.placeholder': 'Theme configuration ID',
+    'edit.customization.theme.hint':
+      'Choose a theme to customize authentication pages. Select the Default Theme (shared across all applications) or pick an app-specific theme.',
+    'edit.customization.tosUri.placeholder': 'https://example.com/terms',
+    'edit.customization.policyUri.placeholder': 'https://example.com/privacy',
+    // Token settings labels
+    'edit.token.labels.title': 'Token Settings',
+    'edit.token.intro': 'Customize your access and ID tokens by adding user attributes.',
+    'edit.token.labels.issuer': 'Issuer URL',
+    'edit.token.labels.accessToken': 'Access Token Configuration',
+    'edit.token.labels.idToken': 'ID Token Configuration',
+    'edit.token.labels.accessTokenValidity': 'Access Token Validity (seconds)',
+    'edit.token.labels.accessTokenAttributes': 'Access Token User Attributes',
+    'edit.token.labels.idTokenValidity': 'ID Token Validity (seconds)',
+    'edit.token.labels.idTokenAttributes': 'ID Token User Attributes',
+    'edit.token.labels.scopes': 'Scopes',
+    'edit.token.labels.customAttributes': 'Custom Attributes',
+    'edit.token.labels.tokenValidity': 'Token Validity',
+    'edit.token.notConfigured': 'Not configured',
+    'edit.token.noScopes': 'No scopes configured',
+    'edit.token.noCustomAttributes': 'No custom attributes added',
+    'edit.token.seconds': 'seconds',
+    'edit.token.accessTokenValidity.hint': 'Duration in seconds before the access token expires',
+    'edit.token.idTokenValidity.hint': 'Duration in seconds before the ID token expires',
+    'edit.token.customAttributes.hint': 'Add custom attributes to your tokens by selecting user attributes below.',
+    'edit.token.scopes.hint': 'OAuth2 scopes allowed for this application',
+    'edit.token.userAttributes': 'User Attributes',
+    'edit.token.defaultAttributes': 'Default Attributes',
+    'edit.token.defaultAttributes.info':
+      'These attributes are automatically included in all tokens for compatibility and standard compliance.',
+    'edit.token.loadingAttributes': 'Loading user attributes...',
+    'edit.token.noUserAttributes': 'No user attributes available. Configure allowed user types for this application.',
+    'edit.token.alreadyAdded': 'Already added',
+    'edit.token.clickToAdd': 'Click to add',
+    'edit.token.clickToRemove': 'Click to remove',
+    'edit.token.configureAttributes': 'Add or Remove Attributes',
+    'edit.token.configureAttributes.hint':
+      'Click on user attributes to add them to your token. You can also view the default attributes that are automatically included.',
+    'edit.token.accessTokenPreview': 'Preview of access token attributes',
+    'edit.token.token.preview.title': 'Token Preview (JWT)',
+    'edit.token.accessToken.preview.title': 'Access Token Preview (JWT)',
+    'edit.token.idToken.preview.title': 'ID Token Preview (JWT)',
+    'edit.token.useSeparateConfigs': 'Use separate configurations for Access Token and ID Token',
+    'edit.token.useSeparateTokenConfigs': 'Use separate configurations for Access Token and ID Token',
+    'edit.token.separateConfigHint':
+      'When enabled, you can configure different user attributes and validity periods for access tokens and ID tokens separately.',
+    'edit.token.sharedConfigs.hint': 'User attributes will be shared between Access Token and ID Token',
+    'edit.token.sharedValidity.hint': 'Token validity period in seconds',
+    'edit.token.tokenValidation.title': 'Token Validation',
+    'edit.token.tokenValidation.description': 'Configure token validation settings such as issuer URL and audience',
+    'edit.token.tokenIssuer.title': 'Token Issuer',
+    'edit.token.tokenIssuer.description': 'Configure the issuer URL that will be included in both access and ID tokens',
+    'edit.token.accessTokenValidation.title': 'Access Token Validation',
+    'edit.token.accessTokenValidation.description': 'Configure how long access tokens remain valid before expiration',
+    'edit.token.idTokenValidation.title': 'ID Token Validation',
+    'edit.token.idTokenValidation.description': 'Configure how long ID tokens remain valid before expiration',
+    'edit.token.userAttributes.title': 'User Attributes',
+    'edit.token.userAttributes.description':
+      'Select which user attributes to include in your tokens. These attributes will be available in the issued tokens.',
+    'edit.token.accessTokenUserAttributes.title': 'Access Token User Attributes',
+    'edit.token.accessTokenUserAttributes.description':
+      'Configure user attributes that will be included in the access token. You can add custom attributes from user profiles.',
+    'edit.token.idTokenUserAttributes.title': 'ID Token User Attributes',
+    'edit.token.idTokenUserAttributes.description':
+      'Configure user attributes that will be included in the ID token. You can add custom attributes from user profiles and define scope-based attributes.',
+    'edit.token.tokenConfiguration.title': 'Token Configuration',
+    'edit.token.tokenConfiguration.description':
+      'Configure token validity and issuer settings that apply to all issued tokens.',
+    'edit.token.validity.title': 'Token Validity',
+    'edit.token.validity.description':
+      'Configure how long tokens remain valid before expiration. Shorter validity periods enhance security.',
+    'edit.token.validity.hint': 'Token validity period in seconds (e.g., 3600 for 1 hour)',
+    'edit.token.validity.error': 'Validity period must be at least 1 second',
+    'edit.token.issuer.title': 'URLs',
+    'edit.token.issuer.description': 'Configure token-related URLs such as issuer, audience, and other endpoints.',
+    'edit.token.issuer.hint': 'The issuer URL will be included in the "iss" attribute of issued tokens',
+    'edit.token.issuer.placeholder': 'https://your-domain.com',
+    'edit.token.issuer.error': 'Please enter a valid URL',
+    'edit.token.scopes.title': 'OAuth Scopes',
+    'edit.token.scopes.description':
+      'Scopes define the level of access that the application is requesting. Users will see these during consent.',
+    'edit.token.other': 'Other',
+    'edit.token.noOtherAttributes': 'No other attributes available',
+    // Advanced settings labels
+    'edit.advanced.labels.oauth2Config': 'OAuth2 Configuration',
+    'edit.advanced.labels.redirectUris': 'Redirect URIs',
+    'edit.advanced.labels.grantTypes': 'Grant Types',
+    'edit.advanced.labels.responseTypes': 'Response Types',
+    'edit.advanced.labels.publicClient': 'Public Client',
+    'edit.advanced.labels.pkceRequired': 'PKCE Required',
+    'edit.advanced.labels.certificate': 'Certificate',
+    'edit.advanced.labels.certificateType': 'Certificate Type',
+    'edit.advanced.labels.metadata': 'Metadata',
+    'edit.advanced.labels.createdAt': 'Created At',
+    'edit.advanced.labels.updatedAt': 'Updated At',
+    'edit.advanced.publicClient.yes': 'Yes',
+    'edit.advanced.publicClient.no': 'No',
+    'edit.advanced.pkce.yes': 'Yes',
+    'edit.advanced.pkce.no': 'No',
+    'edit.advanced.certificate.placeholder.jwksUri': 'https://example.com/.well-known/jwks',
+    'edit.advanced.certificate.placeholder.jwks': 'Enter JWKS JSON',
+    'edit.advanced.certificate.hint.jwksUri': 'URL to the JWKS endpoint',
+    'edit.advanced.certificate.hint.jwks': 'JSON Web Key Set',
+  },
+
+  // ============================================================================
+  // Sign In - Sign In page translations
+  // ============================================================================
+  signin: {
+    'errors.signin.failed.message': 'Error',
+    'errors.signin.failed.description': 'We are sorry, something has gone wrong here. Please try again.',
+    'errors.passkey.failed': 'Passkey authentication failed. Please try again.',
+    'redirect.to.signup': "Don't have an account? <1>Sign up</1>",
+    heading: 'Sign In',
+    // Passkey authentication
+    'passkey.button.use': 'Sign in with Passkey',
+    'passkey.signin.heading': 'Sign in with Passkey',
+    'passkey.register.heading': 'Register Passkey',
+    'passkey.register.description': 'Create a passkey to securely sign in to your account without a password.',
+  },
+
+  // ============================================================================
+  // Sign Up - Sign Up page translations
+  // ============================================================================
+  signup: {
+    'errors.signup.failed.message': 'Error',
+    'errors.signup.failed.description': 'We are sorry, but we were unable to create your account. Please try again.',
+    'redirect.to.signin': 'Already have an account? <1>Sign in</1>',
+    heading: 'Sign Up',
+    // Passkey registration translations
+    'passkey.setup.heading': 'Set Up Passkey',
+    'passkey.setup.description': 'Create a passkey to securely sign in to your account without a password.',
+    'passkey.button.create': 'Create Passkey',
+    'passkey.registering': 'Creating passkey...',
+    'errors.passkey.failed': 'Failed to create passkey. Please try again.',
+  },
+
+  // ============================================================================
+  // Invite namespace - Invite acceptance feature translations (for Thunder Gate)
+  // ============================================================================
+  invite: {
+    validating: 'Validating your invite link...',
+    'complete.title': 'Welcome Aboard!',
+    'complete.description': 'Your account has been successfully set up.',
+    'errors.invalid.title': 'Unable to verify invite',
+    'errors.invalid.description': 'This invite link is invalid or has expired.',
+    'errors.failed.title': 'Error',
+    'errors.failed.description': 'An error occurred. Please try again.',
+    goToSignIn: 'Go to Sign In',
+    signIn: 'Sign In',
+  },
+
+  // ============================================================================
+  // Components namespace - SDK component error translations
+  // ============================================================================
+  components: {
+    signIn: {
+      errors: {
+        generic: 'An error occurred during sign in. Please try again.',
+      },
+    },
+    signUp: {
+      errors: {
+        generic: 'An error occurred during sign up. Please try again.',
+      },
+    },
+    inviteUser: {
+      errors: {
+        generic: 'An error occurred while inviting the user. Please try again.',
+      },
+    },
+    acceptInvite: {
+      errors: {
+        generic: 'An error occurred while accepting the invite. Please try again.',
+      },
+    },
+  },
+
+  // ============================================================================
+  // Elements - Low level reusable element translations
+  // ============================================================================
+  elements: {
+    'buttons.github.text': 'Continue with GitHub',
+    'buttons.google.text': 'Continue with Google',
+    'buttons.submit.text': 'Continue',
+    'display.divider.or_separator': 'OR',
+    'fields.first_name.label': 'First Name',
+    'fields.first_name.placeholder': 'Enter your first name',
+    'fields.last_name.label': 'Last Name',
+    'fields.last_name.placeholder': 'Enter your last name',
+    'fields.email.label': 'Email',
+    'fields.email.placeholder': 'Enter your email address',
+    'fields.mobile.label': 'Mobile Number',
+    'fields.mobile.placeholder': 'Enter your mobile number',
+    'fields.password.label': 'Password',
+    'fields.password.placeholder': 'Enter your password',
+    'fields.username.label': 'Username',
+    'fields.username.placeholder': 'Enter your username',
+    'fields.usertype.label': 'User Type',
+    'fields.usertype.placeholder': 'Select User Type',
+  },
+
+  // ============================================================================
+  // Validations - Form & other validation messages translations
+  // ============================================================================
+  validations: {
+    'form.field.required': '{{field}} is required.',
+  },
+
+  // ============================================================================
+  // Flows - Flow builder feature translations
+  // ============================================================================
+  flows: {
+    // Flow listing page
+    'listing.title': 'Flows',
+    'listing.subtitle': 'Create and manage authentication and registration flows for your applications',
+    'listing.addFlow': 'Create New Flow',
+    'listing.columns.name': 'Name',
+    'listing.columns.flowType': 'Type',
+    'listing.columns.version': 'Version',
+    'listing.columns.updatedAt': 'Last Updated',
+    'listing.columns.actions': 'Actions',
+    'listing.error.title': 'Failed to load flows',
+    'listing.error.unknown': 'An unknown error occurred',
+    'delete.title': 'Delete Flow',
+    'delete.message': 'Are you sure you want to delete this flow? This action cannot be undone.',
+    'delete.disclaimer': 'Warning: All associated configurations will be permanently removed.',
+    'delete.error': 'Failed to delete flow. Please try again.',
+
+    // Flow labels and navigation
+    label: 'Flows',
+    'core.breadcrumb': '{{flowType}}',
+    'core.autoSave.savingInProgress': 'Saving...',
+    'core.labels.enableFlow': 'Enable Flow',
+    'core.labels.disableFlow': 'Disable Flow',
+    'core.tooltips.enableFlow': 'Enable this {{flowType}}',
+    'core.tooltips.disableFlow': 'Disable this {{flowType}}',
+
+    // Notification panel
+    'core.notificationPanel.header': 'Notifications',
+    'core.notificationPanel.trigger.label': 'View notifications',
+    'core.notificationPanel.tabs.errors': 'Errors',
+    'core.notificationPanel.tabs.warnings': 'Warnings',
+    'core.notificationPanel.tabs.info': 'Info',
+    'core.notificationPanel.emptyMessages.errors': 'No errors found',
+    'core.notificationPanel.emptyMessages.warnings': 'No warnings found',
+    'core.notificationPanel.emptyMessages.info': 'No information messages',
+
+    // Execution steps - names
+    'core.executions.names.google': 'Google',
+    'core.executions.names.apple': 'Apple',
+    'core.executions.names.github': 'GitHub',
+    'core.executions.names.facebook': 'Facebook',
+    'core.executions.names.microsoft': 'Microsoft',
+    'core.executions.names.PasskeyAuthentication': 'Passkey Authentication',
+    'core.executions.names.confirmationCode': 'Confirmation Code',
+    'core.executions.names.magicLink': 'Magic Link',
+    'core.executions.names.sendEmailOTP': 'Send Email OTP',
+    'core.executions.names.verifyEmailOTP': 'Verify Email OTP',
+    'core.executions.names.sendSMS': 'Send SMS',
+    'core.executions.names.verifySMSOTP': 'Verify SMS OTP',
+    'core.executions.names.default': 'Execution',
+
+    // SMS OTP executor modes
+    'core.executions.smsOtp.mode.send': 'Send OTP',
+    'core.executions.smsOtp.mode.verify': 'Verify OTP',
+    'core.executions.smsOtp.mode.label': 'Mode',
+    'core.executions.smsOtp.mode.placeholder': 'Select a mode',
+    'core.executions.smsOtp.description': 'Configure the SMS OTP executor settings.',
+
+    // SMS OTP sender selection
+    'core.executions.smsOtp.sender.label': 'Notification Sender',
+    'core.executions.smsOtp.sender.placeholder': 'Select a notification sender',
+    'core.executions.smsOtp.sender.required': 'Notification sender is required and must be selected.',
+    'core.executions.smsOtp.sender.noSenders':
+      'No notification senders available. Please create a notification sender first.',
+
+    // Passkey executor modes
+    'core.executions.passkey.mode.challenge': 'Challenge',
+    'core.executions.passkey.mode.verify': 'Verify',
+    'core.executions.passkey.mode.label': 'Mode',
+    'core.executions.passkey.mode.placeholder': 'Select a mode',
+    'core.executions.passkey.description': 'Configure the Passkey executor settings.',
+
+    // Execution steps - tooltips and messages
+    'core.executions.tooltip.configurationHint': 'Click to configure this step',
+    'core.executions.landing.message': 'This {{executor}} step will redirect users to a landing page.',
+
+    // Steps - end
+    'core.steps.end.flowCompletionProperties': 'Flow Completion Properties',
+
+    // Validation messages - input fields
+    'core.validation.fields.input.general':
+      'Required fields are not properly configured for the input field with ID <code>{{id}}</code>.',
+    'core.validation.fields.input.idpName': 'Identity provider name is required',
+    'core.validation.fields.input.idpId': 'Connection is required',
+    'core.validation.fields.input.senderId': 'Notification sender is required',
+    'core.validation.fields.input.label': 'Label is required',
+    'core.validation.fields.input.ref': 'Attribute is required',
+
+    // Validation messages - executor
+    'core.validation.fields.executor.general': 'The executor <0>{{id}}</0> is not properly configured.',
+
+    // Validation messages - button
+    'core.validation.fields.button.general':
+      'Required fields are not properly configured for the button with ID <code>{{id}}</code>.',
+    'core.validation.fields.button.text': 'Button text is required',
+    'core.validation.fields.button.label': 'Label is required',
+    'core.validation.fields.button.action': 'Action is required',
+    'core.validation.fields.button.variant': 'Variant is required',
+
+    // Validation messages - checkbox
+    'core.validation.fields.checkbox.general':
+      'Required fields are not properly configured for the checkbox with ID <code>{{id}}</code>.',
+    'core.validation.fields.checkbox.label': 'Label is required',
+    'core.validation.fields.checkbox.ref': 'Attribute is required',
+
+    // Validation messages - divider
+    'core.validation.fields.divider.general':
+      'Required fields are not properly configured for the divider with ID <code>{{id}}</code>.',
+    'core.validation.fields.divider.variant': 'Variant is required',
+
+    // Validation messages - typography
+    'core.validation.fields.typography.general':
+      'Required fields are not properly configured for the typography with ID <code>{{id}}</code>.',
+    'core.validation.fields.typography.text': 'Text content is required',
+    'core.validation.fields.typography.label': 'Label is required',
+    'core.validation.fields.typography.variant': 'Variant is required',
+
+    // Validation messages - image
+    'core.validation.fields.image.general':
+      'Required fields are not properly configured for the image with ID <code>{{id}}</code>.',
+    'core.validation.fields.image.src': 'Image source is required',
+    'core.validation.fields.image.variant': 'Variant is required',
+
+    // Placeholders
+    'core.placeholders.image': 'No image source',
+
+    // Validation messages - rich text
+    'core.validation.fields.richText.general':
+      'Required fields are not properly configured for the rich text with ID <code>{{id}}</code>.',
+    'core.validation.fields.richText.text': 'Rich text content is required',
+    'core.validation.fields.richText.label': 'Label is required',
+
+    // Validation messages - OTP input
+    'core.validation.fields.otpInput.label': 'OTP input label is required',
+
+    // Validation messages - phone number input
+    'core.validation.fields.phoneNumberInput.label': 'Phone number label is required',
+    'core.validation.fields.phoneNumberInput.ref': 'Phone number attribute is required',
+
+    // Elements - rich text
+    'core.elements.richText.placeholder': 'Enter text here...',
+    'core.elements.richText.resolvedI18nValue': 'Resolved i18n value',
+    'core.elements.richText.linkEditor.urlTypeLabel': 'URL Type',
+    'core.elements.richText.linkEditor.placeholder': 'Enter URL',
+    'core.elements.richText.linkEditor.editLink': 'Edit Link',
+    'core.elements.richText.linkEditor.viewLink': 'Link',
+
+    // Elements - text property field
+    'core.elements.textPropertyField.placeholder': 'Enter {{propertyName}}',
+    'core.elements.textPropertyField.tooltip.configureTranslation': 'Configure translation',
+    'core.elements.textPropertyField.i18nKey': 'Translation Key',
+    'core.elements.textPropertyField.resolvedValue': 'Resolved Value',
+
+    // Elements - i18n card
+    'core.elements.textPropertyField.i18nCard.title': 'Translation for {{field}}',
+    'core.elements.textPropertyField.i18nCard.createTitle': 'Create Translation',
+    'core.elements.textPropertyField.i18nCard.updateTitle': 'Update Translation',
+    'core.elements.textPropertyField.i18nCard.i18nKey': 'Translation Key',
+    'core.elements.textPropertyField.i18nCard.i18nKeyInputPlaceholder': 'Enter a unique translation key',
+    'core.elements.textPropertyField.i18nCard.i18nKeyInputHint': 'Use format: screen.{{key}}',
+    'core.elements.textPropertyField.i18nCard.selectI18nKey': 'Select an existing key',
+    'core.elements.textPropertyField.i18nCard.language': 'Language',
+    'core.elements.textPropertyField.i18nCard.languageText': 'Translation Text',
+    'core.elements.textPropertyField.i18nCard.languageTextPlaceholder': 'Enter translation text',
+    'core.elements.textPropertyField.i18nCard.commonKeyWarning':
+      'This is a common key shared across screens. Changes will affect all usages.',
+    'core.elements.textPropertyField.i18nCard.chip.commonScreen.label': 'Common',
+    'core.elements.textPropertyField.i18nCard.tooltip.commonKeyTooltip': 'This key is shared across multiple screens',
+    'core.elements.textPropertyField.i18nCard.tooltip.editExistingTranslation': 'Edit existing translation',
+    'core.elements.textPropertyField.i18nCard.tooltip.addNewTranslation': 'Add new translation',
+    'core.elements.textPropertyField.i18nCard.invalidKeyFormat':
+      'Invalid key format. Use only letters, numbers, dots, underscores, and hyphens.',
+
+    // Form requires view dialog
+    'core.dialogs.formRequiresView.formOnCanvas.title': 'Form Requires a View',
+    'core.dialogs.formRequiresView.formOnCanvas.description':
+      'Form components cannot be placed directly on the canvas. They must be inside a View component.',
+    'core.dialogs.formRequiresView.formOnCanvas.alertMessage':
+      'Would you like to create a View and add the Form inside it?',
+    'core.dialogs.formRequiresView.formOnCanvas.confirmButton': 'Add View with Form',
+    'core.dialogs.formRequiresView.inputOnCanvas.title': 'Input Requires a Form and View',
+    'core.dialogs.formRequiresView.inputOnCanvas.description':
+      'Input components cannot be placed directly on the canvas. They must be inside a Form, which must be inside a View.',
+    'core.dialogs.formRequiresView.inputOnCanvas.alertMessage':
+      'Would you like to create a View with a Form and add the Input inside it?',
+    'core.dialogs.formRequiresView.inputOnCanvas.confirmButton': 'Add View, Form and Input',
+    'core.dialogs.formRequiresView.inputOnView.title': 'Input Requires a Form',
+    'core.dialogs.formRequiresView.inputOnView.description':
+      'Input components cannot be placed directly inside a View. They must be inside a Form component.',
+    'core.dialogs.formRequiresView.inputOnView.alertMessage':
+      'Would you like to create a Form and add the Input inside it?',
+    'core.dialogs.formRequiresView.inputOnView.confirmButton': 'Add Form with Input',
+    'core.dialogs.formRequiresView.widgetOnCanvas.title': 'Widget Requires a View',
+    'core.dialogs.formRequiresView.widgetOnCanvas.description':
+      'Widgets cannot be placed directly on the canvas. They must be inside a View component.',
+    'core.dialogs.formRequiresView.widgetOnCanvas.alertMessage':
+      'Would you like to create a View and add the Widget inside it?',
+    'core.dialogs.formRequiresView.widgetOnCanvas.confirmButton': 'Add View with Widget',
+    'core.dialogs.formRequiresView.cancelButton': 'Cancel',
+
+    // Form adapter
+    'core.adapters.form.badgeLabel': 'Form',
+    'core.adapters.form.placeholder': 'DROP FORM COMPONENTS HERE',
+
+    // Header panel
+    'core.headerPanel.goBack': 'Go back to Flows',
+    'core.headerPanel.autoLayout': 'Auto Layout',
+    'core.headerPanel.save': 'Save',
+    'core.headerPanel.editTitle': 'Edit flow name',
+    'core.headerPanel.saveTitle': 'Save flow name',
+    'core.headerPanel.cancelEdit': 'Cancel',
+    'core.headerPanel.edgeStyleTooltip': 'Change edge style',
+    'core.headerPanel.edgeStyles.bezier': 'Bezier',
+    'core.headerPanel.edgeStyles.smoothStep': 'Smooth Step',
+    'core.headerPanel.edgeStyles.step': 'Step',
+
+    // Resource panel
+    'core.resourcePanel.title': 'Resources',
+    'core.resourcePanel.showResources': 'Show Resources',
+    'core.resourcePanel.hideResources': 'Hide Resources',
+    'core.resourcePanel.starterTemplates.title': 'Starter Templates',
+    'core.resourcePanel.starterTemplates.description':
+      'Choose one of these templates to start building registration experience',
+    'core.resourcePanel.widgets.title': 'Widgets',
+    'core.resourcePanel.widgets.description': 'Use these widgets to build up the flow using pre-created flow blocks',
+    'core.resourcePanel.steps.title': 'Steps',
+    'core.resourcePanel.steps.description': 'Use these as steps in your flow',
+    'core.resourcePanel.components.title': 'Components',
+    'core.resourcePanel.components.description': 'Use these components to build up your views',
+    'core.resourcePanel.executors.title': 'Executors',
+    'core.resourcePanel.executors.description': 'Add authentication executors to your flow',
+
+    // View step
+    'core.steps.view.addComponent': 'Add Component',
+    'core.steps.view.configure': 'Configure',
+    'core.steps.view.remove': 'Remove',
+    'core.steps.view.noComponentsAvailable': 'No components available',
+
+    // Rule
+    'core.rule.conditionalRule': 'Conditional Rule',
+    'core.rule.remove': 'Remove',
+
+    // Field extended properties
+    'core.fieldExtendedProperties.attribute': 'Attribute',
+    'core.fieldExtendedProperties.selectAttribute': 'Select an attribute',
+
+    // Button extended properties
+    'core.buttonExtendedProperties.type': 'Type',
+
+    // Rules properties
+    'core.rulesProperties.description': 'Define a rule to how conditionally proceed to next steps in the flow',
+
+    // Login flow builder
+    'core.loginFlowBuilder.form': 'Form',
+    'core.loginFlowBuilder.errors.validationRequired': 'Please fix all validation errors before saving.',
+    'core.loginFlowBuilder.errors.structureValidationFailed': 'Flow structure validation failed: {{error}}',
+    'core.loginFlowBuilder.errors.saveFailed': 'Failed to save flow. Please try again.',
+    'core.loginFlowBuilder.success.flowCreated': 'Flow created successfully.',
+    'core.loginFlowBuilder.success.flowUpdated': 'Flow updated successfully.',
+  },
+
+  /**
+   * Appearance namespace - Theme and branding related translations
+   */
+  appearance: {
+    'theme.defaultTheme': 'Default Theme',
+    'theme.appTheme.displayName': '{{appName}} Theme',
   },
 } as const;
 

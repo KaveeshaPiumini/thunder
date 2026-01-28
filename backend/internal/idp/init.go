@@ -22,16 +22,35 @@ package idp
 import (
 	"net/http"
 
+	immutableresource "github.com/asgardeo/thunder/internal/system/immutable_resource"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // Initialize initializes the IDP service and registers its routes.
-func Initialize(mux *http.ServeMux) IDPServiceInterface {
-	idpStore := newIDPStore()
+func Initialize(mux *http.ServeMux) (IDPServiceInterface, immutableresource.ResourceExporter, error) {
+	// Create store based on configuration
+	var idpStore idpStoreInterface
+	if immutableresource.IsImmutableModeEnabled() {
+		idpStore = newIDPFileBasedStore()
+	} else {
+		idpStore = newIDPStore()
+	}
+
 	idpService := newIDPService(idpStore)
+
+	// Load immutable resources if enabled
+	if immutableresource.IsImmutableModeEnabled() {
+		if err := loadImmutableResources(idpStore); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	idpHandler := newIDPHandler(idpService)
 	registerRoutes(mux, idpHandler)
-	return idpService
+
+	// Create and return exporter
+	exporter := newIDPExporter(idpService)
+	return idpService, exporter, nil
 }
 
 // RegisterRoutes registers the routes for identity provider operations.

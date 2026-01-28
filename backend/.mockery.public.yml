@@ -21,14 +21,6 @@ template: testify
 template-data:
   unroll-variadic: true
 packages:
-  github.com/asgardeo/thunder/internal/system/database/client:
-    config:
-      all: true
-      dir: tests/mocks/database/clientmock
-      structname: '{{.InterfaceName}}Mock'
-      pkgname: clientmock
-      filename: "{{.InterfaceName}}_mock.go"
-
   github.com/asgardeo/thunder/internal/system/database/provider:
     config:
       all: true
@@ -85,14 +77,6 @@ packages:
       pkgname: jwtmock
       filename: "{{.InterfaceName}}_mock.go"
 
-  github.com/asgardeo/thunder/internal/oauth/jwks:
-    config:
-      all: true
-      dir: tests/mocks/oauth/jwksmock
-      structname: '{{.InterfaceName}}Mock'
-      pkgname: jwksmock
-      filename: "{{.InterfaceName}}_mock.go"
-
   github.com/asgardeo/thunder/internal/oauth/scope:
     config:
       all: true
@@ -102,12 +86,19 @@ packages:
       filename: "{{.InterfaceName}}_mock.go"
 
   github.com/asgardeo/thunder/internal/oauth/oauth2/authz:
-    config:
-      all: true
-      dir: tests/mocks/oauth/oauth2/authzmock
-      structname: '{{.InterfaceName}}Mock'
-      pkgname: authzmock
-      filename: "{{.InterfaceName}}_mock.go"
+    interfaces:
+      AuthorizeHandlerInterface:
+        config:
+          dir: tests/mocks/oauth/oauth2/authzmock
+          structname: '{{.InterfaceName}}Mock'
+          pkgname: authzmock
+          filename: "{{.InterfaceName}}_mock.go"
+      AuthorizeServiceInterface:
+        config:
+          dir: tests/mocks/oauth/oauth2/authzmock
+          structname: '{{.InterfaceName}}Mock'
+          pkgname: authzmock
+          filename: "{{.InterfaceName}}_mock.go"
 
   github.com/asgardeo/thunder/internal/oauth/oauth2/granthandlers:
     config:
@@ -213,6 +204,15 @@ packages:
       pkgname: githubmock
       filename: "{{.InterfaceName}}_mock.go"
 
+  github.com/asgardeo/thunder/internal/authn/passkey:
+    interfaces:
+      PasskeyServiceInterface:
+        config:
+          dir: tests/mocks/authn/passkeymock
+          structname: 'WebAuthnAuthnServiceInterfaceMock'
+          pkgname: passkeymock
+          filename: "WebAuthnAuthnServiceInterface_mock.go"
+
   github.com/asgardeo/thunder/internal/idp:
     config:
       all: true
@@ -277,7 +277,7 @@ packages:
       pkgname: flowexecmock
       filename: "{{.InterfaceName}}_mock.go"
   
-  github.com/asgardeo/thunder/internal/flow/flowmgt:
+  github.com/asgardeo/thunder/internal/flow/mgt:
     config:
       all: true
       dir: tests/mocks/flow/flowmgtmock
@@ -333,10 +333,42 @@ packages:
       pkgname: rolemock
       filename: "{{.InterfaceName}}_mock.go"
 
-  github.com/asgardeo/thunder/internal/branding:
+  github.com/asgardeo/thunder/internal/observability:
+    config:
+      all: true
+      dir: tests/mocks/observabilitymock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: observabilitymock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/branding/mgt:
     config:
       all: true
       dir: tests/mocks/brandingmock
       structname: '{{.InterfaceName}}Mock'
       pkgname: brandingmock
+      filename: "{{.InterfaceName}}_mock.go"
+  
+  github.com/asgardeo/thunder/internal/system/crypto/hash:
+    config:
+      all: true
+      dir: tests/mocks/crypto/hashmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: hashmock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/system/crypto/pki:
+    config:
+      all: true
+      dir: tests/mocks/crypto/pki/pkimock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: pkimock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/resource:
+    config:
+      all: true
+      dir: tests/mocks/resourcemock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: resourcemock
       filename: "{{.InterfaceName}}_mock.go"

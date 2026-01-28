@@ -22,17 +22,29 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	immutableresource "github.com/asgardeo/thunder/internal/system/immutable_resource"
 	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 const (
 	formatYAML = "yaml"
 	formatJSON = "json"
+
+	resourceTypeApplication        = "application"
+	resourceTypeIdentityProvider   = "identity_provider"
+	resourceTypeNotificationSender = "notification_sender"
+	resourceTypeUserSchema         = "user_schema"
+	resourceTypeOU                 = "organization_unit"
+	resourceTypeFlow               = "flow"
+	resourceTypeTranslation        = "translation"
 )
 
-var parameterizerInstance = newParameterizer(rules)
+// parameterizerInterface defines the interface for template parameterization.
+type parameterizerInterface interface {
+	ToParameterizedYAML(obj interface{},
+		resourceType string, resourceName string, rules *immutableresource.ResourceRules) (string, error)
+}
 
 // ExportServiceInterface defines the interface for the export service.
 type ExportServiceInterface interface {
@@ -41,17 +53,23 @@ type ExportServiceInterface interface {
 
 // exportService implements the ExportServiceInterface.
 type exportService struct {
-	applicationService application.ApplicationServiceInterface
-	// Future: Add other service dependencies
-	// groupService group.GroupServiceInterface
-	// userService  user.UserServiceInterface
-	// idpService   idp.IDPServiceInterface
+	parameterizer parameterizerInterface
+	registry      *ResourceExporterRegistry
 }
 
 // newExportService creates a new instance of exportService.
-func newExportService(appService application.ApplicationServiceInterface) ExportServiceInterface {
+func newExportService(
+	exporters []immutableresource.ResourceExporter, param parameterizerInterface,
+) ExportServiceInterface {
+	// Create registry and register all exporters
+	registry := newResourceExporterRegistry()
+	for _, exporter := range exporters {
+		registry.Register(exporter)
+	}
+
 	return &exportService{
-		applicationService: appService,
+		parameterizer: param,
+		registry:      registry,
 	}
 }
 
@@ -76,15 +94,37 @@ func (es *exportService) ExportResources(request *ExportRequest) (*ExportRespons
 	}
 
 	var exportFiles []ExportFile
-	var exportErrors []ExportError
+	var exportErrors []immutableresource.ExportError
 	resourceCounts := make(map[string]int)
 
-	// Export applications if requested
-	if len(request.Applications) > 0 {
-		appFiles, appErrors := es.exportApplications(request.Applications, options)
-		exportFiles = append(exportFiles, appFiles...)
-		exportErrors = append(exportErrors, appErrors...)
-		resourceCounts["applications"] = len(appFiles)
+	// Map resource types to their IDs from the request
+	resourceMap := map[string][]string{
+		resourceTypeApplication:        request.Applications,
+		resourceTypeIdentityProvider:   request.IdentityProviders,
+		resourceTypeNotificationSender: request.NotificationSenders,
+		resourceTypeUserSchema:         request.UserSchemas,
+		resourceTypeOU:                 request.OrganizationUnits,
+		resourceTypeFlow:               request.Flows,
+		resourceTypeTranslation:        request.Translations,
+	}
+
+	// Export resources using the registry
+	for resourceType, resourceIDs := range resourceMap {
+		if len(resourceIDs) == 0 {
+			continue
+		}
+
+		exporter, exists := es.registry.Get(resourceType)
+		if !exists {
+			log.GetLogger().Warn("No exporter registered for resource type",
+				log.String("resourceType", resourceType))
+			continue
+		}
+
+		files, errors := es.exportResourcesWithExporter(exporter, resourceIDs, options)
+		exportFiles = append(exportFiles, files...)
+		exportErrors = append(exportErrors, errors...)
+		resourceCounts[resourceType] = len(files)
 	}
 
 	if len(exportFiles) == 0 {
@@ -115,41 +155,52 @@ func (es *exportService) ExportResources(request *ExportRequest) (*ExportRespons
 	}, nil
 }
 
-// exportApplications exports application configurations as YAML files.
-func (es *exportService) exportApplications(applicationIDs []string, options *ExportOptions) (
-	[]ExportFile, []ExportError) {
+// exportResourcesWithExporter exports resources using a registered exporter.
+func (es *exportService) exportResourcesWithExporter(
+	exporter immutableresource.ResourceExporter,
+	resourceIDs []string,
+	options *ExportOptions,
+) ([]ExportFile, []immutableresource.ExportError) {
 	logger := log.GetLogger().With(log.String("component", "ExportService"))
-	exportFiles := make([]ExportFile, 0, len(applicationIDs))
-	exportErrors := make([]ExportError, 0, len(applicationIDs))
-
-	applicationIDList := make([]string, 0)
-	if len(applicationIDs) == 1 && applicationIDs[0] == "*" {
-		// Support pagination once applicationList supports it.
-		apps, err := es.applicationService.GetApplicationList()
+	resourceType := exporter.GetResourceType()
+	exportFiles := make([]ExportFile, 0, len(resourceIDs))
+	exportErrors := make([]immutableresource.ExportError, 0, len(resourceIDs))
+	var resourceIDList []string
+	if len(resourceIDs) == 1 && resourceIDs[0] == "*" {
+		// Export all resources
+		ids, err := exporter.GetAllResourceIDs()
 		if err != nil {
-			logger.Warn("Failed to get all applications", log.Any("error", err))
-			return nil, nil
+			logger.Warn("Failed to get all resources",
+				log.String("resourceType", resourceType), log.Any("error", err))
+			return []ExportFile{}, []immutableresource.ExportError{}
 		}
-		for _, app := range apps.Applications {
-			applicationIDList = append(applicationIDList, app.ID)
-		}
+		resourceIDList = ids
 	} else {
-		applicationIDList = applicationIDs
+		resourceIDList = resourceIDs
 	}
 
-	for _, appID := range applicationIDList {
-		// Get the application
-		app, svcErr := es.applicationService.GetApplication(appID)
+	for _, resourceID := range resourceIDList {
+		// Get the resource
+		resource, _, svcErr := exporter.GetResourceByID(resourceID)
 		if svcErr != nil {
-			logger.Warn("Failed to get application for export",
-				log.String("appID", appID), log.String("error", svcErr.Error))
-			exportErrors = append(exportErrors, ExportError{
-				ResourceType: "application",
-				ResourceID:   appID,
+			logger.Warn("Failed to get resource for export",
+				log.String("resourceType", resourceType),
+				log.String("resourceID", resourceID),
+				log.String("error", svcErr.Error))
+			exportErrors = append(exportErrors, immutableresource.ExportError{
+				ResourceType: resourceType,
+				ResourceID:   resourceID,
 				Error:        svcErr.Error,
 				Code:         svcErr.Code,
 			})
-			continue // Skip applications that can't be found
+			continue
+		}
+
+		// Validate resource
+		validatedName, exportErr := exporter.ValidateResource(resource, resourceID, logger)
+		if exportErr != nil {
+			exportErrors = append(exportErrors, *exportErr)
+			continue
 		}
 
 		// Convert to export format based on options
@@ -162,13 +213,16 @@ func (es *exportService) exportApplications(applicationIDs []string, options *Ex
 			options.Format = formatYAML
 		}
 
-		templateContent, err := generateTemplateFromStruct(app, app.Name)
+		templateContent, err := es.generateTemplateFromStruct(
+			resource, exporter.GetParameterizerType(), validatedName, exporter)
 		if err != nil {
 			logger.Warn("Failed to generate template from struct",
-				log.String("appID", appID), log.String("error", err.Error()))
-			exportErrors = append(exportErrors, ExportError{
-				ResourceType: "application",
-				ResourceID:   appID,
+				log.String("resourceType", resourceType),
+				log.String("resourceID", resourceID),
+				log.String("error", err.Error()))
+			exportErrors = append(exportErrors, immutableresource.ExportError{
+				ResourceType: resourceType,
+				ResourceID:   resourceID,
 				Error:        err.Error(),
 				Code:         "TemplateGenerationError",
 			})
@@ -177,16 +231,16 @@ func (es *exportService) exportApplications(applicationIDs []string, options *Ex
 		content = templateContent
 
 		// Determine file name and folder path based on options
-		fileName = es.generateFileName(app.Name, "application", appID, options)
-		folderPath := es.generateFolderPath("application", options)
+		fileName = es.generateFileName(validatedName, resourceType, resourceID, options)
+		folderPath := es.generateFolderPath(resourceType, options)
 
 		// Create export file
 		exportFile := ExportFile{
 			FileName:     fileName,
 			Content:      content,
 			FolderPath:   folderPath,
-			ResourceType: "application",
-			ResourceID:   appID,
+			ResourceType: resourceType,
+			ResourceID:   resourceID,
 		}
 		exportFiles = append(exportFiles, exportFile)
 	}
@@ -194,8 +248,10 @@ func (es *exportService) exportApplications(applicationIDs []string, options *Ex
 	return exportFiles, exportErrors
 }
 
-func generateTemplateFromStruct(data interface{}, appName string) (string, error) {
-	template, err := parameterizerInstance.ToParameterizedYAML(data, "Application", appName)
+func (es *exportService) generateTemplateFromStruct(data interface{},
+	paramResourceType string, resourceName string, exporter immutableresource.ResourceExporter) (string, error) {
+	template, err := es.parameterizer.ToParameterizedYAML(
+		data, paramResourceType, resourceName, exporter.GetResourceRules())
 	if err != nil {
 		return "", err
 	}

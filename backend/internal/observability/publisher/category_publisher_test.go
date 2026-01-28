@@ -1,11 +1,11 @@
 package publisher
 
 import (
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/asgardeo/thunder/internal/observability/event"
-	"github.com/asgardeo/thunder/internal/observability/metrics"
 )
 
 // mockSubscriberV2 is a mock subscriber for testing with category support
@@ -14,6 +14,7 @@ type mockSubscriberV2 struct {
 	categories  []event.EventCategory
 	received    []*event.Event
 	shouldError bool
+	mu          sync.Mutex
 }
 
 func (m *mockSubscriberV2) GetID() string {
@@ -25,6 +26,8 @@ func (m *mockSubscriberV2) GetCategories() []event.EventCategory {
 }
 
 func (m *mockSubscriberV2) OnEvent(evt *event.Event) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.received = append(m.received, evt)
 	if m.shouldError {
 		return &testError{msg: "mock error"}
@@ -33,6 +36,14 @@ func (m *mockSubscriberV2) OnEvent(evt *event.Event) error {
 }
 
 func (m *mockSubscriberV2) Close() error {
+	return nil
+}
+
+func (m *mockSubscriberV2) IsEnabled() bool {
+	return true
+}
+
+func (m *mockSubscriberV2) Initialize() error {
 	return nil
 }
 
@@ -46,36 +57,23 @@ func (e *testError) Error() string {
 }
 
 func TestCategoryPublisher_SmartPublishing(t *testing.T) {
-	metrics.GetMetrics().Reset()
-	metrics.GetMetrics().Enable()
-
 	// Create publisher
 	pub := NewCategoryPublisher()
 
 	// Create event
 	evt := &event.Event{
 		EventID:   "test-1",
-		Type:      string(event.EventTypeAuthenticationStarted),
+		Type:      string(event.EventTypeTokenIssuanceStarted),
 		TraceID:   "trace-1",
 		Component: "test",
 		Timestamp: time.Now(),
 	}
 
-	// Publish event with NO subscribers
+	// Publish event with NO subscribers - should be skipped
 	pub.Publish(evt)
 
 	// Give it time to process
 	time.Sleep(50 * time.Millisecond)
-
-	// Check that event was SKIPPED (not queued)
-	m := metrics.GetMetrics()
-	if m.GetEventsSkipped() != 1 {
-		t.Errorf("Expected 1 event skipped, got %d", m.GetEventsSkipped())
-	}
-
-	if m.GetEventsPublished() != 0 {
-		t.Errorf("Expected 0 events published (should be skipped), got %d", m.GetEventsPublished())
-	}
 
 	// Now add a subscriber for authentication events
 	authSub := &mockSubscriberV2{
@@ -89,7 +87,7 @@ func TestCategoryPublisher_SmartPublishing(t *testing.T) {
 	// Publish same event again
 	evt2 := &event.Event{
 		EventID:   "test-2",
-		Type:      string(event.EventTypeAuthenticationStarted),
+		Type:      string(event.EventTypeTokenIssuanceStarted),
 		TraceID:   "trace-2",
 		Component: "test",
 		Timestamp: time.Now(),
@@ -100,11 +98,6 @@ func TestCategoryPublisher_SmartPublishing(t *testing.T) {
 	// Give it time to process
 	time.Sleep(100 * time.Millisecond)
 
-	// Now it should be published (not skipped)
-	if m.GetEventsPublished() != 1 {
-		t.Errorf("Expected 1 event published, got %d", m.GetEventsPublished())
-	}
-
 	// Verify subscriber received it
 	if len(authSub.received) != 1 {
 		t.Errorf("Expected subscriber to receive 1 event, got %d", len(authSub.received))
@@ -114,9 +107,6 @@ func TestCategoryPublisher_SmartPublishing(t *testing.T) {
 }
 
 func TestCategoryPublisher_CategoryRouting(t *testing.T) {
-	metrics.GetMetrics().Reset()
-	metrics.GetMetrics().Enable()
-
 	// Create publisher
 	pub := NewCategoryPublisher()
 
@@ -129,7 +119,7 @@ func TestCategoryPublisher_CategoryRouting(t *testing.T) {
 
 	tokenSub := &mockSubscriberV2{
 		id:         "token-sub",
-		categories: []event.EventCategory{event.CategoryTokens},
+		categories: []event.EventCategory{event.CategoryFlows},
 		received:   make([]*event.Event, 0),
 	}
 
@@ -146,7 +136,7 @@ func TestCategoryPublisher_CategoryRouting(t *testing.T) {
 	// Publish authentication event
 	authEvent := &event.Event{
 		EventID:   "auth-1",
-		Type:      string(event.EventTypeAuthenticationStarted),
+		Type:      string(event.EventTypeTokenIssuanceStarted),
 		TraceID:   "trace-1",
 		Component: "test",
 		Timestamp: time.Now(),
@@ -157,7 +147,7 @@ func TestCategoryPublisher_CategoryRouting(t *testing.T) {
 	// Publish token event
 	tokenEvent := &event.Event{
 		EventID:   "token-1",
-		Type:      string(event.EventTypeTokenIssued),
+		Type:      string(event.EventTypeFlowStarted),
 		TraceID:   "trace-2",
 		Component: "test",
 		Timestamp: time.Now(),
@@ -208,7 +198,7 @@ func TestCategoryPublisher_GetActiveCategories(t *testing.T) {
 
 	tokenSub := &mockSubscriberV2{
 		id:         "token-sub",
-		categories: []event.EventCategory{event.CategoryTokens},
+		categories: []event.EventCategory{event.CategoryFlows},
 		received:   make([]*event.Event, 0),
 	}
 
@@ -231,7 +221,7 @@ func TestCategoryPublisher_GetActiveCategories(t *testing.T) {
 		t.Error("Expected CategoryAuthentication to be active")
 	}
 
-	if !categoryMap[event.CategoryTokens] {
+	if !categoryMap[event.CategoryFlows] {
 		t.Error("Expected CategoryTokens to be active")
 	}
 
@@ -270,9 +260,6 @@ func TestCategoryPublisher_SubscribeUnsubscribe(t *testing.T) {
 }
 
 func TestCategoryPublisher_MultipleSubscribersPerCategory(t *testing.T) {
-	metrics.GetMetrics().Reset()
-	metrics.GetMetrics().Enable()
-
 	// Create publisher
 	pub := NewCategoryPublisher()
 
@@ -295,7 +282,7 @@ func TestCategoryPublisher_MultipleSubscribersPerCategory(t *testing.T) {
 	// Publish authentication event
 	evt := &event.Event{
 		EventID:   "auth-1",
-		Type:      string(event.EventTypeAuthenticationStarted),
+		Type:      string(event.EventTypeTokenIssuanceStarted),
 		TraceID:   "trace-1",
 		Component: "test",
 		Timestamp: time.Now(),
@@ -356,7 +343,7 @@ func TestCategoryPublisher_PublishAfterShutdown(t *testing.T) {
 	// Try to publish after shutdown
 	evt := &event.Event{
 		EventID:   "test-1",
-		Type:      string(event.EventTypeAuthenticationStarted),
+		Type:      string(event.EventTypeTokenIssuanceStarted),
 		TraceID:   "trace-1",
 		Component: "test",
 		Timestamp: time.Now(),
@@ -390,9 +377,6 @@ func TestCategoryPublisher_UnsubscribeNil(t *testing.T) {
 }
 
 func TestCategoryPublisher_SubscriberPanic(t *testing.T) {
-	metrics.GetMetrics().Reset()
-	metrics.GetMetrics().Enable()
-
 	pub := NewCategoryPublisher()
 	defer pub.Shutdown()
 
@@ -406,7 +390,7 @@ func TestCategoryPublisher_SubscriberPanic(t *testing.T) {
 
 	evt := &event.Event{
 		EventID:   "test-1",
-		Type:      string(event.EventTypeAuthenticationStarted),
+		Type:      string(event.EventTypeTokenIssuanceStarted),
 		TraceID:   "trace-1",
 		Component: "test",
 		Timestamp: time.Now(),
@@ -418,16 +402,10 @@ func TestCategoryPublisher_SubscriberPanic(t *testing.T) {
 	// Give it time to process
 	time.Sleep(100 * time.Millisecond)
 
-	// Should have incremented error count
-	if metrics.GetMetrics().GetSubscriberErrors() == 0 {
-		t.Error("Expected subscriber error count to be > 0 after panic")
-	}
+	// Test passes if publisher doesn't crash
 }
 
 func TestCategoryPublisher_SubscriberError(t *testing.T) {
-	metrics.GetMetrics().Reset()
-	metrics.GetMetrics().Enable()
-
 	pub := NewCategoryPublisher()
 	defer pub.Shutdown()
 
@@ -442,7 +420,7 @@ func TestCategoryPublisher_SubscriberError(t *testing.T) {
 
 	evt := &event.Event{
 		EventID:   "test-1",
-		Type:      string(event.EventTypeAuthenticationStarted),
+		Type:      string(event.EventTypeTokenIssuanceStarted),
 		TraceID:   "trace-1",
 		Component: "test",
 		Timestamp: time.Now(),
@@ -453,10 +431,7 @@ func TestCategoryPublisher_SubscriberError(t *testing.T) {
 	// Give it time to process
 	time.Sleep(100 * time.Millisecond)
 
-	// Should have incremented error count
-	if metrics.GetMetrics().GetSubscriberErrors() == 0 {
-		t.Error("Expected subscriber error count to be > 0")
-	}
+	// Test passes if publisher handles error gracefully
 }
 
 func TestCategoryPublisher_DoubleShutdown(t *testing.T) {
@@ -479,7 +454,7 @@ func TestCategoryPublisher_UnsubscribeMultipleCategories(t *testing.T) {
 		categories: []event.EventCategory{
 			event.CategoryAuthentication,
 			event.CategoryAuthorization,
-			event.CategoryTokens,
+			event.CategoryFlows,
 		},
 		received: make([]*event.Event, 0),
 	}
@@ -538,6 +513,14 @@ func (m *mockSubscriberPanic) Close() error {
 	return nil
 }
 
+func (m *mockSubscriberPanic) IsEnabled() bool {
+	return true
+}
+
+func (m *mockSubscriberPanic) Initialize() error {
+	return nil
+}
+
 // mockSubscriberCloseError returns error on Close
 type mockSubscriberCloseError struct {
 	id         string
@@ -558,4 +541,90 @@ func (m *mockSubscriberCloseError) OnEvent(evt *event.Event) error {
 
 func (m *mockSubscriberCloseError) Close() error {
 	return &testError{msg: "close error"}
+}
+
+func (m *mockSubscriberCloseError) IsEnabled() bool {
+	return true
+}
+
+func (m *mockSubscriberCloseError) Initialize() error {
+	return nil
+}
+
+// mockSubscriberBlocking sleeps in OnEvent
+type mockSubscriberBlocking struct {
+	id         string
+	categories []event.EventCategory
+	sleepDur   time.Duration
+	wasCalled  bool
+	callCount  int
+}
+
+func (m *mockSubscriberBlocking) GetID() string {
+	return m.id
+}
+
+func (m *mockSubscriberBlocking) GetCategories() []event.EventCategory {
+	return m.categories
+}
+
+func (m *mockSubscriberBlocking) OnEvent(evt *event.Event) error {
+	m.wasCalled = true
+	m.callCount++
+	time.Sleep(m.sleepDur)
+	return nil
+}
+
+func (m *mockSubscriberBlocking) Close() error {
+	return nil
+}
+
+func (m *mockSubscriberBlocking) IsEnabled() bool {
+	return true
+}
+
+func (m *mockSubscriberBlocking) Initialize() error {
+	return nil
+}
+
+func TestCategoryPublisher_AsyncNonBlocking(t *testing.T) {
+	pub := NewCategoryPublisher()
+
+	// Create a subscriber that blocks for 200ms
+	blockingSub := &mockSubscriberBlocking{
+		id:         "blocking-sub",
+		categories: []event.EventCategory{event.CategoryAuthentication},
+		sleepDur:   200 * time.Millisecond,
+	}
+
+	pub.Subscribe(blockingSub)
+
+	evt := &event.Event{
+		EventID:   "test-async",
+		Type:      string(event.EventTypeTokenIssuanceStarted),
+		TraceID:   "trace-1",
+		Component: "test",
+		Timestamp: time.Now(),
+	}
+
+	// Measure time taken for Publish to return
+	start := time.Now()
+	pub.Publish(evt)
+	elapsed := time.Since(start)
+
+	// It should return almost instantly, definitely much faster than the 200ms sleep
+	// We use 50ms as a very conservative upper bound for thread scheduling and channel overhead
+	if elapsed > 50*time.Millisecond {
+		t.Errorf("Publish took too long to return: %v. Expected < 50ms", elapsed)
+	} else {
+		t.Logf("Publish returned in %v, completely non-blocking", elapsed)
+	}
+
+	// Wait for processing to complete to confirm it actually ran
+	// Shutdown waits for WaitGroup, so this will block until the subscriber finishes
+	pub.Shutdown()
+
+	if !blockingSub.wasCalled {
+		t.Error("Subscriber was never called")
+	}
 }

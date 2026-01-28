@@ -26,6 +26,7 @@ import (
 // NodeInterface defines the interface for nodes in the graph
 type NodeInterface interface {
 	Execute(ctx *NodeContext) (*common.NodeResponse, *serviceerror.ServiceError)
+	ShouldExecute(ctx *NodeContext) bool
 	GetID() string
 	GetType() common.NodeType
 	GetProperties() map[string]interface{}
@@ -35,24 +36,16 @@ type NodeInterface interface {
 	SetAsFinalNode()
 	GetNextNodeList() []string
 	SetNextNodeList(nextNodeIDList []string)
-	AddNextNodeID(nextNodeID string)
-	RemoveNextNodeID(nextNodeID string)
+	AddNextNode(nextNodeID string)
+	RemoveNextNode(nextNodeID string)
 	GetPreviousNodeList() []string
 	SetPreviousNodeList(previousNodeIDList []string)
-	AddPreviousNodeID(previousNodeID string)
-	RemovePreviousNodeID(previousNodeID string)
-	GetInputData() []common.InputData
-	SetInputData(inputData []common.InputData)
-}
-
-// ExecutorBackedNodeInterface extends NodeInterface for nodes backed by executors.
-// Only task execution nodes implement this interface to delegate their execution logic to executors.
-type ExecutorBackedNodeInterface interface {
-	NodeInterface
-	GetExecutorName() string
-	SetExecutorName(name string)
-	GetExecutor() ExecutorInterface
-	SetExecutor(executor ExecutorInterface)
+	AddPreviousNode(previousNodeID string)
+	RemovePreviousNode(previousNodeID string)
+	GetCondition() *NodeCondition
+	SetCondition(condition *NodeCondition)
+	GetMeta() interface{}
+	SetMeta(meta interface{})
 }
 
 // node implements the NodeInterface
@@ -64,14 +57,26 @@ type node struct {
 	isFinalNode      bool
 	nextNodeList     []string
 	previousNodeList []string
-	inputData        []common.InputData
+	condition        *NodeCondition
+	meta             interface{}
 }
 
 var _ NodeInterface = (*node)(nil)
 
-// Execute executes the node
+// Execute is a default implementation that should be overridden by specific node types
 func (n *node) Execute(ctx *NodeContext) (*common.NodeResponse, *serviceerror.ServiceError) {
 	return nil, nil
+}
+
+// ShouldExecute checks if the node's condition is satisfied and the node should execute.
+// Returns true if no condition is set or if the condition is met.
+func (n *node) ShouldExecute(ctx *NodeContext) bool {
+	if n.condition == nil {
+		return true
+	}
+
+	resolvedKey := ResolvePlaceholder(ctx, n.condition.Key)
+	return resolvedKey == n.condition.Value
 }
 
 // GetID returns the node's ID
@@ -126,8 +131,8 @@ func (n *node) SetNextNodeList(nextNodeIDList []string) {
 	}
 }
 
-// AddNextNodeID adds a next node ID to the list
-func (n *node) AddNextNodeID(nextNodeID string) {
+// AddNextNode adds a next node ID to the list
+func (n *node) AddNextNode(nextNodeID string) {
 	if nextNodeID == "" {
 		return
 	}
@@ -143,8 +148,8 @@ func (n *node) AddNextNodeID(nextNodeID string) {
 	n.nextNodeList = append(n.nextNodeList, nextNodeID)
 }
 
-// RemoveNextNodeID removes a next node ID from the list
-func (n *node) RemoveNextNodeID(nextNodeID string) {
+// RemoveNextNode removes a next node ID from the list
+func (n *node) RemoveNextNode(nextNodeID string) {
 	if nextNodeID == "" || n.nextNodeList == nil {
 		return
 	}
@@ -174,8 +179,8 @@ func (n *node) SetPreviousNodeList(previousNodeIDList []string) {
 	}
 }
 
-// AddPreviousNodeID adds a previous node ID to the list
-func (n *node) AddPreviousNodeID(previousNodeID string) {
+// AddPreviousNode adds a previous node ID to the list
+func (n *node) AddPreviousNode(previousNodeID string) {
 	if previousNodeID == "" {
 		return
 	}
@@ -191,8 +196,8 @@ func (n *node) AddPreviousNodeID(previousNodeID string) {
 	n.previousNodeList = append(n.previousNodeList, previousNodeID)
 }
 
-// RemovePreviousNodeID removes a previous node ID from the list
-func (n *node) RemovePreviousNodeID(previousNodeID string) {
+// RemovePreviousNode removes a previous node ID from the list
+func (n *node) RemovePreviousNode(previousNodeID string) {
 	if previousNodeID == "" || n.previousNodeList == nil {
 		return
 	}
@@ -205,12 +210,22 @@ func (n *node) RemovePreviousNodeID(previousNodeID string) {
 	}
 }
 
-// GetInputData returns the input data for the node
-func (n *node) GetInputData() []common.InputData {
-	return n.inputData
+// GetCondition returns the execution condition for the node
+func (n *node) GetCondition() *NodeCondition {
+	return n.condition
 }
 
-// SetInputData sets the input data for the node
-func (n *node) SetInputData(inputData []common.InputData) {
-	n.inputData = inputData
+// SetCondition sets the execution condition for the node
+func (n *node) SetCondition(condition *NodeCondition) {
+	n.condition = condition
+}
+
+// GetMeta returns the meta object for the node
+func (n *node) GetMeta() interface{} {
+	return n.meta
+}
+
+// SetMeta sets the meta object for the node
+func (n *node) SetMeta(meta interface{}) {
+	n.meta = meta
 }

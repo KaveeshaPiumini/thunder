@@ -17,8 +17,8 @@
  */
 
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
-import {renderHook, waitFor} from '@testing-library/react';
-
+import {waitFor} from '@testing-library/react';
+import {renderHook} from '../../../../test/test-utils';
 import useUpdateUserType from '../useUpdateUserType';
 import type {ApiUserSchema, UpdateUserSchemaRequest} from '../../types/user-types';
 
@@ -32,11 +32,16 @@ vi.mock('@asgardeo/react', () => ({
 }));
 
 // Mock useConfig
-vi.mock('@thunder/commons-contexts', () => ({
-  useConfig: () => ({
-    getServerUrl: () => 'https://localhost:8090',
-  }),
-}));
+const mockGetServerUrl = vi.fn<() => string | undefined>(() => 'https://localhost:8090');
+vi.mock('@thunder/commons-contexts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@thunder/commons-contexts')>();
+  return {
+    ...actual,
+    useConfig: () => ({
+      getServerUrl: mockGetServerUrl,
+    }),
+  };
+});
 
 describe('useUpdateUserType', () => {
   const mockUserTypeId = '123';
@@ -66,6 +71,7 @@ describe('useUpdateUserType', () => {
 
   beforeEach(() => {
     mockHttpRequest.mockReset();
+    mockGetServerUrl.mockReturnValue('https://localhost:8090');
   });
 
   afterEach(() => {
@@ -186,9 +192,7 @@ describe('useUpdateUserType', () => {
   it('should support multiple sequential updates', async () => {
     const secondSchema = {...mockUserSchema, id: '456', name: 'Another'};
 
-    mockHttpRequest
-      .mockResolvedValueOnce({data: mockUserSchema})
-      .mockResolvedValueOnce({data: secondSchema});
+    mockHttpRequest.mockResolvedValueOnce({data: mockUserSchema}).mockResolvedValueOnce({data: secondSchema});
 
     const {result} = renderHook(() => useUpdateUserType());
 
@@ -203,5 +207,43 @@ describe('useUpdateUserType', () => {
     await waitFor(() => {
       expect(result.current.data).toEqual(secondSchema);
     });
+  });
+
+  it('should handle non-Error rejection', async () => {
+    mockHttpRequest.mockRejectedValueOnce('String error');
+
+    const {result} = renderHook(() => useUpdateUserType());
+
+    await expect(result.current.updateUserType(mockUserTypeId, mockRequest)).rejects.toBe('String error');
+
+    await waitFor(() => {
+      expect(result.current.error).toEqual({
+        code: 'UPDATE_USER_TYPE_ERROR',
+        message: 'An unknown error occurred',
+        description: 'Failed to update user type',
+      });
+      expect(result.current.data).toBeNull();
+      expect(result.current.loading).toBe(false);
+    });
+  });
+
+  it('should fallback to env variable when getServerUrl returns undefined', async () => {
+    mockGetServerUrl.mockReturnValue(undefined);
+    mockHttpRequest.mockResolvedValueOnce({data: mockUserSchema});
+
+    const {result} = renderHook(() => useUpdateUserType());
+
+    await result.current.updateUserType(mockUserTypeId, mockRequest);
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockUserSchema);
+    });
+
+    expect(mockHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('/user-schemas/') as string,
+        method: 'PUT',
+      }),
+    );
   });
 });

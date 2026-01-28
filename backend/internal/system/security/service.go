@@ -21,11 +21,15 @@ package security
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
-	sysContext "github.com/asgardeo/thunder/internal/system/context"
+	"github.com/asgardeo/thunder/internal/system/log"
 )
+
+const loggerComponentName = "SecurityService"
 
 // SecurityServiceInterface defines the contract for security processing services.
 type SecurityServiceInterface interface {
@@ -35,15 +39,36 @@ type SecurityServiceInterface interface {
 // securityService orchestrates authentication and authorization for HTTP requests.
 type securityService struct {
 	authenticators []AuthenticatorInterface
+	logger         *log.Logger
+	compiledPaths  []*regexp.Regexp
+}
+
+// NewSecurityService creates a new instance of the security service.
+//
+// Parameters:
+//   - authenticators: A slice of AuthenticatorInterface implementations to handle request authentication.
+//   - publicPaths: A slice of string patterns representing paths that are exempt from authentication.
+//
+// Returns:
+//   - *securityService: A pointer to the created securityService instance.
+//   - error: An error if any of the provided public paths are invalid and cannot be compiled.
+func NewSecurityService(authenticators []AuthenticatorInterface, publicPaths []string) (*securityService, error) {
+	compiledPaths, err := compilePathPatterns(publicPaths)
+	if err != nil {
+		return nil, err
+	}
+
+	return &securityService{
+		authenticators: authenticators,
+		logger:         log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName)),
+		compiledPaths:  compiledPaths,
+	}, nil
 }
 
 // Process handles the complete security flow: authentication and authorization.
 // Returns an enriched context on success, or an error if authentication or authorization fails.
 func (s *securityService) Process(r *http.Request) (context.Context, error) {
-	// Check if the path is public (skip authentication)
-	if s.isPublicPath(r.URL.Path) {
-		return r.Context(), nil
-	}
+	isPublic := s.isPublicPath(r.URL.Path)
 
 	// Check if the request is options (CORS preflight)
 	if r.Method == http.MethodOptions {
@@ -59,54 +84,99 @@ func (s *securityService) Process(r *http.Request) (context.Context, error) {
 		}
 	}
 
-	// If no authenticator found, request is unauthorized
+	// If no authenticator found
 	if authenticator == nil {
-		return nil, errNoHandlerFound
+		return s.handleAuthError(r, errNoHandlerFound, isPublic)
 	}
 
 	// Authenticate the request
-	authCtx, err := authenticator.Authenticate(r)
+	securityCtx, err := authenticator.Authenticate(r)
 	if err != nil {
-		return nil, err
+		return s.handleAuthError(r, err, isPublic)
 	}
 
 	// Add authentication context to request context if available
 	ctx := r.Context()
-	if authCtx != nil {
-		ctx = sysContext.WithAuthenticationContext(ctx, authCtx)
+	if securityCtx != nil {
+		ctx = withSecurityContext(ctx, securityCtx)
 	}
 
 	// Authorize the authenticated principal
-	if err := authenticator.Authorize(r.WithContext(ctx), authCtx); err != nil {
-		return nil, err
+	if err := authenticator.Authorize(r.WithContext(ctx), securityCtx); err != nil {
+		return s.handleAuthError(r, err, isPublic)
 	}
 
 	return ctx, nil
 }
 
-// isPublicPath checks if the given path is a public endpoint that doesn't require authentication.
-func (s *securityService) isPublicPath(path string) bool {
-	publicPaths := []string{
-		"/health/",
-		"/auth/",
-		"/flow/execute",
-		"/oauth2/",
-		"/.well-known/openid-configuration",
-		"/.well-known/oauth-authorization-server",
-		"/gate/",    // Gate application (login UI)
-		"/develop/", // Develop application
-		"/error",
+// isPublicPath checks if the given request path matches any of the configured public path patterns.
+func (s *securityService) isPublicPath(requestPath string) bool {
+	if len(requestPath) > maxPublicPathLength {
+		s.logger.Warn("Path length exceeds maximum allowed length",
+			log.Int("limit", maxPublicPathLength),
+			log.Int("length", len(requestPath)))
+		return false
 	}
 
-	for _, publicPath := range publicPaths {
-		if strings.HasPrefix(path, publicPath) {
-			return true
-		}
-		// Exact match for paths without trailing slash
-		if path == strings.TrimSuffix(publicPath, "/") {
+	for _, regex := range s.compiledPaths {
+		if regex.MatchString(requestPath) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// compilePathPatterns compiles the path patterns into regular expressions safely.
+// It returns an error if any pattern is invalid.
+func compilePathPatterns(patterns []string) ([]*regexp.Regexp, error) {
+	compiled := make([]*regexp.Regexp, 0, len(patterns))
+
+	for _, pattern := range patterns {
+		var regexPattern string
+
+		// Check for recursive wildcard usage
+		if strings.Contains(pattern, "**") {
+			// Ensure "**" is only used as a suffix "/**"
+			if !strings.HasSuffix(pattern, "/**") {
+				return nil,
+					fmt.Errorf("invalid pattern: recursive wildcard '**' is only allowed as a suffix: %s", pattern)
+			}
+
+			// Ensure "**" appears only once
+			if strings.Count(pattern, "**") > 1 {
+				return nil, fmt.Errorf("invalid pattern: recursive wildcard '**' can only appear once: %s", pattern)
+			}
+
+			base := strings.TrimSuffix(pattern, "/**")
+			baseRegex := regexp.QuoteMeta(base)
+			baseRegex = strings.ReplaceAll(baseRegex, "\\*", "[^/]+")
+			regexPattern = "^" + baseRegex + "(?:/.*)?$"
+		} else {
+			// Normal pattern (no recursive wildcards)
+			regexPattern = regexp.QuoteMeta(pattern)
+			regexPattern = strings.ReplaceAll(regexPattern, "\\*", "[^/]+")
+			regexPattern = "^" + regexPattern + "$"
+		}
+
+		re, err := regexp.Compile(regexPattern)
+		if err != nil {
+			return nil, fmt.Errorf("error compiling public path regex for pattern %s: %w", pattern, err)
+		}
+
+		compiled = append(compiled, re)
+	}
+
+	return compiled, nil
+}
+
+// handleAuthError handles authentication/authorization errors based on whether the path is public.
+func (s *securityService) handleAuthError(r *http.Request, err error, isPublic bool) (context.Context, error) {
+	if isPublic {
+		s.logger.Debug("Authentication failed on public path, proceeding without authentication",
+			log.Error(err),
+			log.String("path", r.URL.Path))
+		return r.Context(), nil
+	}
+	return nil, err
 }

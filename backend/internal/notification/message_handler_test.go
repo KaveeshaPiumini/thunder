@@ -24,8 +24,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -36,7 +34,6 @@ import (
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/apierror"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
-	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 type MessageHandlerTestSuite struct {
@@ -48,24 +45,14 @@ func TestMessageHandlerTestSuite(t *testing.T) {
 }
 
 func (suite *MessageHandlerTestSuite) SetupSuite() {
-	// Get the current working directory.
-	cwd, err := os.Getwd()
-	if err != nil {
-		suite.T().Fatalf("Failed to get working directory: %v", err)
-	}
-	suite.T().Logf("Current working directory: %s", cwd)
-	cryptoFile := filepath.Join(cwd, "..", "..", "tests", "resources", "testKey")
-
-	if _, err := os.Stat(cryptoFile); os.IsNotExist(err) {
-		suite.T().Fatalf("Crypto file not found at expected path: %s", cryptoFile)
-	}
-
 	testConfig := &config.Config{
-		Security: config.SecurityConfig{
-			CryptoFile: cryptoFile,
+		Crypto: config.CryptoConfig{
+			Encryption: config.EncryptionConfig{
+				Key: "0579f866ac7c9273580d0ff163fa01a7b2401a7ff3ddc3e3b14ae3136fa6025e",
+			},
 		},
 	}
-	err = config.InitializeThunderRuntime("", testConfig)
+	err := config.InitializeThunderRuntime("", testConfig)
 	if err != nil {
 		suite.T().Fatalf("Failed to initialize ThunderRuntime: %v", err)
 	}
@@ -376,7 +363,6 @@ func (suite *MessageHandlerTestSuite) TestValidateSenderID_NonEmptyID() {
 
 func (suite *MessageHandlerTestSuite) TestHandleError() {
 	handler := newMessageNotificationSenderHandler(nil, nil)
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandlerTest"))
 
 	cases := []struct {
 		name          string
@@ -422,7 +408,7 @@ func (suite *MessageHandlerTestSuite) TestHandleError() {
 
 	for _, tc := range cases {
 		rr := httptest.NewRecorder()
-		handler.handleError(rr, logger, tc.svcErr, tc.customDesc)
+		handler.handleError(rr, tc.svcErr, tc.customDesc)
 
 		suite.Equal(tc.expectedCode, rr.Code, tc.name)
 
@@ -447,9 +433,8 @@ func (e *errWriter) WriteHeader(statusCode int) {}
 
 func (suite *MessageHandlerTestSuite) TestHandleError_EncodeFailure() {
 	handler := newMessageNotificationSenderHandler(nil, nil)
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationHandlerTest"))
 	ew := &errWriter{}
-	handler.handleError(ew, logger, &ErrorInternalServerError, "boom")
+	handler.handleError(ew, &ErrorInternalServerError, "boom")
 }
 
 func (suite *MessageHandlerTestSuite) TestGetDTOFromSenderRequest() {

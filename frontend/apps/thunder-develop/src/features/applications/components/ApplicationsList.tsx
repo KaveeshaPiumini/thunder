@@ -18,6 +18,7 @@
 
 import {useMemo, useCallback, useState, type JSX} from 'react';
 import {useNavigate} from 'react-router';
+import {useLogger} from '@thunder/logger/react';
 import {
   Box,
   Avatar,
@@ -37,11 +38,13 @@ import useDataGridLocaleText from '../../../hooks/useDataGridLocaleText';
 import useGetApplications from '../api/useGetApplications';
 import type {BasicApplication} from '../models/application';
 import ApplicationDeleteDialog from './ApplicationDeleteDialog';
+import getTemplateMetadata from '../utils/getTemplateMetadata';
 
 export default function ApplicationsList(): JSX.Element {
   const theme = useTheme();
   const navigate = useNavigate();
   const {t} = useTranslation();
+  const logger = useLogger('ApplicationsList');
   const dataGridLocaleText = useDataGridLocaleText();
   const {data, isLoading, error} = useGetApplications();
 
@@ -74,9 +77,8 @@ export default function ApplicationsList(): JSX.Element {
     if (selectedAppId) {
       (async (): Promise<void> => {
         await navigate(`/applications/${selectedAppId}`);
-      })().catch(() => {
-        // TODO: Log the errors
-        // Tracker: https://github.com/asgardeo/thunder/issues/618
+      })().catch((_error: unknown) => {
+        logger.error('Failed to navigate to application details', {error: _error, applicationId: selectedAppId});
       });
     }
   };
@@ -135,6 +137,32 @@ export default function ApplicationsList(): JSX.Element {
         flex: 1.5,
         minWidth: 250,
         valueGetter: (_value, row): string => row.description ?? '-',
+      },
+      {
+        field: 'template',
+        headerName: t('applications:listing.columns.template'),
+        flex: 0.8,
+        minWidth: 120,
+        renderCell: (params: DataGrid.GridRenderCellParams<BasicApplication>): JSX.Element => {
+          const templateMetadata = getTemplateMetadata(params.row.template);
+          return templateMetadata ? (
+            <Chip
+              icon={
+                <Box sx={{display: 'flex', alignItems: 'center', '& > *': {width: 16, height: 16}}}>
+                  {templateMetadata.icon}
+                </Box>
+              }
+              label={templateMetadata.displayName}
+              size="small"
+              variant="outlined"
+              sx={{
+                fontSize: '0.75rem',
+              }}
+            />
+          ) : (
+            <>-</>
+          );
+        },
       },
       {
         field: 'client_id',
@@ -209,9 +237,8 @@ export default function ApplicationsList(): JSX.Element {
             const applicationId = (params.row as BasicApplication).id;
             (async (): Promise<void> => {
               await navigate(`/applications/${applicationId}`);
-            })().catch(() => {
-              // TODO: Log the errors
-              // Tracker: https://github.com/asgardeo/thunder/issues/618
+            })().catch((_error: unknown) => {
+              logger.error('Failed to navigate to application', {error: _error, applicationId});
             });
           }}
           initialState={{

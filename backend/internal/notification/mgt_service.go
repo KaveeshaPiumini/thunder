@@ -22,6 +22,7 @@ package notification
 import (
 	"github.com/asgardeo/thunder/internal/notification/common"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	immutableresource "github.com/asgardeo/thunder/internal/system/immutable_resource"
 	"github.com/asgardeo/thunder/internal/system/log"
 	sysutils "github.com/asgardeo/thunder/internal/system/utils"
 )
@@ -44,9 +45,9 @@ type notificationSenderMgtService struct {
 }
 
 // newNotificationSenderMgtService returns a new instance of NotificationSenderMgtSvcInterface.
-func newNotificationSenderMgtService() NotificationSenderMgtSvcInterface {
+func newNotificationSenderMgtService(store notificationStoreInterface) NotificationSenderMgtSvcInterface {
 	return &notificationSenderMgtService{
-		notificationStore: newNotificationStore(),
+		notificationStore: store,
 	}
 }
 
@@ -54,7 +55,7 @@ func newNotificationSenderMgtService() NotificationSenderMgtSvcInterface {
 // [Deprecated: use dependency injection to get the instance instead].
 // TODO: Remove this when the flow executors are migrated to the di pattern.
 func NewNotificationSenderMgtService() NotificationSenderMgtSvcInterface {
-	return newNotificationSenderMgtService()
+	return newNotificationSenderMgtService(newNotificationStore())
 }
 
 // CreateSender creates a new notification sender.
@@ -62,6 +63,10 @@ func (s *notificationSenderMgtService) CreateSender(
 	sender common.NotificationSenderDTO) (*common.NotificationSenderDTO, *serviceerror.ServiceError) {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationSenderMgtService"))
 	logger.Debug("Creating notification sender", log.String("name", sender.Name))
+
+	if err := immutableresource.CheckImmutableCreate(); err != nil {
+		return nil, err
+	}
 
 	if err := validateNotificationSender(sender); err != nil {
 		return nil, err
@@ -91,7 +96,7 @@ func (s *notificationSenderMgtService) CreateSender(
 	}
 
 	return &common.NotificationSenderDTO{
-		ID:          id,
+		ID:          sender.ID,
 		Name:        sender.Name,
 		Description: sender.Description,
 		Type:        sender.Type,
@@ -159,6 +164,10 @@ func (s *notificationSenderMgtService) UpdateSender(id string,
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationSenderMgtService"))
 	logger.Debug("Updating notification sender", log.String("id", id), log.String("name", sender.Name))
 
+	if err := immutableresource.CheckImmutableUpdate(); err != nil {
+		return nil, err
+	}
+
 	if id == "" {
 		return nil, &ErrorInvalidSenderID
 	}
@@ -219,6 +228,10 @@ func (s *notificationSenderMgtService) UpdateSender(id string,
 func (s *notificationSenderMgtService) DeleteSender(id string) *serviceerror.ServiceError {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "NotificationSenderMgtService"))
 	logger.Debug("Deleting notification sender", log.String("id", id))
+
+	if err := immutableresource.CheckImmutableDelete(); err != nil {
+		return err
+	}
 
 	if id == "" {
 		return &ErrorInvalidSenderID

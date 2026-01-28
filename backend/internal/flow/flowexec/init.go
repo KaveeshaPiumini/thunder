@@ -23,22 +23,25 @@ import (
 
 	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/flow/executor"
-	"github.com/asgardeo/thunder/internal/flow/flowmgt"
+	flowmgt "github.com/asgardeo/thunder/internal/flow/mgt"
+	"github.com/asgardeo/thunder/internal/observability"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
 // Initialize creates and configures the flow execution service components.
+// The observabilitySvc parameter is optional (can be nil) - if nil, observability events won't be published.
 func Initialize(
 	mux *http.ServeMux,
 	flowMgtService flowmgt.FlowMgtServiceInterface,
 	applicationService application.ApplicationServiceInterface,
 	executorRegistry executor.ExecutorRegistryInterface,
+	observabilitySvc observability.ObservabilityServiceInterface,
 ) FlowExecServiceInterface {
 	dbProvider := dbprovider.GetDBProvider()
 	flowStore := newFlowStore(dbProvider)
-	flowEngine := newFlowEngine(executorRegistry)
-	flowExecService := newFlowExecService(flowMgtService, flowStore, flowEngine, applicationService)
+	flowEngine := newFlowEngine(executorRegistry, observabilitySvc)
+	flowExecService := newFlowExecService(flowMgtService, flowStore, flowEngine, applicationService, observabilitySvc)
 
 	handler := newFlowExecutionHandler(flowExecService)
 	registerRoutes(mux, handler)
@@ -53,7 +56,7 @@ func registerRoutes(mux *http.ServeMux, handler *flowExecutionHandler) {
 		AllowCredentials: true,
 	}
 	mux.HandleFunc(middleware.WithCORS("POST /flow/execute",
-		handler.HandleFlowExecutionRequest, opts))
+		middleware.CorrelationIDMiddleware(http.HandlerFunc(handler.HandleFlowExecutionRequest)).ServeHTTP, opts))
 	mux.HandleFunc(middleware.WithCORS("OPTIONS /flow/execute",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)

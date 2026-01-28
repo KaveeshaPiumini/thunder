@@ -23,6 +23,8 @@ import (
 	"strings"
 
 	oupkg "github.com/asgardeo/thunder/internal/ou"
+	"github.com/asgardeo/thunder/internal/system/crypto/hash"
+	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 	"github.com/asgardeo/thunder/internal/userschema"
 )
@@ -32,12 +34,24 @@ func Initialize(
 	mux *http.ServeMux,
 	ouService oupkg.OrganizationUnitServiceInterface,
 	userSchemaService userschema.UserSchemaServiceInterface,
-) UserServiceInterface {
-	userService := newUserService(ouService, userSchemaService)
+	hashService hash.HashServiceInterface,
+) (UserServiceInterface, error) {
+	userStore, err := newUserStore()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get transactioner from DB provider
+	transactioner, err := provider.GetDBProvider().GetUserDBTransactioner()
+	if err != nil {
+		return nil, err
+	}
+
+	userService := newUserService(userStore, ouService, userSchemaService, hashService, transactioner)
 	setUserService(userService) // Set the provider for backward compatibility
 	userHandler := newUserHandler(userService)
 	registerRoutes(mux, userHandler)
-	return userService
+	return userService, nil
 }
 
 // registerRoutes registers the routes for user management operations.
@@ -77,6 +91,29 @@ func registerRoutes(mux *http.ServeMux, userHandler *userHandler) {
 	mux.HandleFunc(middleware.WithCORS("OPTIONS /users/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}, opts2))
+
+	optsSelf := middleware.CORSOptions{
+		AllowedMethods:   "GET, PUT",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
+	}
+	mux.HandleFunc(middleware.WithCORS("GET /users/me", userHandler.HandleSelfUserGetRequest, optsSelf))
+	mux.HandleFunc(middleware.WithCORS("PUT /users/me", userHandler.HandleSelfUserPutRequest, optsSelf))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /users/me", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}, optsSelf))
+
+	optsSelfCredentials := middleware.CORSOptions{
+		AllowedMethods:   "POST",
+		AllowedHeaders:   "Content-Type, Authorization",
+		AllowCredentials: true,
+	}
+	mux.HandleFunc(middleware.WithCORS("POST /users/me/update-credentials",
+		userHandler.HandleSelfUserCredentialUpdateRequest, optsSelfCredentials))
+	mux.HandleFunc(middleware.WithCORS("OPTIONS /users/me/update-credentials",
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}, optsSelfCredentials))
 
 	opts3 := middleware.CORSOptions{
 		AllowedMethods:   "GET, POST",

@@ -22,6 +22,7 @@ import userEvent from '@testing-library/user-event';
 import {BrowserRouter} from 'react-router';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {ConfigProvider} from '@thunder/commons-contexts';
+import {LoggerProvider, LogLevel} from '@thunder/logger';
 import type {ReactNode} from 'react';
 import type {ApplicationListResponse} from '../../models/responses';
 import ApplicationsList from '../ApplicationsList';
@@ -105,8 +106,8 @@ describe('ApplicationsList', () => {
         description: 'First test application',
         logo_url: 'https://example.com/logo1.png',
         client_id: 'client_id_1',
-        auth_flow_graph_id: 'auth_flow_basic',
-        registration_flow_graph_id: 'reg_flow_basic',
+        auth_flow_id: 'edc013d0-e893-4dc0-990c-3e1d203e005b',
+        registration_flow_id: '80024fb3-29ed-4c33-aa48-8aee5e96d522',
         is_registration_flow_enabled: true,
       },
       {
@@ -115,8 +116,8 @@ describe('ApplicationsList', () => {
         description: 'Second test application',
         logo_url: '',
         client_id: 'client_id_2',
-        auth_flow_graph_id: 'auth_flow_advanced',
-        registration_flow_graph_id: 'reg_flow_advanced',
+        auth_flow_id: 'edc013d0-e893-4dc0-990c-3e1d203e005b',
+        registration_flow_id: '80024fb3-29ed-4c33-aa48-8aee5e96d522',
         is_registration_flow_enabled: false,
       },
     ],
@@ -160,7 +161,14 @@ describe('ApplicationsList', () => {
       return (
         <QueryClientProvider client={queryClient}>
           <ConfigProvider>
-            <BrowserRouter>{children}</BrowserRouter>
+            <LoggerProvider
+              logger={{
+                level: LogLevel.ERROR,
+                transports: [],
+              }}
+            >
+              <BrowserRouter>{children}</BrowserRouter>
+            </LoggerProvider>
           </ConfigProvider>
         </QueryClientProvider>
       );
@@ -273,7 +281,8 @@ describe('ApplicationsList', () => {
 
     renderComponent();
 
-    expect(screen.getByText('-')).toBeInTheDocument();
+    const dashElements = screen.getAllByText('-');
+    expect(dashElements.length).toBeGreaterThan(0);
   });
 
   it('should open actions menu when clicking menu button', async () => {
@@ -448,5 +457,141 @@ describe('ApplicationsList', () => {
     const grid = screen.getByRole('grid');
     expect(grid).toBeInTheDocument();
     // The cursor style is applied via sx prop to the DataGrid
+  });
+
+  it('should open delete dialog when clicking Delete action', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useGetApplications).mockReturnValue({
+      data: mockApplicationsData,
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetApplications>);
+
+    renderComponent();
+
+    const menuButtons = screen.getAllByLabelText('Open actions menu');
+    await user.click(menuButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    const deleteMenuItem = screen.getByText('Delete');
+    await user.click(deleteMenuItem);
+
+    // The delete dialog should be opened
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+  });
+
+  it('should close delete dialog when cancelled', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useGetApplications).mockReturnValue({
+      data: mockApplicationsData,
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetApplications>);
+
+    renderComponent();
+
+    // Open the menu and click delete
+    const menuButtons = screen.getAllByLabelText('Open actions menu');
+    await user.click(menuButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    const deleteMenuItem = screen.getByText('Delete');
+    await user.click(deleteMenuItem);
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    // Close the dialog by clicking the cancel button
+    const cancelButton = screen.getByRole('button', {name: /cancel/i});
+    await user.click(cancelButton);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should handle navigation error gracefully', async () => {
+    const user = userEvent.setup();
+    const navigationError = new Error('Navigation failed');
+    mockNavigate.mockRejectedValueOnce(navigationError);
+
+    vi.mocked(useGetApplications).mockReturnValue({
+      data: mockApplicationsData,
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetApplications>);
+
+    renderComponent();
+
+    const menuButtons = screen.getAllByLabelText('Open actions menu');
+    await user.click(menuButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    const viewMenuItem = screen.getByText('View');
+    await user.click(viewMenuItem);
+
+    // Navigation should have been attempted
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/applications/app-1');
+    });
+
+    // The component should not crash despite the navigation error
+    expect(screen.getByRole('grid')).toBeInTheDocument();
+  });
+
+  it('should handle avatar image error', () => {
+    vi.mocked(useGetApplications).mockReturnValue({
+      data: mockApplicationsData,
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetApplications>);
+
+    renderComponent();
+
+    const avatars = screen.getAllByRole('img');
+    // Trigger onError on the first avatar
+    if (avatars[0]) {
+      avatars[0].dispatchEvent(new Event('error'));
+      // The onError handler should set src to empty string
+      expect(avatars[0]).toBeInTheDocument();
+    }
+  });
+
+  it('should display "-" for missing client_id', () => {
+    const dataWithMissingClientId: ApplicationListResponse = {
+      ...mockApplicationsData,
+      applications: [
+        {
+          ...mockApplicationsData.applications[0],
+          client_id: undefined,
+        },
+      ],
+    };
+
+    vi.mocked(useGetApplications).mockReturnValue({
+      data: dataWithMissingClientId,
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetApplications>);
+
+    renderComponent();
+
+    // Should display "-" for missing client_id
+    const dashes = screen.getAllByText('-');
+    expect(dashes.length).toBeGreaterThan(0);
   });
 });

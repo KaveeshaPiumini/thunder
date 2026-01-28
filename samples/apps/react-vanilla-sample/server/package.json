@@ -1,0 +1,26 @@
+{
+  "name": "server",
+  "version": "0.16.0",
+  "description": "Sample App Server for Thunder",
+  "bin": "server.js",
+  "main": "server.js",
+  "pkg": {
+    "assets": [
+      "server.key",
+      "server.cert"
+    ],
+    "scripts": [
+      "server.js"
+    ],
+    "outputPath": "executables"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "4.22.1"
+  },
+  "devDependencies": {
+    "pkg": "5.8.1"
+  }
+}

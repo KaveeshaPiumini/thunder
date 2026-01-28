@@ -38,24 +38,24 @@ func (_m *NodeInterfaceMock) EXPECT() *NodeInterfaceMock_Expecter {
 	return &NodeInterfaceMock_Expecter{mock: &_m.Mock}
 }
 
-// AddNextNodeID provides a mock function for the type NodeInterfaceMock
-func (_mock *NodeInterfaceMock) AddNextNodeID(nextNodeID string) {
+// AddNextNode provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) AddNextNode(nextNodeID string) {
 	_mock.Called(nextNodeID)
 	return
 }
 
-// NodeInterfaceMock_AddNextNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddNextNodeID'
-type NodeInterfaceMock_AddNextNodeID_Call struct {
+// NodeInterfaceMock_AddNextNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddNextNode'
+type NodeInterfaceMock_AddNextNode_Call struct {
 	*mock.Call
 }
 
-// AddNextNodeID is a helper method to define mock.On call
+// AddNextNode is a helper method to define mock.On call
 //   - nextNodeID string
-func (_e *NodeInterfaceMock_Expecter) AddNextNodeID(nextNodeID interface{}) *NodeInterfaceMock_AddNextNodeID_Call {
-	return &NodeInterfaceMock_AddNextNodeID_Call{Call: _e.mock.On("AddNextNodeID", nextNodeID)}
+func (_e *NodeInterfaceMock_Expecter) AddNextNode(nextNodeID interface{}) *NodeInterfaceMock_AddNextNode_Call {
+	return &NodeInterfaceMock_AddNextNode_Call{Call: _e.mock.On("AddNextNode", nextNodeID)}
 }
 
-func (_c *NodeInterfaceMock_AddNextNodeID_Call) Run(run func(nextNodeID string)) *NodeInterfaceMock_AddNextNodeID_Call {
+func (_c *NodeInterfaceMock_AddNextNode_Call) Run(run func(nextNodeID string)) *NodeInterfaceMock_AddNextNode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -68,34 +68,34 @@ func (_c *NodeInterfaceMock_AddNextNodeID_Call) Run(run func(nextNodeID string))
 	return _c
 }
 
-func (_c *NodeInterfaceMock_AddNextNodeID_Call) Return() *NodeInterfaceMock_AddNextNodeID_Call {
+func (_c *NodeInterfaceMock_AddNextNode_Call) Return() *NodeInterfaceMock_AddNextNode_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *NodeInterfaceMock_AddNextNodeID_Call) RunAndReturn(run func(nextNodeID string)) *NodeInterfaceMock_AddNextNodeID_Call {
+func (_c *NodeInterfaceMock_AddNextNode_Call) RunAndReturn(run func(nextNodeID string)) *NodeInterfaceMock_AddNextNode_Call {
 	_c.Run(run)
 	return _c
 }
 
-// AddPreviousNodeID provides a mock function for the type NodeInterfaceMock
-func (_mock *NodeInterfaceMock) AddPreviousNodeID(previousNodeID string) {
+// AddPreviousNode provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) AddPreviousNode(previousNodeID string) {
 	_mock.Called(previousNodeID)
 	return
 }
 
-// NodeInterfaceMock_AddPreviousNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddPreviousNodeID'
-type NodeInterfaceMock_AddPreviousNodeID_Call struct {
+// NodeInterfaceMock_AddPreviousNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddPreviousNode'
+type NodeInterfaceMock_AddPreviousNode_Call struct {
 	*mock.Call
 }
 
-// AddPreviousNodeID is a helper method to define mock.On call
+// AddPreviousNode is a helper method to define mock.On call
 //   - previousNodeID string
-func (_e *NodeInterfaceMock_Expecter) AddPreviousNodeID(previousNodeID interface{}) *NodeInterfaceMock_AddPreviousNodeID_Call {
-	return &NodeInterfaceMock_AddPreviousNodeID_Call{Call: _e.mock.On("AddPreviousNodeID", previousNodeID)}
+func (_e *NodeInterfaceMock_Expecter) AddPreviousNode(previousNodeID interface{}) *NodeInterfaceMock_AddPreviousNode_Call {
+	return &NodeInterfaceMock_AddPreviousNode_Call{Call: _e.mock.On("AddPreviousNode", previousNodeID)}
 }
 
-func (_c *NodeInterfaceMock_AddPreviousNodeID_Call) Run(run func(previousNodeID string)) *NodeInterfaceMock_AddPreviousNodeID_Call {
+func (_c *NodeInterfaceMock_AddPreviousNode_Call) Run(run func(previousNodeID string)) *NodeInterfaceMock_AddPreviousNode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -108,12 +108,12 @@ func (_c *NodeInterfaceMock_AddPreviousNodeID_Call) Run(run func(previousNodeID 
 	return _c
 }
 
-func (_c *NodeInterfaceMock_AddPreviousNodeID_Call) Return() *NodeInterfaceMock_AddPreviousNodeID_Call {
+func (_c *NodeInterfaceMock_AddPreviousNode_Call) Return() *NodeInterfaceMock_AddPreviousNode_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *NodeInterfaceMock_AddPreviousNodeID_Call) RunAndReturn(run func(previousNodeID string)) *NodeInterfaceMock_AddPreviousNodeID_Call {
+func (_c *NodeInterfaceMock_AddPreviousNode_Call) RunAndReturn(run func(previousNodeID string)) *NodeInterfaceMock_AddPreviousNode_Call {
 	_c.Run(run)
 	return _c
 }
@@ -182,6 +182,52 @@ func (_c *NodeInterfaceMock_Execute_Call) RunAndReturn(run func(ctx *core.NodeCo
 	return _c
 }
 
+// GetCondition provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) GetCondition() *core.NodeCondition {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCondition")
+	}
+
+	var r0 *core.NodeCondition
+	if returnFunc, ok := ret.Get(0).(func() *core.NodeCondition); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*core.NodeCondition)
+		}
+	}
+	return r0
+}
+
+// NodeInterfaceMock_GetCondition_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCondition'
+type NodeInterfaceMock_GetCondition_Call struct {
+	*mock.Call
+}
+
+// GetCondition is a helper method to define mock.On call
+func (_e *NodeInterfaceMock_Expecter) GetCondition() *NodeInterfaceMock_GetCondition_Call {
+	return &NodeInterfaceMock_GetCondition_Call{Call: _e.mock.On("GetCondition")}
+}
+
+func (_c *NodeInterfaceMock_GetCondition_Call) Run(run func()) *NodeInterfaceMock_GetCondition_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *NodeInterfaceMock_GetCondition_Call) Return(nodeCondition *core.NodeCondition) *NodeInterfaceMock_GetCondition_Call {
+	_c.Call.Return(nodeCondition)
+	return _c
+}
+
+func (_c *NodeInterfaceMock_GetCondition_Call) RunAndReturn(run func() *core.NodeCondition) *NodeInterfaceMock_GetCondition_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetID provides a mock function for the type NodeInterfaceMock
 func (_mock *NodeInterfaceMock) GetID() string {
 	ret := _mock.Called()
@@ -226,48 +272,48 @@ func (_c *NodeInterfaceMock_GetID_Call) RunAndReturn(run func() string) *NodeInt
 	return _c
 }
 
-// GetInputData provides a mock function for the type NodeInterfaceMock
-func (_mock *NodeInterfaceMock) GetInputData() []common.InputData {
+// GetMeta provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) GetMeta() interface{} {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetInputData")
+		panic("no return value specified for GetMeta")
 	}
 
-	var r0 []common.InputData
-	if returnFunc, ok := ret.Get(0).(func() []common.InputData); ok {
+	var r0 interface{}
+	if returnFunc, ok := ret.Get(0).(func() interface{}); ok {
 		r0 = returnFunc()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]common.InputData)
+			r0 = ret.Get(0).(interface{})
 		}
 	}
 	return r0
 }
 
-// NodeInterfaceMock_GetInputData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInputData'
-type NodeInterfaceMock_GetInputData_Call struct {
+// NodeInterfaceMock_GetMeta_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMeta'
+type NodeInterfaceMock_GetMeta_Call struct {
 	*mock.Call
 }
 
-// GetInputData is a helper method to define mock.On call
-func (_e *NodeInterfaceMock_Expecter) GetInputData() *NodeInterfaceMock_GetInputData_Call {
-	return &NodeInterfaceMock_GetInputData_Call{Call: _e.mock.On("GetInputData")}
+// GetMeta is a helper method to define mock.On call
+func (_e *NodeInterfaceMock_Expecter) GetMeta() *NodeInterfaceMock_GetMeta_Call {
+	return &NodeInterfaceMock_GetMeta_Call{Call: _e.mock.On("GetMeta")}
 }
 
-func (_c *NodeInterfaceMock_GetInputData_Call) Run(run func()) *NodeInterfaceMock_GetInputData_Call {
+func (_c *NodeInterfaceMock_GetMeta_Call) Run(run func()) *NodeInterfaceMock_GetMeta_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *NodeInterfaceMock_GetInputData_Call) Return(inputDatas []common.InputData) *NodeInterfaceMock_GetInputData_Call {
-	_c.Call.Return(inputDatas)
+func (_c *NodeInterfaceMock_GetMeta_Call) Return(ifaceVal interface{}) *NodeInterfaceMock_GetMeta_Call {
+	_c.Call.Return(ifaceVal)
 	return _c
 }
 
-func (_c *NodeInterfaceMock_GetInputData_Call) RunAndReturn(run func() []common.InputData) *NodeInterfaceMock_GetInputData_Call {
+func (_c *NodeInterfaceMock_GetMeta_Call) RunAndReturn(run func() interface{}) *NodeInterfaceMock_GetMeta_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -542,24 +588,24 @@ func (_c *NodeInterfaceMock_IsStartNode_Call) RunAndReturn(run func() bool) *Nod
 	return _c
 }
 
-// RemoveNextNodeID provides a mock function for the type NodeInterfaceMock
-func (_mock *NodeInterfaceMock) RemoveNextNodeID(nextNodeID string) {
+// RemoveNextNode provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) RemoveNextNode(nextNodeID string) {
 	_mock.Called(nextNodeID)
 	return
 }
 
-// NodeInterfaceMock_RemoveNextNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveNextNodeID'
-type NodeInterfaceMock_RemoveNextNodeID_Call struct {
+// NodeInterfaceMock_RemoveNextNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveNextNode'
+type NodeInterfaceMock_RemoveNextNode_Call struct {
 	*mock.Call
 }
 
-// RemoveNextNodeID is a helper method to define mock.On call
+// RemoveNextNode is a helper method to define mock.On call
 //   - nextNodeID string
-func (_e *NodeInterfaceMock_Expecter) RemoveNextNodeID(nextNodeID interface{}) *NodeInterfaceMock_RemoveNextNodeID_Call {
-	return &NodeInterfaceMock_RemoveNextNodeID_Call{Call: _e.mock.On("RemoveNextNodeID", nextNodeID)}
+func (_e *NodeInterfaceMock_Expecter) RemoveNextNode(nextNodeID interface{}) *NodeInterfaceMock_RemoveNextNode_Call {
+	return &NodeInterfaceMock_RemoveNextNode_Call{Call: _e.mock.On("RemoveNextNode", nextNodeID)}
 }
 
-func (_c *NodeInterfaceMock_RemoveNextNodeID_Call) Run(run func(nextNodeID string)) *NodeInterfaceMock_RemoveNextNodeID_Call {
+func (_c *NodeInterfaceMock_RemoveNextNode_Call) Run(run func(nextNodeID string)) *NodeInterfaceMock_RemoveNextNode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -572,34 +618,34 @@ func (_c *NodeInterfaceMock_RemoveNextNodeID_Call) Run(run func(nextNodeID strin
 	return _c
 }
 
-func (_c *NodeInterfaceMock_RemoveNextNodeID_Call) Return() *NodeInterfaceMock_RemoveNextNodeID_Call {
+func (_c *NodeInterfaceMock_RemoveNextNode_Call) Return() *NodeInterfaceMock_RemoveNextNode_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *NodeInterfaceMock_RemoveNextNodeID_Call) RunAndReturn(run func(nextNodeID string)) *NodeInterfaceMock_RemoveNextNodeID_Call {
+func (_c *NodeInterfaceMock_RemoveNextNode_Call) RunAndReturn(run func(nextNodeID string)) *NodeInterfaceMock_RemoveNextNode_Call {
 	_c.Run(run)
 	return _c
 }
 
-// RemovePreviousNodeID provides a mock function for the type NodeInterfaceMock
-func (_mock *NodeInterfaceMock) RemovePreviousNodeID(previousNodeID string) {
+// RemovePreviousNode provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) RemovePreviousNode(previousNodeID string) {
 	_mock.Called(previousNodeID)
 	return
 }
 
-// NodeInterfaceMock_RemovePreviousNodeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemovePreviousNodeID'
-type NodeInterfaceMock_RemovePreviousNodeID_Call struct {
+// NodeInterfaceMock_RemovePreviousNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemovePreviousNode'
+type NodeInterfaceMock_RemovePreviousNode_Call struct {
 	*mock.Call
 }
 
-// RemovePreviousNodeID is a helper method to define mock.On call
+// RemovePreviousNode is a helper method to define mock.On call
 //   - previousNodeID string
-func (_e *NodeInterfaceMock_Expecter) RemovePreviousNodeID(previousNodeID interface{}) *NodeInterfaceMock_RemovePreviousNodeID_Call {
-	return &NodeInterfaceMock_RemovePreviousNodeID_Call{Call: _e.mock.On("RemovePreviousNodeID", previousNodeID)}
+func (_e *NodeInterfaceMock_Expecter) RemovePreviousNode(previousNodeID interface{}) *NodeInterfaceMock_RemovePreviousNode_Call {
+	return &NodeInterfaceMock_RemovePreviousNode_Call{Call: _e.mock.On("RemovePreviousNode", previousNodeID)}
 }
 
-func (_c *NodeInterfaceMock_RemovePreviousNodeID_Call) Run(run func(previousNodeID string)) *NodeInterfaceMock_RemovePreviousNodeID_Call {
+func (_c *NodeInterfaceMock_RemovePreviousNode_Call) Run(run func(previousNodeID string)) *NodeInterfaceMock_RemovePreviousNode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -612,12 +658,12 @@ func (_c *NodeInterfaceMock_RemovePreviousNodeID_Call) Run(run func(previousNode
 	return _c
 }
 
-func (_c *NodeInterfaceMock_RemovePreviousNodeID_Call) Return() *NodeInterfaceMock_RemovePreviousNodeID_Call {
+func (_c *NodeInterfaceMock_RemovePreviousNode_Call) Return() *NodeInterfaceMock_RemovePreviousNode_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *NodeInterfaceMock_RemovePreviousNodeID_Call) RunAndReturn(run func(previousNodeID string)) *NodeInterfaceMock_RemovePreviousNodeID_Call {
+func (_c *NodeInterfaceMock_RemovePreviousNode_Call) RunAndReturn(run func(previousNodeID string)) *NodeInterfaceMock_RemovePreviousNode_Call {
 	_c.Run(run)
 	return _c
 }
@@ -688,28 +734,28 @@ func (_c *NodeInterfaceMock_SetAsStartNode_Call) RunAndReturn(run func()) *NodeI
 	return _c
 }
 
-// SetInputData provides a mock function for the type NodeInterfaceMock
-func (_mock *NodeInterfaceMock) SetInputData(inputData []common.InputData) {
-	_mock.Called(inputData)
+// SetCondition provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) SetCondition(condition *core.NodeCondition) {
+	_mock.Called(condition)
 	return
 }
 
-// NodeInterfaceMock_SetInputData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetInputData'
-type NodeInterfaceMock_SetInputData_Call struct {
+// NodeInterfaceMock_SetCondition_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetCondition'
+type NodeInterfaceMock_SetCondition_Call struct {
 	*mock.Call
 }
 
-// SetInputData is a helper method to define mock.On call
-//   - inputData []common.InputData
-func (_e *NodeInterfaceMock_Expecter) SetInputData(inputData interface{}) *NodeInterfaceMock_SetInputData_Call {
-	return &NodeInterfaceMock_SetInputData_Call{Call: _e.mock.On("SetInputData", inputData)}
+// SetCondition is a helper method to define mock.On call
+//   - condition *core.NodeCondition
+func (_e *NodeInterfaceMock_Expecter) SetCondition(condition interface{}) *NodeInterfaceMock_SetCondition_Call {
+	return &NodeInterfaceMock_SetCondition_Call{Call: _e.mock.On("SetCondition", condition)}
 }
 
-func (_c *NodeInterfaceMock_SetInputData_Call) Run(run func(inputData []common.InputData)) *NodeInterfaceMock_SetInputData_Call {
+func (_c *NodeInterfaceMock_SetCondition_Call) Run(run func(condition *core.NodeCondition)) *NodeInterfaceMock_SetCondition_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 []common.InputData
+		var arg0 *core.NodeCondition
 		if args[0] != nil {
-			arg0 = args[0].([]common.InputData)
+			arg0 = args[0].(*core.NodeCondition)
 		}
 		run(
 			arg0,
@@ -718,12 +764,52 @@ func (_c *NodeInterfaceMock_SetInputData_Call) Run(run func(inputData []common.I
 	return _c
 }
 
-func (_c *NodeInterfaceMock_SetInputData_Call) Return() *NodeInterfaceMock_SetInputData_Call {
+func (_c *NodeInterfaceMock_SetCondition_Call) Return() *NodeInterfaceMock_SetCondition_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *NodeInterfaceMock_SetInputData_Call) RunAndReturn(run func(inputData []common.InputData)) *NodeInterfaceMock_SetInputData_Call {
+func (_c *NodeInterfaceMock_SetCondition_Call) RunAndReturn(run func(condition *core.NodeCondition)) *NodeInterfaceMock_SetCondition_Call {
+	_c.Run(run)
+	return _c
+}
+
+// SetMeta provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) SetMeta(meta interface{}) {
+	_mock.Called(meta)
+	return
+}
+
+// NodeInterfaceMock_SetMeta_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMeta'
+type NodeInterfaceMock_SetMeta_Call struct {
+	*mock.Call
+}
+
+// SetMeta is a helper method to define mock.On call
+//   - meta interface{}
+func (_e *NodeInterfaceMock_Expecter) SetMeta(meta interface{}) *NodeInterfaceMock_SetMeta_Call {
+	return &NodeInterfaceMock_SetMeta_Call{Call: _e.mock.On("SetMeta", meta)}
+}
+
+func (_c *NodeInterfaceMock_SetMeta_Call) Run(run func(meta interface{})) *NodeInterfaceMock_SetMeta_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 interface{}
+		if args[0] != nil {
+			arg0 = args[0].(interface{})
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *NodeInterfaceMock_SetMeta_Call) Return() *NodeInterfaceMock_SetMeta_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *NodeInterfaceMock_SetMeta_Call) RunAndReturn(run func(meta interface{})) *NodeInterfaceMock_SetMeta_Call {
 	_c.Run(run)
 	return _c
 }
@@ -805,5 +891,56 @@ func (_c *NodeInterfaceMock_SetPreviousNodeList_Call) Return() *NodeInterfaceMoc
 
 func (_c *NodeInterfaceMock_SetPreviousNodeList_Call) RunAndReturn(run func(previousNodeIDList []string)) *NodeInterfaceMock_SetPreviousNodeList_Call {
 	_c.Run(run)
+	return _c
+}
+
+// ShouldExecute provides a mock function for the type NodeInterfaceMock
+func (_mock *NodeInterfaceMock) ShouldExecute(ctx *core.NodeContext) bool {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ShouldExecute")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(*core.NodeContext) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// NodeInterfaceMock_ShouldExecute_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ShouldExecute'
+type NodeInterfaceMock_ShouldExecute_Call struct {
+	*mock.Call
+}
+
+// ShouldExecute is a helper method to define mock.On call
+//   - ctx *core.NodeContext
+func (_e *NodeInterfaceMock_Expecter) ShouldExecute(ctx interface{}) *NodeInterfaceMock_ShouldExecute_Call {
+	return &NodeInterfaceMock_ShouldExecute_Call{Call: _e.mock.On("ShouldExecute", ctx)}
+}
+
+func (_c *NodeInterfaceMock_ShouldExecute_Call) Run(run func(ctx *core.NodeContext)) *NodeInterfaceMock_ShouldExecute_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *core.NodeContext
+		if args[0] != nil {
+			arg0 = args[0].(*core.NodeContext)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *NodeInterfaceMock_ShouldExecute_Call) Return(b bool) *NodeInterfaceMock_ShouldExecute_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *NodeInterfaceMock_ShouldExecute_Call) RunAndReturn(run func(ctx *core.NodeContext) bool) *NodeInterfaceMock_ShouldExecute_Call {
+	_c.Call.Return(run)
 	return _c
 }

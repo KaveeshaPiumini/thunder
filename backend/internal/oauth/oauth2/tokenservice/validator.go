@@ -49,7 +49,7 @@ func newTokenValidator(jwtService jwt.JWTServiceInterface) TokenValidatorInterfa
 // ValidateRefreshToken validates a refresh token and extracts the claims.
 func (tv *tokenValidator) ValidateRefreshToken(token string, clientID string) (*RefreshTokenClaims, error) {
 	if err := tv.jwtService.VerifyJWT(token, "", ""); err != nil {
-		return nil, fmt.Errorf("invalid refresh token: %w", err)
+		return nil, fmt.Errorf("invalid refresh token: %v", err)
 	}
 
 	claims, err := jwt.DecodeJWTPayload(token)
@@ -179,7 +179,11 @@ func (tv *tokenValidator) verifyTokenSignatureByIssuer(
 ) error {
 	issuers := getValidIssuers(oauthApp)
 	if issuers[issuer] {
-		return tv.jwtService.VerifyJWTSignature(token)
+		svcErr := tv.jwtService.VerifyJWTSignature(token)
+		if svcErr != nil {
+			return fmt.Errorf("failed to verify token signature: %v", svcErr)
+		}
+		return nil
 	}
 
 	// TODO: Implement JWKS-based verification for external federated issuers
@@ -188,19 +192,21 @@ func (tv *tokenValidator) verifyTokenSignatureByIssuer(
 
 // validateTimeClaims validates time-based claims (exp, nbf).
 func (tv *tokenValidator) validateTimeClaims(claims map[string]interface{}) error {
+	// Get leeway from config to account for clock skew
+	leeway := config.GetThunderRuntime().Config.JWT.Leeway
 	now := time.Now().Unix()
 
 	exp, err := extractInt64Claim(claims, "exp")
 	if err != nil {
 		return fmt.Errorf("missing or invalid 'exp' claim: %w", err)
 	}
-	if now >= exp {
+	if now >= exp+leeway {
 		return fmt.Errorf("token has expired")
 	}
 
 	nbf, err := extractInt64Claim(claims, "nbf")
 	if err == nil {
-		if now < nbf {
+		if now < nbf-leeway {
 			return fmt.Errorf("token not yet valid")
 		}
 	}

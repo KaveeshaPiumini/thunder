@@ -717,86 +717,6 @@ describe('CreateUserTypePage', () => {
     });
   });
 
-  it('creates schema with array type property', async () => {
-    const user = userEvent.setup();
-    mockCreateUserType.mockResolvedValue(undefined);
-
-    render(<CreateUserTypePage />);
-
-    // Set user type name
-    const nameInput = screen.getByLabelText(/Type Name/i);
-    await user.type(nameInput, 'ArrayTest');
-
-    // Add property name
-    const propertyNameInput = screen.getByPlaceholderText(/e.g., email, age, address/i);
-    await user.type(propertyNameInput, 'tags');
-
-    // Change type to array
-    const typeSelect = getPropertyTypeSelect();
-    await user.click(typeSelect);
-    const arrayOption = await screen.findByText('Array');
-    await user.click(arrayOption);
-
-    // Submit
-    const submitButton = screen.getByRole('button', {name: /Create User Type/i});
-    await user.click(submitButton);
-
-    await waitFor(() => {
-      expect(mockCreateUserType).toHaveBeenCalledWith({
-        name: 'ArrayTest',
-        ouId: 'root-ou',
-        schema: {
-          tags: {
-            type: 'array',
-            required: false,
-            items: {
-              type: 'string',
-            },
-          },
-        },
-      });
-    });
-  });
-
-  it('creates schema with object type property', async () => {
-    const user = userEvent.setup();
-    mockCreateUserType.mockResolvedValue(undefined);
-
-    render(<CreateUserTypePage />);
-
-    // Set user type name
-    const nameInput = screen.getByLabelText(/Type Name/i);
-    await user.type(nameInput, 'ObjectTest');
-
-    // Add property name
-    const propertyNameInput = screen.getByPlaceholderText(/e.g., email, age, address/i);
-    await user.type(propertyNameInput, 'metadata');
-
-    // Change type to object
-    const typeSelect = getPropertyTypeSelect();
-    await user.click(typeSelect);
-    const objectOption = await screen.findByText('Object');
-    await user.click(objectOption);
-
-    // Submit
-    const submitButton = screen.getByRole('button', {name: /Create User Type/i});
-    await user.click(submitButton);
-
-    await waitFor(() => {
-      expect(mockCreateUserType).toHaveBeenCalledWith({
-        name: 'ObjectTest',
-        ouId: 'root-ou',
-        schema: {
-          metadata: {
-            type: 'object',
-            required: false,
-            properties: {},
-          },
-        },
-      });
-    });
-  });
-
   it('creates schema with number property that is unique', async () => {
     const user = userEvent.setup();
     mockCreateUserType.mockResolvedValue(undefined);
@@ -837,6 +757,149 @@ describe('CreateUserTypePage', () => {
           },
         },
       });
+    });
+  });
+
+  it('handles create error gracefully', async () => {
+    const user = userEvent.setup();
+    mockCreateUserType.mockRejectedValue(new Error('Create failed'));
+
+    render(<CreateUserTypePage />);
+
+    await user.type(screen.getByLabelText(/Type Name/i), 'Employee');
+    await user.type(screen.getByPlaceholderText(/e\.g\., email, age, address/i), 'email');
+
+    const submitButton = screen.getByRole('button', {name: /Create User Type/i});
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockCreateUserType).toHaveBeenCalled();
+      // Should not navigate on error
+      expect(mockNavigate).not.toHaveBeenCalledWith('/user-types');
+    });
+  });
+
+  it('shows organization units error alert when fetch fails', () => {
+    const orgError: ApiError = {
+      code: 'ORG_ERROR',
+      message: 'API error message',
+      description: 'Error description',
+    };
+
+    mockUseGetOrganizationUnits.mockReturnValue({
+      data: null,
+      loading: false,
+      error: orgError,
+      refetch: mockRefetchOrganizationUnits,
+    });
+
+    render(<CreateUserTypePage />);
+
+    // The title uses the translation key, and the message is the API error message
+    expect(screen.getByText('Failed to load organization units')).toBeInTheDocument();
+    expect(screen.getByText('API error message')).toBeInTheDocument();
+  });
+
+  it('shows loading state in organization unit dropdown', async () => {
+    const user = userEvent.setup();
+
+    mockUseGetOrganizationUnits.mockReturnValue({
+      data: null,
+      loading: true,
+      error: null,
+      refetch: mockRefetchOrganizationUnits,
+    });
+
+    render(<CreateUserTypePage />);
+
+    const ouSelect = getOrganizationUnitSelect();
+    await user.click(ouSelect);
+
+    await waitFor(() => {
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+  });
+
+  it('shows no organization units message when list is empty', async () => {
+    const user = userEvent.setup();
+
+    mockUseGetOrganizationUnits.mockReturnValue({
+      data: {...mockOrganizationUnitsResponse, organizationUnits: []},
+      loading: false,
+      error: null,
+      refetch: mockRefetchOrganizationUnits,
+    });
+
+    render(<CreateUserTypePage />);
+
+    const ouSelect = getOrganizationUnitSelect();
+    await user.click(ouSelect);
+
+    await waitFor(() => {
+      expect(screen.getByText('No organization units available')).toBeInTheDocument();
+    });
+  });
+
+  it('shows error in organization unit dropdown when fetch fails', async () => {
+    const user = userEvent.setup();
+    const orgError: ApiError = {
+      code: 'ORG_ERROR',
+      message: 'Org fetch failed',
+      description: 'Error',
+    };
+
+    mockUseGetOrganizationUnits.mockReturnValue({
+      data: null,
+      loading: false,
+      error: orgError,
+      refetch: mockRefetchOrganizationUnits,
+    });
+
+    render(<CreateUserTypePage />);
+
+    const ouSelect = getOrganizationUnitSelect();
+    await user.click(ouSelect);
+
+    // The error message appears in the dropdown menu item
+    await waitFor(() => {
+      const menuItems = screen.getAllByRole('option');
+      expect(menuItems.some((item) => item.textContent?.includes('Org fetch failed'))).toBe(true);
+    });
+  });
+
+  it('displays organization unit placeholder when no value is selected', async () => {
+    mockUseGetOrganizationUnits.mockReturnValue({
+      data: {...mockOrganizationUnitsResponse, organizationUnits: []},
+      loading: false,
+      error: null,
+      refetch: mockRefetchOrganizationUnits,
+    });
+
+    render(<CreateUserTypePage />);
+
+    const ouSelect = getOrganizationUnitSelect();
+    expect(ouSelect).toHaveTextContent('Select an organization unit');
+  });
+
+  it('displays selected organization unit name in renderValue', async () => {
+    const user = userEvent.setup();
+
+    render(<CreateUserTypePage />);
+
+    // The component should auto-select the first organization unit
+    const ouSelect = getOrganizationUnitSelect();
+
+    await waitFor(() => {
+      expect(ouSelect).toHaveTextContent('Root Organization');
+    });
+
+    // Click to open dropdown and select a different unit
+    await user.click(ouSelect);
+    const childOption = await screen.findByText('Child Organization');
+    await user.click(childOption);
+
+    await waitFor(() => {
+      expect(ouSelect).toHaveTextContent('Child Organization');
     });
   });
 });

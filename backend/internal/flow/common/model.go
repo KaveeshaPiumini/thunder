@@ -22,24 +22,25 @@ import (
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
 )
 
-// InputData represents the input data required for a flow step
-type InputData struct {
-	Name     string   `json:"name"`
-	Type     string   `json:"type"`
-	Required bool     `json:"required"`
-	Options  []string `json:"options,omitempty"`
+// Input represents the inputs required for a node
+type Input struct {
+	Ref        string   `json:"ref,omitempty"`
+	Identifier string   `json:"identifier"`
+	Type       string   `json:"type"`
+	Required   bool     `json:"required"`
+	Options    []string `json:"options,omitempty"`
 }
 
 // Action represents an action to be executed in a flow step
 type Action struct {
-	Type ActionType `json:"type"`
-	ID   string     `json:"id"`
-	// Executor *ExecutorModel `json:"executor,omitempty"`
+	Ref      string `json:"ref,omitempty"`
+	NextNode string `json:"nextNode,omitempty"`
 }
 
-// ExecutorModel represents an executor configuration within an action
-type ExecutorModel struct {
-	Name string `json:"name"`
+// Prompt groups inputs with an action for prompt nodes.
+type Prompt struct {
+	Inputs []Input `json:"inputs,omitempty"`
+	Action *Action `json:"action,omitempty"`
 }
 
 // NodeResponse represents the response from a node execution
@@ -47,10 +48,11 @@ type NodeResponse struct {
 	Status            NodeStatus                `json:"status"`
 	Type              NodeResponseType          `json:"type"`
 	FailureReason     string                    `json:"failure_reason,omitempty"`
-	RequiredData      []InputData               `json:"required_data,omitempty"`
+	Inputs            []Input                   `json:"inputs,omitempty"`
 	AdditionalData    map[string]string         `json:"additional_data,omitempty"`
 	RedirectURL       string                    `json:"redirect_url,omitempty"`
 	Actions           []Action                  `json:"actions,omitempty"`
+	Meta              interface{}               `json:"meta,omitempty"`
 	NextNodeID        string                    `json:"next_node_id,omitempty"`
 	RuntimeData       map[string]string         `json:"runtime_data,omitempty"`
 	AuthenticatedUser authncm.AuthenticatedUser `json:"authenticated_user,omitempty"`
@@ -60,13 +62,14 @@ type NodeResponse struct {
 // ExecutorResponse represents the response from an executor
 type ExecutorResponse struct {
 	Status            ExecutorStatus            `json:"status"`
-	RequiredData      []InputData               `json:"required_data,omitempty"`
+	Inputs            []Input                   `json:"inputs,omitempty"`
 	AdditionalData    map[string]string         `json:"additional_data,omitempty"`
 	RedirectURL       string                    `json:"redirect_url,omitempty"`
 	RuntimeData       map[string]string         `json:"runtime_data,omitempty"`
 	AuthenticatedUser authncm.AuthenticatedUser `json:"authenticated_user,omitempty"`
 	Assertion         string                    `json:"assertion,omitempty"`
 	FailureReason     string                    `json:"failure_reason,omitempty"`
+	Meta              interface{}               `json:"meta,omitempty"`
 }
 
 // NodeExecutionRecord represents a record of a node execution in the flow.
@@ -75,6 +78,7 @@ type NodeExecutionRecord struct {
 	NodeType     string             `json:"node_type"`
 	ExecutorName string             `json:"executor_name,omitempty"`
 	ExecutorType ExecutorType       `json:"executor_type,omitempty"`
+	ExecutorMode string             `json:"executor_mode,omitempty"`
 	Step         int                `json:"step"`
 	Status       FlowStatus         `json:"status"`
 	Executions   []ExecutionAttempt `json:"executions"`

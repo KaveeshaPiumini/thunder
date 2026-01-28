@@ -24,19 +24,21 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
-	flowcm "github.com/asgardeo/thunder/internal/flow/common"
+	"github.com/asgardeo/thunder/internal/flow/common"
 	"github.com/asgardeo/thunder/tests/mocks/authn/githubmock"
 	"github.com/asgardeo/thunder/tests/mocks/authn/oauthmock"
 	"github.com/asgardeo/thunder/tests/mocks/flow/coremock"
 	"github.com/asgardeo/thunder/tests/mocks/idp/idpmock"
+	"github.com/asgardeo/thunder/tests/mocks/userschemamock"
 )
 
 type GithubAuthExecutorTestSuite struct {
 	suite.Suite
-	mockFlowFactory   *coremock.FlowFactoryInterfaceMock
-	mockIDPService    *idpmock.IDPServiceInterfaceMock
-	mockGithubService *githubmock.GithubOAuthAuthnServiceInterfaceMock
-	mockOAuthService  *oauthmock.OAuthAuthnCoreServiceInterfaceMock
+	mockFlowFactory       *coremock.FlowFactoryInterfaceMock
+	mockIDPService        *idpmock.IDPServiceInterfaceMock
+	mockUserSchemaService *userschemamock.UserSchemaServiceInterfaceMock
+	mockGithubService     *githubmock.GithubOAuthAuthnServiceInterfaceMock
+	mockOAuthService      *oauthmock.OAuthAuthnCoreServiceInterfaceMock
 }
 
 func TestGithubAuthExecutorTestSuite(t *testing.T) {
@@ -46,21 +48,22 @@ func TestGithubAuthExecutorTestSuite(t *testing.T) {
 func (suite *GithubAuthExecutorTestSuite) SetupTest() {
 	suite.mockFlowFactory = coremock.NewFlowFactoryInterfaceMock(suite.T())
 	suite.mockIDPService = idpmock.NewIDPServiceInterfaceMock(suite.T())
+	suite.mockUserSchemaService = userschemamock.NewUserSchemaServiceInterfaceMock(suite.T())
 	suite.mockGithubService = githubmock.NewGithubOAuthAuthnServiceInterfaceMock(suite.T())
 	suite.mockOAuthService = oauthmock.NewOAuthAuthnCoreServiceInterfaceMock(suite.T())
 }
 
 func (suite *GithubAuthExecutorTestSuite) TestNewGithubOAuthExecutor_Success() {
-	defaultInputs := []flowcm.InputData{
+	defaultInputs := []common.Input{
 		{
-			Name:     "code",
-			Type:     "string",
-			Required: true,
+			Identifier: "code",
+			Type:       "string",
+			Required:   true,
 		},
 	}
 	baseExec := coremock.NewExecutorInterfaceMock(suite.T())
 	suite.mockFlowFactory.On("CreateExecutor", ExecutorNameGitHubAuth,
-		flowcm.ExecutorTypeAuthentication, defaultInputs, []flowcm.InputData{}).
+		common.ExecutorTypeAuthentication, defaultInputs, []common.Input{}).
 		Return(baseExec).Once()
 
 	mockGithubSvc := &mockGithubServiceWithOAuth{
@@ -68,7 +71,8 @@ func (suite *GithubAuthExecutorTestSuite) TestNewGithubOAuthExecutor_Success() {
 		oauthService:                         suite.mockOAuthService,
 	}
 
-	executor := newGithubOAuthExecutor(suite.mockFlowFactory, suite.mockIDPService, mockGithubSvc)
+	executor := newGithubOAuthExecutor(suite.mockFlowFactory, suite.mockIDPService,
+		suite.mockUserSchemaService, mockGithubSvc)
 
 	suite.NotNil(executor)
 	githubExec, ok := executor.(*githubOAuthExecutor)

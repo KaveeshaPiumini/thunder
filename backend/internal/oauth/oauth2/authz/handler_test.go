@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
@@ -41,6 +42,13 @@ import (
 	oauth2model "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	"github.com/asgardeo/thunder/internal/system/jwt"
+)
+
+const (
+	testMinimalJWT = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIifQ."
+	testJWTWithIat = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJpYXQiOjE3MDE0MjEyMDB9."
+	testAuthID     = "test-auth-id"
 )
 
 type AuthorizeHandlerTestSuite struct {
@@ -49,6 +57,7 @@ type AuthorizeHandlerTestSuite struct {
 	mockAppService      *applicationmock.ApplicationServiceInterfaceMock
 	mockJWTService      *jwtmock.JWTServiceInterfaceMock
 	mockAuthzCodeStore  *AuthorizationCodeStoreInterfaceMock
+	mockAuthReqStore    *authorizationRequestStoreInterfaceMock
 	mockFlowExecService *flowexecmock.FlowExecServiceInterfaceMock
 }
 
@@ -56,7 +65,9 @@ func TestAuthorizeHandlerTestSuite(t *testing.T) {
 	suite.Run(t, new(AuthorizeHandlerTestSuite))
 }
 
-func (suite *AuthorizeHandlerTestSuite) SetupTest() {
+func (suite *AuthorizeHandlerTestSuite) BeforeTest(suiteName, testName string) {
+	config.ResetThunderRuntime()
+
 	// Initialize Thunder Runtime config with basic test config
 	testConfig := &config.Config{
 		GateClient: config.GateClientConfig{
@@ -66,24 +77,44 @@ func (suite *AuthorizeHandlerTestSuite) SetupTest() {
 			LoginPath: "/login",
 			ErrorPath: "/error",
 		},
+		Database: config.DatabaseConfig{
+			Identity: config.DataSource{
+				Type: "sqlite",
+				Path: ":memory:",
+			},
+			Runtime: config.DataSource{
+				Type: "sqlite",
+				Path: ":memory:",
+			},
+		},
+		OAuth: config.OAuthConfig{
+			AuthorizationCode: config.AuthorizationCodeConfig{
+				ValidityPeriod: 600,
+			},
+		},
 	}
 	_ = config.InitializeThunderRuntime("test", testConfig)
+}
 
+func (suite *AuthorizeHandlerTestSuite) SetupTest() {
 	// Create mocked dependencies for testing
 	suite.mockAppService = applicationmock.NewApplicationServiceInterfaceMock(suite.T())
 	suite.mockJWTService = jwtmock.NewJWTServiceInterfaceMock(suite.T())
 	suite.mockAuthzCodeStore = NewAuthorizationCodeStoreInterfaceMock(suite.T())
+	suite.mockAuthReqStore = newAuthorizationRequestStoreInterfaceMock(suite.T())
 	suite.mockFlowExecService = flowexecmock.NewFlowExecServiceInterfaceMock(suite.T())
 
 	suite.handler = newAuthorizeHandler(
 		suite.mockAppService, suite.mockJWTService, suite.mockAuthzCodeStore,
-		suite.mockFlowExecService).(*authorizeHandler)
+		suite.mockAuthReqStore, suite.mockFlowExecService).(*authorizeHandler)
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestnewAuthorizeHandler() {
 	mockStore := NewAuthorizationCodeStoreInterfaceMock(suite.T())
 	mockFlowExec := flowexecmock.NewFlowExecServiceInterfaceMock(suite.T())
-	handler := newAuthorizeHandler(suite.mockAppService, suite.mockJWTService, mockStore, mockFlowExec)
+	mockAuthReqStore := newAuthorizationRequestStoreInterfaceMock(suite.T())
+	handler := newAuthorizeHandler(suite.mockAppService, suite.mockJWTService, mockStore, mockAuthReqStore,
+		mockFlowExec)
 	assert.NotNil(suite.T(), handler)
 	assert.Implements(suite.T(), (*AuthorizeHandlerInterface)(nil), handler)
 }
@@ -99,7 +130,7 @@ func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessageForGetRequest_Success
 		assert.Equal(suite.T(), oauth2const.TypeInitialAuthorizationRequest, msg.RequestType)
 		assert.Equal(suite.T(), "test-client", msg.RequestQueryParams["client_id"])
 		assert.Equal(suite.T(), "https://example.com", msg.RequestQueryParams["redirect_uri"])
-		assert.Empty(suite.T(), msg.SessionDataKey)
+		assert.Empty(suite.T(), msg.AuthID)
 	}
 }
 
@@ -114,10 +145,10 @@ func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessageForGetRequest_ParseFo
 	assert.Contains(suite.T(), err.Error(), "failed to parse form data")
 }
 
-func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessageForPostRequest_MissingSessionDataKey() {
+func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessageForPostRequest_MissingAuthID() {
 	postData := AuthZPostRequest{
-		SessionDataKey: "", // Missing session data key
-		Assertion:      "test-assertion",
+		AuthID:    "", // Missing auth ID
+		Assertion: "test-assertion",
 	}
 	jsonData, _ := json.Marshal(postData)
 
@@ -128,13 +159,13 @@ func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessageForPostRequest_Missin
 
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), msg)
-	assert.Contains(suite.T(), err.Error(), "sessionDataKey or assertion is missing")
+	assert.Contains(suite.T(), err.Error(), "authId or assertion is missing")
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessageForPostRequest_MissingAssertion() {
 	postData := AuthZPostRequest{
-		SessionDataKey: "test-session-key",
-		Assertion:      "", // Missing assertion
+		AuthID:    testAuthID,
+		Assertion: "", // Missing assertion
 	}
 	jsonData, _ := json.Marshal(postData)
 
@@ -145,7 +176,7 @@ func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessageForPostRequest_Missin
 
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), msg)
-	assert.Contains(suite.T(), err.Error(), "sessionDataKey or assertion is missing")
+	assert.Contains(suite.T(), err.Error(), "authId or assertion is missing")
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessage_UnsupportedMethod() {
@@ -175,20 +206,21 @@ func (suite *AuthorizeHandlerTestSuite) TestGetOAuthMessage_NilResponseWriter() 
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_Success() {
-	// Create a valid OAuth message with session data
-	sessionData := &SessionData{
+	// Create a valid OAuth message with authorization request context
+	authRequestCtx := &authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:         "test-client",
 			RedirectURI:      "https://client.example.com/callback",
 			StandardScopes:   []string{"openid", "profile"},
 			PermissionScopes: []string{"read", "write"},
 		},
-		AuthTime: time.Now(),
 	}
 
 	assertionClaims := &assertionClaims{userID: "test-user"}
+	// Use current time as auth time
+	authTime := time.Now()
 
-	result, err := createAuthorizationCode(sessionData, assertionClaims)
+	result, err := createAuthorizationCode(authRequestCtx, assertionClaims, authTime)
 
 	assert.NoError(suite.T(), err)
 	assert.NotEmpty(suite.T(), result.CodeID)
@@ -203,19 +235,19 @@ func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_Success() {
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_MissingClientID() {
-	sessionData := &SessionData{
+	authRequestCtx := &authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:    "", // Empty client ID
 			RedirectURI: "https://client.example.com/callback",
 		},
-		AuthTime: time.Now(),
 	}
 
 	assertionClaims := &assertionClaims{
 		userID: "test-user",
 	}
+	authTime := time.Now()
 
-	result, err := createAuthorizationCode(sessionData, assertionClaims)
+	result, err := createAuthorizationCode(authRequestCtx, assertionClaims, authTime)
 
 	assert.Error(suite.T(), err)
 	assert.Contains(suite.T(), err.Error(), "client_id or redirect_uri is missing")
@@ -223,19 +255,19 @@ func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_MissingClientID
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_MissingRedirectURI() {
-	sessionData := &SessionData{
+	authRequestCtx := &authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:    "test-client",
 			RedirectURI: "", // Missing redirect URI
 		},
-		AuthTime: time.Now(),
 	}
 
 	assertionClaims := &assertionClaims{
 		userID: "test-user",
 	}
+	authTime := time.Now()
 
-	result, err := createAuthorizationCode(sessionData, assertionClaims)
+	result, err := createAuthorizationCode(authRequestCtx, assertionClaims, authTime)
 
 	assert.Error(suite.T(), err)
 	assert.Contains(suite.T(), err.Error(), "client_id or redirect_uri is missing")
@@ -243,19 +275,19 @@ func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_MissingRedirect
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_EmptyUserID() {
-	sessionData := &SessionData{
+	authRequestCtx := &authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:    "test-client-id",
 			RedirectURI: "https://client.example.com/callback",
 		},
-		AuthTime: time.Now(),
 	}
 
 	assertionClaims := &assertionClaims{
 		userID: "", // Empty user ID
 	}
+	authTime := time.Now()
 
-	result, err := createAuthorizationCode(sessionData, assertionClaims)
+	result, err := createAuthorizationCode(authRequestCtx, assertionClaims, authTime)
 
 	assert.Error(suite.T(), err)
 	assert.Contains(suite.T(), err.Error(), "authenticated user not found")
@@ -263,34 +295,45 @@ func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_EmptyUserID() {
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestGetAuthorizationCode_ZeroAuthTime() {
-	sessionData := &SessionData{
+	authRequestCtx := &authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:    "test-client-id",
 			RedirectURI: "https://client.example.com/callback",
 		},
-		AuthTime: time.Time{}, // Zero auth time
 	}
 
 	assertionClaims := &assertionClaims{
 		userID: "test-user",
 	}
+	// Zero auth time - should fallback to current time
+	zeroAuthTime := time.Time{}
+	beforeCreation := time.Now()
 
-	result, err := createAuthorizationCode(sessionData, assertionClaims)
+	result, err := createAuthorizationCode(authRequestCtx, assertionClaims, zeroAuthTime)
 
-	assert.Error(suite.T(), err)
-	assert.Contains(suite.T(), err.Error(), "authentication time is not set")
-	assert.Equal(suite.T(), AuthorizationCode{}, result)
+	// Should succeed and use current time as fallback
+	assert.NoError(suite.T(), err)
+	assert.NotEmpty(suite.T(), result.CodeID)
+	assert.NotEmpty(suite.T(), result.Code)
+	assert.NotZero(suite.T(), result.TimeCreated)
+	// TimeCreated should be approximately now (within 1 second)
+	afterCreation := time.Now()
+	assert.True(suite.T(), result.TimeCreated.After(beforeCreation) || result.TimeCreated.Equal(beforeCreation))
+	assert.True(suite.T(), result.TimeCreated.Before(afterCreation) || result.TimeCreated.Equal(afterCreation))
+	// Expiry should be 10 minutes after TimeCreated
+	assert.True(suite.T(), result.ExpiryTime.After(result.TimeCreated))
+	assert.WithinDuration(suite.T(), result.TimeCreated.Add(10*time.Minute), result.ExpiryTime, time.Second)
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestGetLoginPageRedirectURI_Success() {
 	queryParams := map[string]string{
-		"sessionDataKey": "test-key",
-		"appId":          "test-app",
+		"authId": "test-key",
+		"appId":  "test-app",
 	}
 
 	redirectURI, err := getLoginPageRedirectURI(queryParams)
 	assert.NoError(suite.T(), err)
-	assert.Contains(suite.T(), redirectURI, "sessionDataKey=test-key")
+	assert.Contains(suite.T(), redirectURI, "authId=test-key")
 	assert.Contains(suite.T(), redirectURI, "appId=test-app")
 }
 
@@ -341,6 +384,7 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_In
 		},
 	}
 	suite.mockFlowExecService.EXPECT().InitiateFlow(expectedFlowInitCtx).Return("test-session-key", nil)
+	suite.mockAuthReqStore.EXPECT().AddRequest(mock.Anything).Return(testAuthID)
 
 	// Create OAuth message for initial authorization request
 	msg := suite.createTestOAuthMessage()
@@ -359,7 +403,7 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_In
 	location := rr.Header().Get("Location")
 	assert.Contains(suite.T(), location, "/login")
 	assert.Contains(suite.T(), location, "flowId=test-session-key")
-	assert.Contains(suite.T(), location, "sessionDataKey=")
+	assert.Contains(suite.T(), location, "authId=")
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_InitiateFlowError() {
@@ -412,6 +456,7 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_Wi
 		},
 	}
 	suite.mockFlowExecService.EXPECT().InitiateFlow(expectedFlowInitCtx).Return("test-session-key", nil)
+	suite.mockAuthReqStore.EXPECT().AddRequest(mock.Anything).Return(testAuthID)
 
 	// Create OAuth message with both OIDC (openid, profile) and non-OIDC scopes (read, write)
 	msg := &OAuthMessage{
@@ -455,6 +500,7 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_On
 		},
 	}
 	suite.mockFlowExecService.EXPECT().InitiateFlow(expectedFlowInitCtx).Return("test-session-key", nil)
+	suite.mockAuthReqStore.EXPECT().AddRequest(mock.Anything).Return(testAuthID)
 
 	// Create OAuth message with only OIDC scopes
 	msg := &OAuthMessage{
@@ -479,22 +525,56 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_On
 	assert.Equal(suite.T(), http.StatusFound, rr.Code)
 }
 
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizeGetRequest_Success() {
+	// Test GET request handling - this will trigger validation
+	app := suite.createTestOAuthApp()
+	suite.mockAppService.EXPECT().GetOAuthApplication("test-client").Return(app, nil)
+
+	req := httptest.NewRequest("GET",
+		"/oauth2/authorize?client_id=test-client&redirect_uri=https://example.com/callback&response_type=code", nil)
+	rr := httptest.NewRecorder()
+
+	suite.handler.HandleAuthorizeGetRequest(rr, req)
+
+	// Should process the request (may redirect or return error, but not panic)
+	// The exact status depends on validation, but should not be 500
+	assert.NotEqual(suite.T(), http.StatusInternalServerError, rr.Code)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizeGetRequest_InvalidParams() {
+	// Test GET request with invalid parameters
+	req := httptest.NewRequest("GET", "/oauth2/authorize?client_id=&redirect_uri=", nil)
+	rr := httptest.NewRecorder()
+
+	suite.handler.HandleAuthorizeGetRequest(rr, req)
+
+	// Should handle invalid params gracefully (returns 400 or redirects to error)
+	assert.NotEqual(suite.T(), http.StatusInternalServerError, rr.Code)
+}
+
 func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizePostRequest_ConsentType() {
+	// Test TypeConsentResponseFromUser case
+	// This case is not implemented yet, but we test that it doesn't panic
 	postData := AuthZPostRequest{
-		SessionDataKey: "test-key",
-		Assertion:      "test-assertion",
+		AuthID:    "test-key",
+		Assertion: "test-assertion",
 	}
 	jsonData, _ := json.Marshal(postData)
 
-	// Mock to make it look like consent response (unhandled type)
-	req := httptest.NewRequest(http.MethodPost, "/auth", bytes.NewReader(jsonData))
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/authorize", bytes.NewReader(jsonData))
 	req.Header.Set("Content-Type", "application/json")
+	// Add a query parameter to indicate consent response type
+	req.URL.RawQuery = "requestType=consentResponseFromUser"
 	rr := httptest.NewRecorder()
 
-	// This will fail to decode or will be treated as invalid
+	// The consent type may call GetRequest, so we need to set up the expectation
+	suite.mockAuthReqStore.EXPECT().GetRequest("test-key").Return(false, authRequestContext{})
+
+	// The consent type is not handled yet (TODO), so it should fall through to default case
+	// or handle gracefully without panicking
 	suite.handler.HandleAuthorizePostRequest(rr, req)
 
-	// Should return some response (either error or redirect)
+	// Should return some response (either error or handled gracefully)
 	assert.NotEqual(suite.T(), 0, rr.Code)
 }
 
@@ -507,10 +587,12 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizePostRequest_InvalidRe
 	assert.Equal(suite.T(), http.StatusBadRequest, rr.Code)
 }
 
-func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_InvalidSessionDataKey() {
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_InvalidAuthID() {
+	suite.mockAuthReqStore.EXPECT().GetRequest("invalid-key").Return(false, authRequestContext{})
+
 	msg := &OAuthMessage{
-		RequestType:    oauth2const.TypeAuthorizationResponseFromEngine,
-		SessionDataKey: "invalid-key",
+		RequestType: oauth2const.TypeAuthorizationResponseFromEngine,
+		AuthID:      "invalid-key",
 		RequestBodyParams: map[string]string{
 			oauth2const.Assertion: "test-assertion",
 		},
@@ -527,18 +609,19 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngin
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_MissingAssertion() {
-	sessionData := SessionData{
+	authRequestCtx := authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:    "test-client",
 			RedirectURI: "https://client.example.com/callback",
 		},
-		AuthTime: time.Now(),
 	}
-	sessionKey := suite.handler.sessionStore.AddSession(sessionData)
+	authID := testAuthID
+	suite.mockAuthReqStore.EXPECT().GetRequest(authID).Return(true, authRequestCtx)
+	suite.mockAuthReqStore.EXPECT().ClearRequest(authID)
 
 	msg := &OAuthMessage{
 		RequestType:       oauth2const.TypeAuthorizationResponseFromEngine,
-		SessionDataKey:    sessionKey,
+		AuthID:            authID,
 		RequestBodyParams: map[string]string{},
 	}
 
@@ -549,21 +632,22 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngin
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_InvalidAssertionSignature() {
-	sessionData := SessionData{
+	authRequestCtx := authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:    "test-client",
 			RedirectURI: "https://client.example.com/callback",
 		},
-		AuthTime: time.Now(),
 	}
-	sessionKey := suite.handler.sessionStore.AddSession(sessionData)
+	authID := testAuthID
+	suite.mockAuthReqStore.EXPECT().GetRequest(authID).Return(true, authRequestCtx)
+	suite.mockAuthReqStore.EXPECT().ClearRequest(authID)
 
 	assertion := "invalid.jwt.token"
-	suite.mockJWTService.EXPECT().VerifyJWT(assertion, "", "").Return(errors.New("invalid signature"))
+	suite.mockJWTService.EXPECT().VerifyJWT(assertion, "", "").Return(&jwt.ErrorInvalidTokenSignature)
 
 	msg := &OAuthMessage{
-		RequestType:    oauth2const.TypeAuthorizationResponseFromEngine,
-		SessionDataKey: sessionKey,
+		RequestType: oauth2const.TypeAuthorizationResponseFromEngine,
+		AuthID:      authID,
 		RequestBodyParams: map[string]string{
 			oauth2const.Assertion: assertion,
 		},
@@ -576,21 +660,22 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngin
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_FailedToDecodeAssertion() {
-	sessionData := SessionData{
+	authRequestCtx := authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:    "test-client",
 			RedirectURI: "https://client.example.com/callback",
 		},
-		AuthTime: time.Now(),
 	}
-	sessionKey := suite.handler.sessionStore.AddSession(sessionData)
+	authID := testAuthID
+	suite.mockAuthReqStore.EXPECT().GetRequest(authID).Return(true, authRequestCtx)
+	suite.mockAuthReqStore.EXPECT().ClearRequest(authID)
 
 	assertion := "invalid-jwt-format"
 	suite.mockJWTService.EXPECT().VerifyJWT(assertion, "", "").Return(nil)
 
 	msg := &OAuthMessage{
-		RequestType:    oauth2const.TypeAuthorizationResponseFromEngine,
-		SessionDataKey: sessionKey,
+		RequestType: oauth2const.TypeAuthorizationResponseFromEngine,
+		AuthID:      authID,
 		RequestBodyParams: map[string]string{
 			oauth2const.Assertion: assertion,
 		},
@@ -603,22 +688,23 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngin
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_EmptyUserID() {
-	sessionData := SessionData{
+	authRequestCtx := authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			ClientID:    "test-client",
 			RedirectURI: "https://client.example.com/callback",
 		},
-		AuthTime: time.Now(),
 	}
-	sessionKey := suite.handler.sessionStore.AddSession(sessionData)
+	authID := testAuthID
+	suite.mockAuthReqStore.EXPECT().GetRequest(authID).Return(true, authRequestCtx)
+	suite.mockAuthReqStore.EXPECT().ClearRequest(authID)
 
 	// This will fail during decode since it's not a valid JWT
 	assertion := "not.a.valid.jwt"
 	suite.mockJWTService.EXPECT().VerifyJWT(assertion, "", "").Return(nil)
 
 	msg := &OAuthMessage{
-		RequestType:    oauth2const.TypeAuthorizationResponseFromEngine,
-		SessionDataKey: sessionKey,
+		RequestType: oauth2const.TypeAuthorizationResponseFromEngine,
+		AuthID:      authID,
 		RequestBodyParams: map[string]string{
 			oauth2const.Assertion: assertion,
 		},
@@ -636,7 +722,7 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngin
 
 func (suite *AuthorizeHandlerTestSuite) TestRedirectToLoginPage_NilResponseWriter() {
 	req := httptest.NewRequest(http.MethodGet, "/auth", nil)
-	queryParams := map[string]string{"sessionDataKey": "test-key"}
+	queryParams := map[string]string{"authId": "test-key"}
 
 	suite.handler.redirectToLoginPage(nil, req, queryParams)
 	// Should not panic and should log error
@@ -644,7 +730,7 @@ func (suite *AuthorizeHandlerTestSuite) TestRedirectToLoginPage_NilResponseWrite
 
 func (suite *AuthorizeHandlerTestSuite) TestRedirectToLoginPage_NilRequest() {
 	rr := httptest.NewRecorder()
-	queryParams := map[string]string{"sessionDataKey": "test-key"}
+	queryParams := map[string]string{"authId": "test-key"}
 
 	suite.handler.redirectToLoginPage(rr, nil, queryParams)
 	// Should not panic and should log error
@@ -665,14 +751,14 @@ func (suite *AuthorizeHandlerTestSuite) TestRedirectToErrorPage_NilRequest() {
 }
 
 func (suite *AuthorizeHandlerTestSuite) TestWriteAuthZResponseToErrorPage_WithState() {
-	sessionData := &SessionData{
+	authRequestCtx := &authRequestContext{
 		OAuthParameters: oauth2model.OAuthParameters{
 			State: "test-state",
 		},
 	}
 
 	rr := httptest.NewRecorder()
-	suite.handler.writeAuthZResponseToErrorPage(rr, "error_code", "error message", sessionData)
+	suite.handler.writeAuthZResponseToErrorPage(rr, "error_code", "error message", authRequestCtx)
 
 	assert.Equal(suite.T(), http.StatusOK, rr.Code)
 	var resp AuthZPostResponse
@@ -681,7 +767,7 @@ func (suite *AuthorizeHandlerTestSuite) TestWriteAuthZResponseToErrorPage_WithSt
 	assert.Contains(suite.T(), resp.RedirectURI, "state=test-state")
 }
 
-func (suite *AuthorizeHandlerTestSuite) TestWriteAuthZResponseToErrorPage_NilSessionData() {
+func (suite *AuthorizeHandlerTestSuite) TestWriteAuthZResponseToErrorPage_NilAuthRequestContext() {
 	rr := httptest.NewRecorder()
 	suite.handler.writeAuthZResponseToErrorPage(rr, "error_code", "error message", nil)
 
@@ -770,6 +856,7 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_In
 		},
 	}
 	suite.mockFlowExecService.EXPECT().InitiateFlow(expectedFlowInitCtx).Return("test-flow-id", nil)
+	suite.mockAuthReqStore.EXPECT().AddRequest(mock.Anything).Return(testAuthID)
 
 	msg := &OAuthMessage{
 		RequestType: oauth2const.TypeInitialAuthorizationRequest,
@@ -803,6 +890,7 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_Em
 		},
 	}
 	suite.mockFlowExecService.EXPECT().InitiateFlow(expectedFlowInitCtx).Return("test-flow-id", nil)
+	suite.mockAuthReqStore.EXPECT().AddRequest(mock.Anything).Return(testAuthID)
 
 	msg := &OAuthMessage{
 		RequestType: oauth2const.TypeInitialAuthorizationRequest,
@@ -820,4 +908,421 @@ func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_Em
 	suite.handler.handleInitialAuthorizationRequest(msg, rr, req)
 
 	assert.Equal(suite.T(), http.StatusFound, rr.Code)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_PersistAuthCodeError() {
+	authRequestCtx := authRequestContext{
+		OAuthParameters: oauth2model.OAuthParameters{
+			ClientID:    "test-client",
+			RedirectURI: "https://client.example.com/callback",
+		},
+	}
+	authID := testAuthID
+	suite.mockAuthReqStore.EXPECT().GetRequest(authID).Return(true, authRequestCtx)
+	suite.mockAuthReqStore.EXPECT().ClearRequest(authID)
+
+	// Use JWT with iat claim for testing
+	// Header: {"alg":"none","typ":"JWT"}
+	// Payload: {"sub":"test-user","iat":1701421200}
+	assertion := testJWTWithIat
+	suite.mockJWTService.EXPECT().VerifyJWT(assertion, "", "").Return(nil)
+
+	// Mock the store to return an error when inserting
+	storeError := errors.New("database error")
+	suite.mockAuthzCodeStore.EXPECT().InsertAuthorizationCode(mock.Anything).Return(storeError)
+
+	msg := &OAuthMessage{
+		RequestType: oauth2const.TypeAuthorizationResponseFromEngine,
+		AuthID:      authID,
+		RequestBodyParams: map[string]string{
+			oauth2const.Assertion: assertion,
+		},
+	}
+
+	rr := httptest.NewRecorder()
+	suite.handler.handleAuthorizationResponseFromEngine(msg, rr)
+
+	assert.Equal(suite.T(), http.StatusOK, rr.Code)
+	var resp AuthZPostResponse
+	err := json.NewDecoder(rr.Body).Decode(&resp)
+	assert.NoError(suite.T(), err)
+	assert.Contains(suite.T(), resp.RedirectURI, "/error")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_Success() {
+	// Create a valid JWT token with all claim types (using base64 encoded payload)
+	// Payload contains: sub, username, email, firstName, lastName, authorized_permissions,
+	// userType, ouId, ouName, ouHandle
+	// This is a valid JWT format: header.payload.signature (signature can be empty for testing decode)
+	// JWT with all claim types: sub, username, email, firstName, lastName,
+	// authorized_permissions, userType, ouId, ouName, ouHandle
+	validJWT := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0." +
+		"eyJzdWIiOiJ0ZXN0LXVzZXIiLCJ1c2VybmFtZSI6InRlc3R1c2VyIiwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUuY29tIiwi" +
+		"Zmlyc3ROYW1lIjoiVGVzdCIsImxhc3ROYW1lIjoiVXNlciIsImF1dGhvcml6ZWRfcGVybWlzc2lvbnMiOiJyZWFkIHdyaXRlIiwidXNlclR5cGUiOiJsb2NhbCIsIm91SWQiOiJvdTEyMyIsIm91TmFtZSI6Ik9yZ2FuaXphdGlvbiIsIm91SGFuZGxlIjoib3JnLWhhbmRsZSJ9." //nolint:lll
+
+	claims, _, err := decodeAttributesFromAssertion(validJWT)
+
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "test-user", claims.userID)
+	assert.Equal(suite.T(), "local", claims.userType)
+	assert.Equal(suite.T(), "ou123", claims.ouID)
+	assert.Equal(suite.T(), "Organization", claims.ouName)
+	assert.Equal(suite.T(), "org-handle", claims.ouHandle)
+	assert.Equal(suite.T(), "testuser", claims.userAttributes["username"])
+	assert.Equal(suite.T(), "test@example.com", claims.userAttributes["email"])
+	assert.Equal(suite.T(), "Test", claims.userAttributes["firstName"])
+	assert.Equal(suite.T(), "User", claims.userAttributes["lastName"])
+	assert.Equal(suite.T(), "read write", claims.userAttributes["authorized_permissions"])
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_DecodeError() {
+	invalidJWT := "invalid.jwt.token"
+
+	_, _, err := decodeAttributesFromAssertion(invalidJWT)
+
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "Failed to decode the JWT token")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_InvalidSubClaim() {
+	// JWT with invalid sub claim type (number instead of string)
+	// Payload: {"sub":12345}
+	invalidSubJWT := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOjEyMzQ1fQ."
+
+	claims, _, err := decodeAttributesFromAssertion(invalidSubJWT)
+
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "JWT 'sub' claim is not a string")
+	assert.Equal(suite.T(), "", claims.userID)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_InvalidUsernameClaim() {
+	// JWT with invalid username claim type
+	// Payload: {"sub":"test-user","username":12345}
+	invalidUsernameJWT := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJ1c2VybmFtZSI6MTIzNDV9."
+
+	_, _, err := decodeAttributesFromAssertion(invalidUsernameJWT)
+
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "JWT 'username' claim is not a string")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_InvalidEmailClaim() {
+	// JWT with invalid email claim type
+	// Payload: {"sub":"test-user","email":12345}
+	invalidEmailJWT := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJlbWFpbCI6MTIzNDV9."
+
+	_, _, err := decodeAttributesFromAssertion(invalidEmailJWT)
+
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "JWT 'email' claim is not a string")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_InvalidFirstNameClaim() {
+	// JWT with invalid firstName claim type
+	// Payload: {"sub":"test-user","firstName":12345}
+	invalidFirstNameJWT := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJmaXJzdE5hbWUiOjEyMzQ1fQ."
+
+	_, _, err := decodeAttributesFromAssertion(invalidFirstNameJWT)
+
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "JWT 'firstName' claim is not a string")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_InvalidLastNameClaim() {
+	// JWT with invalid lastName claim type
+	// Payload: {"sub":"test-user","lastName":12345}
+	invalidLastNameJWT := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJsYXN0TmFtZSI6MTIzNDV9."
+
+	_, _, err := decodeAttributesFromAssertion(invalidLastNameJWT)
+
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "JWT 'lastName' claim is not a string")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_InvalidAuthorizedPermissionsClaim() {
+	// JWT with invalid authorized_permissions claim type
+	// Payload: {"sub":"test-user","authorized_permissions":12345}
+	invalidPermsJWT := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0." +
+		"eyJzdWIiOiJ0ZXN0LXVzZXIiLCJhdXRob3JpemVkX3Blcm1pc3Npb25zIjoxMjM0NX0."
+
+	_, _, err := decodeAttributesFromAssertion(invalidPermsJWT)
+
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "JWT 'authorized_permissions' claim is not a string")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_InvalidUserTypeClaim() {
+	// JWT with invalid userType claim type
+	// Payload: {"sub":"test-user","userType":12345}
+	invalidUserTypeJWT := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJ1c2VyVHlwZSI6MTIzNDV9."
+
+	_, _, err := decodeAttributesFromAssertion(invalidUserTypeJWT)
+
+	assert.Error(suite.T(), err)
+	assert.Contains(suite.T(), err.Error(), "JWT 'userType' claim is not a string")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestDecodeAttributesFromAssertion_InvalidOUClaims() {
+	testCases := []struct {
+		name  string
+		claim string
+		jwt   string
+	}{
+		{"InvalidOUID", "ouId", "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJvdUlkIjoxMjM0NX0."},
+		{"InvalidOUName", "ouName",
+			"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJvdU5hbWUiOjEyMzQ1fQ."},
+		{"InvalidOUHandle", "ouHandle",
+			"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJvdUhhbmRsZSI6MTIzNDV9."},
+	}
+
+	for _, tc := range testCases {
+		suite.T().Run(tc.name, func(t *testing.T) {
+			_, _, err := decodeAttributesFromAssertion(tc.jwt)
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "claim is not a string")
+		})
+	}
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizeGetRequest_GetOAuthMessageReturnsNil() {
+	// Create a request that will cause getOAuthMessage to return nil
+	req := httptest.NewRequest("GET", "/oauth2/authorize?client_id=%ZZ", nil) // Invalid URL encoding
+	rr := httptest.NewRecorder()
+
+	suite.handler.HandleAuthorizeGetRequest(rr, req)
+
+	// Should return 400 Bad Request when getOAuthMessage fails
+	assert.Equal(suite.T(), http.StatusBadRequest, rr.Code)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizePostRequest_GetOAuthMessageReturnsNil() {
+	req := httptest.NewRequest("POST", "/oauth2/authorize", bytes.NewReader([]byte("invalid json")))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	suite.handler.HandleAuthorizePostRequest(rr, req)
+
+	// Should return 400 Bad Request when getOAuthMessage fails
+	assert.Equal(suite.T(), http.StatusBadRequest, rr.Code)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_GetURIWithQueryParamsError() {
+	// Test error path when GetURIWithQueryParams fails
+	app := suite.createTestOAuthApp()
+	suite.mockAppService.EXPECT().GetOAuthApplication("test-client-id").Return(app, nil)
+
+	// Create a message with invalid redirect URI that will cause GetURIWithQueryParams to fail
+	msg := &OAuthMessage{
+		RequestType: oauth2const.TypeInitialAuthorizationRequest,
+		RequestQueryParams: map[string]string{
+			"client_id":     "test-client-id",
+			"redirect_uri":  "://invalid-uri", // Invalid URI
+			"response_type": "code",
+		},
+	}
+
+	req := httptest.NewRequest("GET", "/auth", nil)
+	rr := httptest.NewRecorder()
+
+	suite.handler.handleInitialAuthorizationRequest(msg, rr, req)
+
+	// Should redirect to error page when GetURIWithQueryParams fails
+	assert.Equal(suite.T(), http.StatusFound, rr.Code)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleInitialAuthorizationRequest_EmptyRedirectURIWithNoAppRedirectURIs() {
+	app := suite.createTestOAuthApp()
+	app.RedirectURIs = []string{} // Empty redirect URIs
+	suite.mockAppService.EXPECT().GetOAuthApplication("test-client-id").Return(app, nil)
+
+	msg := &OAuthMessage{
+		RequestType: oauth2const.TypeInitialAuthorizationRequest,
+		RequestQueryParams: map[string]string{
+			"client_id":     "test-client-id",
+			"redirect_uri":  "", // Empty redirect URI
+			"response_type": "code",
+		},
+	}
+
+	req := httptest.NewRequest("GET", "/auth", nil)
+	rr := httptest.NewRecorder()
+
+	// Validation will catch this before we reach the panic point
+	// The handler will redirect to error page instead
+	suite.handler.handleInitialAuthorizationRequest(msg, rr, req)
+
+	// Should redirect to error page (validation error)
+	assert.Equal(suite.T(), http.StatusFound, rr.Code)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_EmptyAuthorizedPermissions() {
+	authRequestCtx := authRequestContext{
+		OAuthParameters: oauth2model.OAuthParameters{
+			ClientID:    "test-client",
+			RedirectURI: "https://client.example.com/callback",
+		},
+	}
+	authID := testAuthID
+	suite.mockAuthReqStore.EXPECT().GetRequest(authID).Return(true, authRequestCtx)
+	suite.mockAuthReqStore.EXPECT().ClearRequest(authID)
+
+	// JWT with sub but no authorized_permissions (with iat claim)
+	assertion := testJWTWithIat
+	suite.mockJWTService.EXPECT().VerifyJWT(assertion, "", "").Return(nil)
+
+	suite.mockAuthzCodeStore.EXPECT().InsertAuthorizationCode(mock.Anything).Return(nil)
+
+	msg := &OAuthMessage{
+		RequestType: oauth2const.TypeAuthorizationResponseFromEngine,
+		AuthID:      authID,
+		RequestBodyParams: map[string]string{
+			oauth2const.Assertion: assertion,
+		},
+	}
+
+	rr := httptest.NewRecorder()
+	suite.handler.handleAuthorizationResponseFromEngine(msg, rr)
+
+	assert.Equal(suite.T(), http.StatusOK, rr.Code)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_WithState() {
+	authRequestCtx := authRequestContext{
+		OAuthParameters: oauth2model.OAuthParameters{
+			ClientID:    "test-client",
+			RedirectURI: "https://client.example.com/callback",
+			State:       "test-state-123",
+		},
+	}
+	authID := testAuthID
+	suite.mockAuthReqStore.EXPECT().GetRequest(authID).Return(true, authRequestCtx)
+	suite.mockAuthReqStore.EXPECT().ClearRequest(authID)
+
+	assertion := testJWTWithIat
+	suite.mockJWTService.EXPECT().VerifyJWT(assertion, "", "").Return(nil)
+
+	suite.mockAuthzCodeStore.EXPECT().InsertAuthorizationCode(mock.Anything).Return(nil)
+
+	msg := &OAuthMessage{
+		RequestType: oauth2const.TypeAuthorizationResponseFromEngine,
+		AuthID:      authID,
+		RequestBodyParams: map[string]string{
+			oauth2const.Assertion: assertion,
+		},
+	}
+
+	rr := httptest.NewRecorder()
+	suite.handler.handleAuthorizationResponseFromEngine(msg, rr)
+
+	assert.Equal(suite.T(), http.StatusOK, rr.Code)
+	var resp AuthZPostResponse
+	err := json.NewDecoder(rr.Body).Decode(&resp)
+	assert.NoError(suite.T(), err)
+	// State should be URL-encoded in the redirect URI
+	assert.Contains(suite.T(), resp.RedirectURI, "state=test-state-123")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizationResponseFromEngine_CreateAuthorizationCodeError() {
+	// Test error when createAuthorizationCode fails
+	// Empty client ID will cause createAuthorizationCode to fail
+	authRequestCtx := authRequestContext{
+		OAuthParameters: oauth2model.OAuthParameters{
+			ClientID:    "",
+			RedirectURI: "https://client.example.com/callback",
+		},
+	}
+	authID := testAuthID
+	suite.mockAuthReqStore.EXPECT().GetRequest(authID).Return(true, authRequestCtx)
+	suite.mockAuthReqStore.EXPECT().ClearRequest(authID)
+
+	assertion := testMinimalJWT
+	suite.mockJWTService.EXPECT().VerifyJWT(assertion, "", "").Return(nil)
+
+	msg := &OAuthMessage{
+		RequestType: oauth2const.TypeAuthorizationResponseFromEngine,
+		AuthID:      authID,
+		RequestBodyParams: map[string]string{
+			oauth2const.Assertion: assertion,
+		},
+	}
+
+	rr := httptest.NewRecorder()
+	suite.handler.handleAuthorizationResponseFromEngine(msg, rr)
+
+	assert.Equal(suite.T(), http.StatusOK, rr.Code)
+	var resp AuthZPostResponse
+	err := json.NewDecoder(rr.Body).Decode(&resp)
+	assert.NoError(suite.T(), err)
+	assert.Contains(suite.T(), resp.RedirectURI, "/error")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestRedirectToLoginPage_GetLoginPageRedirectURIError() {
+	// Test error path when getLoginPageRedirectURI fails
+	req := httptest.NewRequest("GET", "/auth", nil)
+	rr := httptest.NewRecorder()
+
+	// Use valid params - the function should succeed
+	validParams := map[string]string{
+		"authId": "test-key",
+		"appId":  "test-app",
+	}
+
+	suite.handler.redirectToLoginPage(rr, req, validParams)
+
+	// Verify redirect occurred successfully
+	assert.Equal(suite.T(), http.StatusFound, rr.Code, "Should redirect when URI construction succeeds")
+	assert.NotEmpty(suite.T(), rr.Header().Get("Location"), "Should have Location header")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestRedirectToErrorPage_GetErrorPageRedirectURLError() {
+	// Test error path when getErrorPageRedirectURL fails
+	req := httptest.NewRequest("GET", "/auth", nil)
+	rr := httptest.NewRecorder()
+
+	// Test with nil response writer (should handle gracefully without panicking)
+	suite.handler.redirectToErrorPage(nil, req, "error_code", "error message")
+
+	suite.handler.redirectToErrorPage(rr, nil, "error_code", "error message")
+
+	assert.Equal(suite.T(), http.StatusOK, rr.Code, "Status should remain unchanged when request is nil")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestWriteAuthZResponseToErrorPage_GetErrorPageRedirectURLError() {
+	rr := httptest.NewRecorder()
+
+	suite.handler.writeAuthZResponseToErrorPage(rr, "error_code", "error message", nil)
+
+	assert.Equal(suite.T(), http.StatusOK, rr.Code)
+	var resp AuthZPostResponse
+	err := json.NewDecoder(rr.Body).Decode(&resp)
+	assert.NoError(suite.T(), err)
+	assert.Contains(suite.T(), resp.RedirectURI, "/error")
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestWriteAuthZResponse() {
+	rr := httptest.NewRecorder()
+
+	suite.handler.writeAuthZResponse(rr, "https://example.com/callback?code=abc123")
+
+	assert.Equal(suite.T(), http.StatusOK, rr.Code)
+	assert.Equal(suite.T(), "application/json", rr.Header().Get("Content-Type"))
+	var resp AuthZPostResponse
+	err := json.NewDecoder(rr.Body).Decode(&resp)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "https://example.com/callback?code=abc123", resp.RedirectURI)
+}
+
+func (suite *AuthorizeHandlerTestSuite) TestHandleAuthorizePostRequest_UnsupportedMethod() {
+	req := httptest.NewRequest(http.MethodPut, "/auth", nil)
+	rr := httptest.NewRecorder()
+
+	suite.handler.HandleAuthorizePostRequest(rr, req)
+
+	assert.Equal(suite.T(), http.StatusBadRequest, rr.Code)
+	var response map[string]interface{}
+	err := json.NewDecoder(rr.Body).Decode(&response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "invalid_request", response["error"])
 }

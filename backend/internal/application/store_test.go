@@ -30,17 +30,19 @@ import (
 
 	"github.com/asgardeo/thunder/internal/application/model"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	"github.com/asgardeo/thunder/internal/system/config"
 	dbmodel "github.com/asgardeo/thunder/internal/system/database/model"
-	"github.com/asgardeo/thunder/tests/mocks/database/clientmock"
 	"github.com/asgardeo/thunder/tests/mocks/database/modelmock"
+	"github.com/asgardeo/thunder/tests/mocks/database/providermock"
 )
 
 const testAppID = "test-app-id"
+const testServerID = "test-server-id"
 
 // ApplicationStoreTestSuite contains comprehensive tests for the application store helper functions.
 type ApplicationStoreTestSuite struct {
 	suite.Suite
-	mockDBClient *clientmock.DBClientInterfaceMock
+	mockDBClient *providermock.DBClientInterfaceMock
 }
 
 func TestApplicationStoreTestSuite(t *testing.T) {
@@ -48,7 +50,8 @@ func TestApplicationStoreTestSuite(t *testing.T) {
 }
 
 func (suite *ApplicationStoreTestSuite) SetupTest() {
-	suite.mockDBClient = clientmock.NewDBClientInterfaceMock(suite.T())
+	_ = config.InitializeThunderRuntime("test", &config.Config{})
+	suite.mockDBClient = providermock.NewDBClientInterfaceMock(suite.T())
 }
 
 func (suite *ApplicationStoreTestSuite) createTestApplication() model.ApplicationProcessedDTO {
@@ -56,8 +59,8 @@ func (suite *ApplicationStoreTestSuite) createTestApplication() model.Applicatio
 		ID:                        "app1",
 		Name:                      "Test App 1",
 		Description:               "Test application description",
-		AuthFlowGraphID:           "auth_flow_1",
-		RegistrationFlowGraphID:   "reg_flow_1",
+		AuthFlowID:                "auth_flow_1",
+		RegistrationFlowID:        "reg_flow_1",
 		IsRegistrationFlowEnabled: true,
 		URL:                       "https://example.com",
 		LogoURL:                   "https://example.com/logo.png",
@@ -213,6 +216,36 @@ func (suite *ApplicationStoreTestSuite) TestGetAppJSONDataBytes_EmptyContacts() 
 	suite.Len(contacts, 0)
 }
 
+func (suite *ApplicationStoreTestSuite) TestGetAppJSONDataBytes_WithTemplate() {
+	app := suite.createTestApplication()
+	app.Template = "spa"
+
+	jsonBytes, err := getAppJSONDataBytes(&app)
+
+	suite.NoError(err)
+	suite.NotNil(jsonBytes)
+
+	var result map[string]interface{}
+	err = json.Unmarshal(jsonBytes, &result)
+	suite.NoError(err)
+	suite.Equal("spa", result["template"])
+}
+
+func (suite *ApplicationStoreTestSuite) TestGetAppJSONDataBytes_WithEmptyTemplate() {
+	app := suite.createTestApplication()
+	app.Template = ""
+
+	jsonBytes, err := getAppJSONDataBytes(&app)
+
+	suite.NoError(err)
+	suite.NotNil(jsonBytes)
+
+	var result map[string]interface{}
+	err = json.Unmarshal(jsonBytes, &result)
+	suite.NoError(err)
+	suite.Nil(result["template"]) // Empty template should not be included
+}
+
 func (suite *ApplicationStoreTestSuite) TestGetOAuthConfigJSONBytes_Success() {
 	app := suite.createTestApplication()
 	inboundAuthConfig := app.InboundAuthConfig[0]
@@ -337,8 +370,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_S
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"consumer_key":                 "client_app1",
 	}
@@ -349,8 +382,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_S
 	suite.Equal("app1", result.ID)
 	suite.Equal("Test App 1", result.Name)
 	suite.Equal("Test description", result.Description)
-	suite.Equal("auth_flow_1", result.AuthFlowGraphID)
-	suite.Equal("reg_flow_1", result.RegistrationFlowGraphID)
+	suite.Equal("auth_flow_1", result.AuthFlowID)
+	suite.Equal("reg_flow_1", result.RegistrationFlowID)
 	suite.True(result.IsRegistrationFlowEnabled)
 	suite.Equal("client_app1", result.ClientID)
 }
@@ -360,8 +393,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_W
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  nil,
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"consumer_key":                 nil,
 	}
@@ -378,8 +411,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_W
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": []byte("1"),
 		"consumer_key":                 "client_app1",
 	}
@@ -395,8 +428,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_W
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "0",
 		"consumer_key":                 "client_app1",
 	}
@@ -405,6 +438,78 @@ func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_W
 
 	suite.NoError(err)
 	suite.False(result.IsRegistrationFlowEnabled)
+}
+
+func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_WithTemplate() {
+	appJSON := map[string]interface{}{
+		"template": "spa",
+	}
+	appJSONBytes, _ := json.Marshal(appJSON)
+
+	row := map[string]interface{}{
+		"app_id":                       "app1",
+		"app_name":                     "Test App 1",
+		"description":                  "Test description",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
+		"is_registration_flow_enabled": "1",
+		"branding_id":                  "brand-123",
+		"app_json":                     string(appJSONBytes),
+		"consumer_key":                 "client_app1",
+	}
+
+	result, err := buildBasicApplicationFromResultRow(row)
+
+	suite.NoError(err)
+	suite.Equal("app1", result.ID)
+	suite.Equal("brand-123", result.BrandingID)
+	suite.Equal("spa", result.Template)
+}
+
+func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_WithNullTemplate() {
+	appJSON := map[string]interface{}{}
+	appJSONBytes, _ := json.Marshal(appJSON)
+
+	row := map[string]interface{}{
+		"app_id":                       "app1",
+		"app_name":                     "Test App 1",
+		"description":                  "Test description",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
+		"is_registration_flow_enabled": "1",
+		"app_json":                     string(appJSONBytes),
+		"consumer_key":                 "client_app1",
+	}
+
+	result, err := buildBasicApplicationFromResultRow(row)
+
+	suite.NoError(err)
+	suite.Equal("app1", result.ID)
+	suite.Equal("", result.Template)
+}
+
+func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_WithEmptyTemplate() {
+	appJSON := map[string]interface{}{
+		"template": "",
+	}
+	appJSONBytes, _ := json.Marshal(appJSON)
+
+	row := map[string]interface{}{
+		"app_id":                       "app1",
+		"app_name":                     "Test App 1",
+		"description":                  "Test description",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
+		"is_registration_flow_enabled": "1",
+		"app_json":                     string(appJSONBytes),
+		"consumer_key":                 "client_app1",
+	}
+
+	result, err := buildBasicApplicationFromResultRow(row)
+
+	suite.NoError(err)
+	suite.Equal("app1", result.ID)
+	suite.Equal("", result.Template)
 }
 
 func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_InvalidAppID() {
@@ -451,8 +556,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_I
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": 123, // Invalid type
 	}
 
@@ -468,8 +573,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildBasicApplicationFromResultRow_I
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"consumer_key":                 123, // Invalid type
 	}
@@ -511,8 +616,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_Succes
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 		"consumer_key":                 "client_app1",
@@ -537,13 +642,66 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_Succes
 	suite.Equal("client_app1", result.InboundAuthConfig[0].OAuthAppConfig.ClientID)
 }
 
+func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithTemplate() {
+	appJSON := map[string]interface{}{
+		"url":      "https://example.com",
+		"logo_url": "https://example.com/logo.png",
+		"template": "mobile",
+	}
+	appJSONBytes, _ := json.Marshal(appJSON)
+
+	row := map[string]interface{}{
+		"app_id":                       "app1",
+		"app_name":                     "Test App 1",
+		"description":                  "Test description",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
+		"is_registration_flow_enabled": "1",
+		"branding_id":                  "brand-123",
+		"app_json":                     string(appJSONBytes),
+	}
+
+	result, err := buildApplicationFromResultRow(row)
+
+	suite.NoError(err)
+	suite.Equal("app1", result.ID)
+	suite.Equal("brand-123", result.BrandingID)
+	suite.Equal("mobile", result.Template)
+	suite.Equal("https://example.com", result.URL)
+}
+
+func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithoutTemplate() {
+	appJSON := map[string]interface{}{
+		"url":      "https://example.com",
+		"logo_url": "https://example.com/logo.png",
+	}
+	appJSONBytes, _ := json.Marshal(appJSON)
+
+	row := map[string]interface{}{
+		"app_id":                       "app1",
+		"app_name":                     "Test App 1",
+		"description":                  "Test description",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
+		"is_registration_flow_enabled": "1",
+		"app_json":                     string(appJSONBytes),
+	}
+
+	result, err := buildApplicationFromResultRow(row)
+
+	suite.NoError(err)
+	suite.Equal("app1", result.ID)
+	suite.Equal("", result.Template) // No template in app_json
+	suite.Equal("https://example.com", result.URL)
+}
+
 func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithNullAppJSON() {
 	row := map[string]interface{}{
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     nil,
 	}
@@ -553,6 +711,7 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithNu
 	suite.NoError(err)
 	suite.Equal("", result.URL)
 	suite.Equal("", result.LogoURL)
+	suite.Equal("", result.Template) // Null app_json means no template
 	suite.Nil(result.Token)
 }
 
@@ -567,8 +726,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithBy
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     appJSONBytes, // As bytes
 	}
@@ -585,8 +744,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithIn
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     123, // Invalid type
 	}
@@ -603,8 +762,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithIn
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     "invalid json",
 	}
@@ -626,8 +785,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithIn
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -650,8 +809,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithIn
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -675,8 +834,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithIn
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -881,7 +1040,7 @@ func (suite *ApplicationStoreTestSuite) TestBuildOAuthInboundAuthConfig_InvalidO
 
 func (suite *ApplicationStoreTestSuite) TestCreateOAuthAppQuery_Success() {
 	app := suite.createTestApplication()
-	query := createOAuthAppQuery(&app, QueryCreateOAuthApplication)
+	query := createOAuthAppQuery(&app, QueryCreateOAuthApplication, testServerID)
 
 	suite.NotNil(query)
 	suite.IsType((func(dbmodel.TxInterface) error)(nil), query)
@@ -889,7 +1048,7 @@ func (suite *ApplicationStoreTestSuite) TestCreateOAuthAppQuery_Success() {
 
 func (suite *ApplicationStoreTestSuite) TestDeleteOAuthAppQuery_Success() {
 	clientID := "test_client_id"
-	query := deleteOAuthAppQuery(clientID)
+	query := deleteOAuthAppQuery(clientID, testServerID)
 
 	suite.NotNil(query)
 	suite.IsType((func(dbmodel.TxInterface) error)(nil), query)
@@ -907,8 +1066,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithIn
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -932,8 +1091,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithIn
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -957,8 +1116,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithTo
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -987,8 +1146,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithTo
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -1018,8 +1177,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithTo
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -1049,8 +1208,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithTo
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -1077,8 +1236,8 @@ func (suite *ApplicationStoreTestSuite) TestBuildApplicationFromResultRow_WithCo
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     string(appJSONBytes),
 	}
@@ -1285,12 +1444,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_WithComplexToken
 	}
 
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, clientID).
+		On("Query", QueryGetOAuthApplicationByClientID, clientID, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute
-	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	suite.Require().NoError(err)
 	result, err := getOAuthApplicationFromResults(clientID, results)
 
@@ -1342,12 +1501,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_WithNilTokenConf
 	}
 
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything).
+		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute
-	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	suite.Require().NoError(err)
 	result, err := getOAuthApplicationFromResults(clientID, results)
 
@@ -1374,12 +1533,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_WithJSONAsBytes(
 	}
 
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything).
+		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute
-	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	suite.Require().NoError(err)
 	result, err := getOAuthApplicationFromResults(clientID, results)
 
@@ -1399,12 +1558,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_WithNilJSON() {
 	}
 
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything).
+		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute
-	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	suite.Require().NoError(err)
 	result, err := getOAuthApplicationFromResults(clientID, results)
 
@@ -1417,12 +1576,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_WithNilJSON() {
 func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_NotFound() {
 	clientID := "non-existent-client"
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything).
+		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return([]map[string]interface{}{}, nil).
 		Once()
 
 	// Execute
-	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	suite.Require().NoError(err)
 	result, err := getOAuthApplicationFromResults(clientID, results)
 
@@ -1435,12 +1594,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_NotFound() {
 func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_DatabaseError() {
 	clientID := "test-client-error"
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything).
+		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return(nil, errors.New("database connection error")).
 		Once()
 
 	// Execute
-	_, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	_, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	result := (*model.OAuthAppConfigProcessedDTO)(nil)
 
 	// Assert
@@ -1459,12 +1618,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_InvalidAppIDType
 	}
 
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything).
+		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute
-	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	suite.Require().NoError(err)
 	result, err := getOAuthApplicationFromResults(clientID, results)
 
@@ -1484,12 +1643,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_InvalidJSONType(
 	}
 
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything).
+		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute
-	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	suite.Require().NoError(err)
 	result, err := getOAuthApplicationFromResults(clientID, results)
 
@@ -1509,12 +1668,12 @@ func (suite *ApplicationStoreTestSuite) TestGetOAuthApplication_MalformedJSON() 
 	}
 
 	suite.mockDBClient.
-		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything).
+		On("Query", QueryGetOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute
-	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID)
+	results, err := suite.mockDBClient.Query(QueryGetOAuthApplicationByClientID, clientID, testServerID)
 	suite.Require().NoError(err)
 	result, err := getOAuthApplicationFromResults(clientID, results)
 
@@ -1541,11 +1700,12 @@ func TestCreateOAuthAppQuery_ExecError(t *testing.T) {
 		},
 	}
 
-	queryFunc := createOAuthAppQuery(&app, QueryCreateOAuthApplication)
+	queryFunc := createOAuthAppQuery(&app, QueryCreateOAuthApplication, testServerID)
 
 	mockTx := modelmock.NewTxInterfaceMock(t)
 	mockTx.
-		On("Exec", QueryCreateOAuthApplication.Query, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		On("Exec", QueryCreateOAuthApplication, mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+			testServerID).
 		Return(nil, errors.New("database exec error")).
 		Once()
 
@@ -1558,11 +1718,11 @@ func TestCreateOAuthAppQuery_ExecError(t *testing.T) {
 func TestDeleteOAuthAppQuery_ExecError(t *testing.T) {
 	clientID := "test-client-id"
 
-	queryFunc := deleteOAuthAppQuery(clientID)
+	queryFunc := deleteOAuthAppQuery(clientID, testServerID)
 
 	mockTx := modelmock.NewTxInterfaceMock(t)
 	mockTx.
-		On("Exec", QueryDeleteOAuthApplicationByClientID.Query, mock.Anything).
+		On("Exec", QueryDeleteOAuthApplicationByClientID, mock.Anything, testServerID).
 		Return(nil, errors.New("database delete error")).
 		Once()
 
@@ -1581,8 +1741,8 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_UnexpectedNumb
 		"app_id":                       "app1",
 		"app_name":                     "Test App 1",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     "{}",
 		"consumer_key":                 "client1",
@@ -1594,8 +1754,8 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_UnexpectedNumb
 		"app_id":                       "app2",
 		"app_name":                     "Test App 2",
 		"description":                  "Test description 2",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     "{}",
 		"consumer_key":                 "client2",
@@ -1605,13 +1765,13 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_UnexpectedNumb
 
 	// Mock the database client to return multiple results
 	suite.mockDBClient.
-		On("Query", QueryGetApplicationByAppID, appID).
+		On("Query", QueryGetApplicationByAppID, appID, testServerID).
 		Return([]map[string]interface{}{mockRow1, mockRow2}, nil).
 		Once()
 
 	// Create a test helper that simulates getApplicationByQuery
 	// Since getApplicationByQuery is private, we test it through a test helper
-	results, err := suite.mockDBClient.Query(QueryGetApplicationByAppID, appID)
+	results, err := suite.mockDBClient.Query(QueryGetApplicationByAppID, appID, testServerID)
 	suite.Require().NoError(err)
 
 	// Simulate the error check from getApplicationByQuery
@@ -1637,8 +1797,8 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_BuildApplicati
 		"app_id":                       123, // Invalid type - should be string
 		"app_name":                     "Test App",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     "{}",
 		"consumer_key":                 "client1",
@@ -1648,12 +1808,12 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_BuildApplicati
 
 	// Mock the database client to return a single result with invalid data
 	suite.mockDBClient.
-		On("Query", QueryGetApplicationByAppID, appID).
+		On("Query", QueryGetApplicationByAppID, appID, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute query
-	results, err := suite.mockDBClient.Query(QueryGetApplicationByAppID, appID)
+	results, err := suite.mockDBClient.Query(QueryGetApplicationByAppID, appID, testServerID)
 	suite.Require().NoError(err)
 	suite.Require().Len(results, 1)
 
@@ -1675,8 +1835,8 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_BuildApplicati
 		"app_id":                       "app1",
 		"app_name":                     "Test App",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     12345, // Invalid type - should be string or []byte
 		"consumer_key":                 "client1",
@@ -1686,12 +1846,12 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_BuildApplicati
 
 	// Mock the database client to return a single result with invalid app_json
 	suite.mockDBClient.
-		On("Query", QueryGetApplicationByAppID, appID).
+		On("Query", QueryGetApplicationByAppID, appID, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute query
-	results, err := suite.mockDBClient.Query(QueryGetApplicationByAppID, appID)
+	results, err := suite.mockDBClient.Query(QueryGetApplicationByAppID, appID, testServerID)
 	suite.Require().NoError(err)
 	suite.Require().Len(results, 1)
 
@@ -1713,8 +1873,8 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_BuildApplicati
 		"app_id":                       "app1",
 		"app_name":                     "Test App",
 		"description":                  "Test description",
-		"auth_flow_graph_id":           "auth_flow_1",
-		"registration_flow_graph_id":   "reg_flow_1",
+		"auth_flow_id":                 "auth_flow_1",
+		"registration_flow_id":         "reg_flow_1",
 		"is_registration_flow_enabled": "1",
 		"app_json":                     "{invalid json", // Malformed JSON
 		"consumer_key":                 "client1",
@@ -1724,12 +1884,12 @@ func (suite *ApplicationStoreTestSuite) TestGetApplicationByQuery_BuildApplicati
 
 	// Mock the database client to return a single result with malformed JSON
 	suite.mockDBClient.
-		On("Query", QueryGetApplicationByAppID, appID).
+		On("Query", QueryGetApplicationByAppID, appID, testServerID).
 		Return([]map[string]interface{}{mockRow}, nil).
 		Once()
 
 	// Execute query
-	results, err := suite.mockDBClient.Query(QueryGetApplicationByAppID, appID)
+	results, err := suite.mockDBClient.Query(QueryGetApplicationByAppID, appID, testServerID)
 	suite.Require().NoError(err)
 	suite.Require().Len(results, 1)
 

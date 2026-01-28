@@ -18,7 +18,7 @@
 
 # WSO2 Thunder Docker Image
 # Build stage - compile the Go binary and build frontend for the target architecture
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25-alpine3.22 AS builder
 
 # Install build dependencies including Node.js and npm
 RUN apk add --no-cache git make bash sqlite openssl zip nodejs npm
@@ -38,7 +38,7 @@ ARG KEY_FILE
 
 # Modify the hostname in the deployment configuration
 RUN sed -i 's/hostname: "localhost"/hostname: "0.0.0.0"/' backend/cmd/server/repository/conf/deployment.yaml && \
-    sed -i '/hostname: "0.0.0.0"/a\  public_hostname: "https://localhost:8090"' backend/cmd/server/repository/conf/deployment.yaml
+    sed -i '/hostname: "0.0.0.0"/a\  public_url: "https://localhost:8090"' backend/cmd/server/repository/conf/deployment.yaml
 
 # Handle shared certificates - use provided certificates or generate new ones
 RUN if [ -n "$CERT_FILE" ] && [ -n "$KEY_FILE" ] && [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then \
@@ -81,7 +81,7 @@ RUN apk add --no-cache \
     unzip
 
 # Create thunder user and group
-RUN addgroup -S thunder -g 802 && adduser -S thunder -u 802 -G thunder
+RUN addgroup -S thunder -g 10001 && adduser -S thunder -u 10001 -G thunder
 
 # Create application directory
 WORKDIR /opt/thunder

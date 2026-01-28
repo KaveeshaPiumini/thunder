@@ -46,14 +46,14 @@ type InitTestSuite struct {
 	suite.Suite
 	mockCertService       *certmock.CertificateServiceInterfaceMock
 	mockFlowMgtService    *flowmgtmock.FlowMgtServiceInterfaceMock
-	mockBrandingService   *brandingmock.BrandingServiceInterfaceMock
+	mockBrandingService   *brandingmock.BrandingMgtServiceInterfaceMock
 	mockUserSchemaService *userschemamock.UserSchemaServiceInterfaceMock
 }
 
 func (suite *InitTestSuite) SetupTest() {
 	suite.mockCertService = certmock.NewCertificateServiceInterfaceMock(suite.T())
 	suite.mockFlowMgtService = flowmgtmock.NewFlowMgtServiceInterfaceMock(suite.T())
-	suite.mockBrandingService = brandingmock.NewBrandingServiceInterfaceMock(suite.T())
+	suite.mockBrandingService = brandingmock.NewBrandingMgtServiceInterfaceMock(suite.T())
 	suite.mockUserSchemaService = userschemamock.NewUserSchemaServiceInterfaceMock(suite.T())
 }
 
@@ -81,7 +81,7 @@ func (suite *InitTestSuite) TestInitialize_WithImmutableResourcesDisabled() {
 	mux := http.NewServeMux()
 
 	// Execute
-	service := Initialize(
+	service, _, err := Initialize(
 		mux,
 		suite.mockCertService,
 		suite.mockFlowMgtService,
@@ -90,6 +90,7 @@ func (suite *InitTestSuite) TestInitialize_WithImmutableResourcesDisabled() {
 	)
 
 	// Assert
+	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), service)
 	assert.Implements(suite.T(), (*ApplicationServiceInterface)(nil), service)
 }
@@ -99,8 +100,8 @@ func (suite *InitTestSuite) TestParseToApplicationDTO_ValidYAML() {
 	yamlData := `
 name: test-app
 description: Test application
-auth_flow_graph_id: test-auth-flow
-registration_flow_graph_id: test-reg-flow
+auth_flow_id: test-auth-flow
+registration_flow_id: test-reg-flow
 is_registration_flow_enabled: true
 url: https://example.com
 logo_url: https://example.com/logo.png
@@ -139,8 +140,8 @@ inbound_auth_config:
 	assert.NotNil(suite.T(), appDTO)
 	assert.Equal(suite.T(), "test-app", appDTO.Name)
 	assert.Equal(suite.T(), "Test application", appDTO.Description)
-	assert.Equal(suite.T(), "test-auth-flow", appDTO.AuthFlowGraphID)
-	assert.Equal(suite.T(), "test-reg-flow", appDTO.RegistrationFlowGraphID)
+	assert.Equal(suite.T(), "test-auth-flow", appDTO.AuthFlowID)
+	assert.Equal(suite.T(), "test-reg-flow", appDTO.RegistrationFlowID)
 	assert.True(suite.T(), appDTO.IsRegistrationFlowEnabled)
 	assert.Equal(suite.T(), "https://example.com", appDTO.URL)
 	assert.Equal(suite.T(), "https://example.com/logo.png", appDTO.LogoURL)
@@ -199,8 +200,8 @@ is_registration_flow_enabled: false
 	assert.Equal(suite.T(), "minimal-app", appDTO.Name)
 	assert.Equal(suite.T(), "Minimal application", appDTO.Description)
 	assert.False(suite.T(), appDTO.IsRegistrationFlowEnabled)
-	assert.Empty(suite.T(), appDTO.AuthFlowGraphID)
-	assert.Empty(suite.T(), appDTO.RegistrationFlowGraphID)
+	assert.Empty(suite.T(), appDTO.AuthFlowID)
+	assert.Empty(suite.T(), appDTO.RegistrationFlowID)
 	assert.Empty(suite.T(), appDTO.URL)
 	assert.Empty(suite.T(), appDTO.LogoURL)
 	assert.Nil(suite.T(), appDTO.Token)
@@ -336,7 +337,8 @@ inbound_auth_config:
 	assert.Contains(suite.T(), oauthConfig.GrantTypes, oauth2const.GrantType("refresh_token"))
 	assert.Contains(suite.T(), oauthConfig.ResponseTypes, oauth2const.ResponseType("code"))
 	assert.Contains(suite.T(), oauthConfig.ResponseTypes, oauth2const.ResponseType("token"))
-	assert.Equal(suite.T(), oauth2const.TokenEndpointAuthMethod("client_secret_post"), oauthConfig.TokenEndpointAuthMethod)
+	assert.Equal(suite.T(), oauth2const.TokenEndpointAuthMethod("client_secret_post"),
+		oauthConfig.TokenEndpointAuthMethod)
 	assert.False(suite.T(), oauthConfig.PKCERequired)
 	assert.True(suite.T(), oauthConfig.PublicClient)
 
@@ -474,13 +476,14 @@ func TestInitialize_Standalone(t *testing.T) {
 	mux := http.NewServeMux()
 	mockCertService := certmock.NewCertificateServiceInterfaceMock(t)
 	mockFlowMgtService := flowmgtmock.NewFlowMgtServiceInterfaceMock(t)
-	mockBrandingService := brandingmock.NewBrandingServiceInterfaceMock(t)
+	mockBrandingService := brandingmock.NewBrandingMgtServiceInterfaceMock(t)
 	mockUserSchemaService := userschemamock.NewUserSchemaServiceInterfaceMock(t)
 
 	// Execute
-	service := Initialize(mux, mockCertService, mockFlowMgtService, mockBrandingService, mockUserSchemaService)
+	service, _, err := Initialize(mux, mockCertService, mockFlowMgtService, mockBrandingService, mockUserSchemaService)
 
 	// Assert
+	assert.NoError(t, err)
 	assert.NotNil(t, service)
 	assert.Implements(t, (*ApplicationServiceInterface)(nil), service)
 }
@@ -496,7 +499,7 @@ func TestInitialize_WithImmutableResources_Standalone(t *testing.T) {
 
 	// Create a temporary directory structure for file-based runtime
 	tmpDir := t.TempDir()
-	confDir := tmpDir + "/repository/conf/immutable_resources"
+	confDir := tmpDir + "/repository/resources"
 	appDir := confDir + "/applications"
 
 	// Create the directory structure
@@ -513,13 +516,14 @@ func TestInitialize_WithImmutableResources_Standalone(t *testing.T) {
 	mux := http.NewServeMux()
 	mockCertService := certmock.NewCertificateServiceInterfaceMock(t)
 	mockFlowMgtService := flowmgtmock.NewFlowMgtServiceInterfaceMock(t)
-	mockBrandingService := brandingmock.NewBrandingServiceInterfaceMock(t)
+	mockBrandingService := brandingmock.NewBrandingMgtServiceInterfaceMock(t)
 	mockUserSchemaService := userschemamock.NewUserSchemaServiceInterfaceMock(t)
 
 	// Execute
-	service := Initialize(mux, mockCertService, mockFlowMgtService, mockBrandingService, mockUserSchemaService)
+	service, _, err := Initialize(mux, mockCertService, mockFlowMgtService, mockBrandingService, mockUserSchemaService)
 
 	// Assert
+	assert.NoError(t, err)
 	assert.NotNil(t, service)
 	assert.Implements(t, (*ApplicationServiceInterface)(nil), service)
 }

@@ -26,7 +26,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/asgardeo/thunder/internal/system/cmodels"
+	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	immutableresource "github.com/asgardeo/thunder/internal/system/immutable_resource"
+	"github.com/asgardeo/thunder/internal/system/log"
 )
 
 type IDPServiceTestSuite struct {
@@ -40,18 +43,39 @@ func TestIDPServiceTestSuite(t *testing.T) {
 }
 
 func (s *IDPServiceTestSuite) SetupTest() {
+	// Initialize ThunderRuntime with immutable mode disabled by default
+	config.ResetThunderRuntime()
+	testConfig := &config.Config{
+		ImmutableResources: config.ImmutableResources{
+			Enabled: false,
+		},
+	}
+	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
+
 	s.mockStore = newIdpStoreInterfaceMock(s.T())
 	s.idpService = newIDPService(s.mockStore)
 }
 
+func (s *IDPServiceTestSuite) TearDownTest() {
+	config.ResetThunderRuntime()
+}
+
+func createOIDCProperties() []cmodels.Property {
+	prop1, _ := cmodels.NewProperty("client_id", "test-client", false)
+	prop2, _ := cmodels.NewProperty("client_secret", "test-secret", false)
+	prop3, _ := cmodels.NewProperty("redirect_uri", "http://localhost/callback", false)
+	prop4, _ := cmodels.NewProperty("authorization_endpoint", "http://idp/auth", false)
+	prop5, _ := cmodels.NewProperty("token_endpoint", "http://idp/token", false)
+	return []cmodels.Property{*prop1, *prop2, *prop3, *prop4, *prop5}
+}
+
 // TestCreateIdentityProvider_Success tests successful IDP creation
 func (s *IDPServiceTestSuite) TestCreateIdentityProvider_Success() {
-	prop, _ := cmodels.NewProperty("client_id", "test-client", false)
 	idp := &IDPDTO{
 		Name:        "Test IDP",
 		Description: "Test Description",
 		Type:        IDPTypeOIDC,
-		Properties:  []cmodels.Property{*prop},
+		Properties:  createOIDCProperties(),
 	}
 
 	s.mockStore.On("GetIdentityProviderByName", "Test IDP").Return((*IDPDTO)(nil), ErrIDPNotFound)
@@ -133,8 +157,9 @@ func (s *IDPServiceTestSuite) TestCreateIdentityProvider_InvalidType() {
 // TestCreateIdentityProvider_AlreadyExists tests duplicate IDP name
 func (s *IDPServiceTestSuite) TestCreateIdentityProvider_AlreadyExists() {
 	idp := &IDPDTO{
-		Name: "Existing IDP",
-		Type: IDPTypeOIDC,
+		Name:       "Existing IDP",
+		Type:       IDPTypeOIDC,
+		Properties: createOIDCProperties(),
 	}
 
 	existingIDP := &IDPDTO{ID: "existing-id", Name: "Existing IDP"}
@@ -151,8 +176,9 @@ func (s *IDPServiceTestSuite) TestCreateIdentityProvider_AlreadyExists() {
 // TestCreateIdentityProvider_CheckExistingStoreError tests store error when checking existing IDP
 func (s *IDPServiceTestSuite) TestCreateIdentityProvider_CheckExistingStoreError() {
 	idp := &IDPDTO{
-		Name: "Test IDP",
-		Type: IDPTypeOIDC,
+		Name:       "Test IDP",
+		Type:       IDPTypeOIDC,
+		Properties: createOIDCProperties(),
 	}
 
 	s.mockStore.On("GetIdentityProviderByName", "Test IDP").Return((*IDPDTO)(nil), errors.New("database error"))
@@ -168,8 +194,9 @@ func (s *IDPServiceTestSuite) TestCreateIdentityProvider_CheckExistingStoreError
 // TestCreateIdentityProvider_StoreError tests store error handling
 func (s *IDPServiceTestSuite) TestCreateIdentityProvider_StoreError() {
 	idp := &IDPDTO{
-		Name: "Test IDP",
-		Type: IDPTypeOIDC,
+		Name:       "Test IDP",
+		Type:       IDPTypeOIDC,
+		Properties: createOIDCProperties(),
 	}
 
 	s.mockStore.On("GetIdentityProviderByName", "Test IDP").Return((*IDPDTO)(nil), ErrIDPNotFound)
@@ -332,14 +359,16 @@ func (s *IDPServiceTestSuite) TestGetIdentityProviderByName_StoreError() {
 // TestUpdateIdentityProvider_Success tests successful IDP update
 func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_Success() {
 	idp := &IDPDTO{
-		Name: "Updated IDP",
-		Type: IDPTypeOIDC,
+		Name:       "Updated IDP",
+		Type:       IDPTypeOIDC,
+		Properties: createOIDCProperties(),
 	}
 
 	existingIDP := &IDPDTO{
-		ID:   "idp-123",
-		Name: "Old Name",
-		Type: IDPTypeOIDC,
+		ID:         "idp-123",
+		Name:       "Old Name",
+		Type:       IDPTypeOIDC,
+		Properties: createOIDCProperties(),
 	}
 
 	s.mockStore.On("GetIdentityProvider", "idp-123").Return(existingIDP, nil)
@@ -359,7 +388,7 @@ func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_Success() {
 
 // TestUpdateIdentityProvider_EmptyID tests empty ID validation
 func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_EmptyID() {
-	idp := &IDPDTO{Name: "Test", Type: IDPTypeOIDC}
+	idp := &IDPDTO{Name: "Test", Type: IDPTypeOIDC, Properties: createOIDCProperties()}
 
 	result, err := s.idpService.UpdateIdentityProvider("", idp)
 
@@ -370,7 +399,7 @@ func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_EmptyID() {
 
 // TestUpdateIdentityProvider_NotFound tests IDP not found
 func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_NotFound() {
-	idp := &IDPDTO{Name: "Test", Type: IDPTypeOIDC}
+	idp := &IDPDTO{Name: "Test", Type: IDPTypeOIDC, Properties: createOIDCProperties()}
 
 	s.mockStore.On("GetIdentityProvider", "non-existent").Return((*IDPDTO)(nil), ErrIDPNotFound)
 
@@ -384,10 +413,12 @@ func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_NotFound() {
 
 // TestUpdateIdentityProvider_NameConflict tests name conflict during update
 func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_NameConflict() {
-	idp := &IDPDTO{Name: "Existing Name", Type: IDPTypeOIDC}
+	idp := &IDPDTO{Name: "Existing Name", Type: IDPTypeOIDC, Properties: createOIDCProperties()}
 
-	existingIDP := &IDPDTO{ID: "idp-123", Name: "Old Name", Type: IDPTypeOIDC}
-	conflictIDP := &IDPDTO{ID: "idp-456", Name: "Existing Name", Type: IDPTypeOIDC}
+	existingIDP := &IDPDTO{ID: "idp-123", Name: "Old Name", Type: IDPTypeOIDC,
+		Properties: createOIDCProperties()}
+	conflictIDP := &IDPDTO{ID: "idp-456", Name: "Existing Name", Type: IDPTypeOIDC,
+		Properties: createOIDCProperties()}
 
 	s.mockStore.On("GetIdentityProvider", "idp-123").Return(existingIDP, nil)
 	s.mockStore.On("GetIdentityProviderByName", "Existing Name").Return(conflictIDP, nil)
@@ -402,9 +433,11 @@ func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_NameConflict() {
 
 // TestUpdateIdentityProvider_SameNameUpdate tests updating without changing name
 func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_SameNameUpdate() {
-	idp := &IDPDTO{Name: "Same Name", Type: IDPTypeOIDC, Description: "New Description"}
+	idp := &IDPDTO{Name: "Same Name", Type: IDPTypeOIDC, Description: "New Description",
+		Properties: createOIDCProperties()}
 
-	existingIDP := &IDPDTO{ID: "idp-123", Name: "Same Name", Type: IDPTypeOIDC}
+	existingIDP := &IDPDTO{ID: "idp-123", Name: "Same Name", Type: IDPTypeOIDC,
+		Properties: createOIDCProperties()}
 
 	s.mockStore.On("GetIdentityProvider", "idp-123").Return(existingIDP, nil)
 	s.mockStore.On("UpdateIdentityProvider", mock.Anything).Return(nil)
@@ -453,7 +486,7 @@ func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_InvalidData() {
 
 // TestUpdateIdentityProvider_GetStoreError tests store error when checking existing IDP
 func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_GetStoreError() {
-	idp := &IDPDTO{Name: "Test", Type: IDPTypeOIDC}
+	idp := &IDPDTO{Name: "Test", Type: IDPTypeOIDC, Properties: createOIDCProperties()}
 
 	s.mockStore.On("GetIdentityProvider", "idp-123").Return((*IDPDTO)(nil), errors.New("database error"))
 
@@ -467,9 +500,9 @@ func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_GetStoreError() {
 
 // TestUpdateIdentityProvider_CheckNameStoreError tests store error when checking name conflict
 func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_CheckNameStoreError() {
-	idp := &IDPDTO{Name: "New Name", Type: IDPTypeOIDC}
+	idp := &IDPDTO{Name: "New Name", Type: IDPTypeOIDC, Properties: createOIDCProperties()}
 
-	existingIDP := &IDPDTO{ID: "idp-123", Name: "Old Name", Type: IDPTypeOIDC}
+	existingIDP := &IDPDTO{ID: "idp-123", Name: "Old Name", Type: IDPTypeOIDC, Properties: createOIDCProperties()}
 
 	s.mockStore.On("GetIdentityProvider", "idp-123").Return(existingIDP, nil)
 	s.mockStore.On("GetIdentityProviderByName", "New Name").Return((*IDPDTO)(nil), errors.New("database error"))
@@ -484,9 +517,9 @@ func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_CheckNameStoreError() {
 
 // TestUpdateIdentityProvider_StoreError tests store error during update
 func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_StoreError() {
-	idp := &IDPDTO{Name: "Test", Type: IDPTypeOIDC}
+	idp := &IDPDTO{Name: "Test", Type: IDPTypeOIDC, Properties: createOIDCProperties()}
 
-	existingIDP := &IDPDTO{ID: "idp-123", Name: "Test", Type: IDPTypeOIDC}
+	existingIDP := &IDPDTO{ID: "idp-123", Name: "Test", Type: IDPTypeOIDC, Properties: createOIDCProperties()}
 
 	s.mockStore.On("GetIdentityProvider", "idp-123").Return(existingIDP, nil)
 	s.mockStore.On("UpdateIdentityProvider", mock.Anything).Return(errors.New("database error"))
@@ -555,85 +588,70 @@ func (s *IDPServiceTestSuite) TestDeleteIdentityProvider_StoreError() {
 	s.mockStore.AssertExpectations(s.T())
 }
 
-// TestValidateIDPProperties tests property validation
-func (s *IDPServiceTestSuite) TestValidateIDPProperties() {
-	testCases := []struct {
-		name        string
-		properties  []cmodels.Property
-		expectError bool
-		errorCode   string
-	}{
-		{
-			name:        "Empty properties",
-			properties:  []cmodels.Property{},
-			expectError: false,
+// TestCreateIdentityProvider_ImmutableModeEnabled tests creation is blocked when immutable mode is enabled
+func (s *IDPServiceTestSuite) TestCreateIdentityProvider_ImmutableModeEnabled() {
+	// Setup immutable mode
+	config.ResetThunderRuntime()
+	testConfig := &config.Config{
+		ImmutableResources: config.ImmutableResources{
+			Enabled: true,
 		},
-		{
-			name: "Valid properties",
-			properties: func() []cmodels.Property {
-				prop, _ := cmodels.NewProperty("client_id", "test", false)
-				return []cmodels.Property{*prop}
-			}(),
-			expectError: false,
-		},
-		{
-			name: "Empty property name",
-			properties: func() []cmodels.Property {
-				prop, _ := cmodels.NewProperty("", "value", false)
-				return []cmodels.Property{*prop}
-			}(),
-			expectError: true,
-			errorCode:   ErrorInvalidIDPProperty.Code,
-		},
-		{
-			name: "Whitespace property name",
-			properties: func() []cmodels.Property {
-				prop, _ := cmodels.NewProperty("  ", "value", false)
-				return []cmodels.Property{*prop}
-			}(),
-			expectError: true,
-			errorCode:   ErrorInvalidIDPProperty.Code,
-		},
-		{
-			name: "Empty property value",
-			properties: func() []cmodels.Property {
-				prop, _ := cmodels.NewProperty("client_id", "", false)
-				return []cmodels.Property{*prop}
-			}(),
-			expectError: true,
-			errorCode:   ErrorInvalidIDPProperty.Code,
-		},
-		{
-			name: "Whitespace property value",
-			properties: func() []cmodels.Property {
-				prop, _ := cmodels.NewProperty("client_id", "   ", false)
-				return []cmodels.Property{*prop}
-			}(),
-			expectError: true,
-			errorCode:   ErrorInvalidIDPProperty.Code,
-		},
-		{
-			name: "Unsupported property",
-			properties: func() []cmodels.Property {
-				prop, _ := cmodels.NewProperty("unsupported", "value", false)
-				return []cmodels.Property{*prop}
-			}(),
-			expectError: true,
-			errorCode:   ErrorUnsupportedIDPProperty.Code,
-		},
+	}
+	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
+	defer config.ResetThunderRuntime()
+
+	idp := &IDPDTO{
+		Name: "Test IDP",
+		Type: IDPTypeOIDC,
 	}
 
-	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			err := validateIDPProperties(tc.properties)
-			if tc.expectError {
-				s.NotNil(err)
-				s.Equal(tc.errorCode, err.Code)
-			} else {
-				s.Nil(err)
-			}
-		})
+	result, err := s.idpService.CreateIdentityProvider(idp)
+
+	s.Nil(result)
+	s.NotNil(err)
+	s.Equal(immutableresource.ErrorImmutableResourceCreateOperation.Code, err.Code)
+}
+
+// TestUpdateIdentityProvider_ImmutableModeEnabled tests update is blocked when immutable mode is enabled
+func (s *IDPServiceTestSuite) TestUpdateIdentityProvider_ImmutableModeEnabled() {
+	// Setup immutable mode
+	config.ResetThunderRuntime()
+	testConfig := &config.Config{
+		ImmutableResources: config.ImmutableResources{
+			Enabled: true,
+		},
 	}
+	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
+	defer config.ResetThunderRuntime()
+
+	idp := &IDPDTO{
+		Name: "Updated IDP",
+		Type: IDPTypeOIDC,
+	}
+
+	result, err := s.idpService.UpdateIdentityProvider("idp-123", idp)
+
+	s.Nil(result)
+	s.NotNil(err)
+	s.Equal(immutableresource.ErrorImmutableResourceUpdateOperation.Code, err.Code)
+}
+
+// TestDeleteIdentityProvider_ImmutableModeEnabled tests deletion is blocked when immutable mode is enabled
+func (s *IDPServiceTestSuite) TestDeleteIdentityProvider_ImmutableModeEnabled() {
+	// Setup immutable mode
+	config.ResetThunderRuntime()
+	testConfig := &config.Config{
+		ImmutableResources: config.ImmutableResources{
+			Enabled: true,
+		},
+	}
+	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
+	defer config.ResetThunderRuntime()
+
+	err := s.idpService.DeleteIdentityProvider("idp-123")
+
+	s.NotNil(err)
+	s.Equal(immutableresource.ErrorImmutableResourceDeleteOperation.Code, err.Code)
 }
 
 // TestValidateIDP tests IDP validation
@@ -647,8 +665,9 @@ func (s *IDPServiceTestSuite) TestValidateIDP() {
 		{
 			name: "Valid IDP",
 			idp: &IDPDTO{
-				Name: "Test",
-				Type: IDPTypeOIDC,
+				Name:       "Test",
+				Type:       IDPTypeOIDC,
+				Properties: createOIDCProperties(),
 			},
 			expectError: false,
 		},
@@ -689,9 +708,8 @@ func (s *IDPServiceTestSuite) TestValidateIDP() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			idpSvc, ok := s.idpService.(*idpService)
-			s.True(ok)
-			err := idpSvc.validateIDP(tc.idp)
+			logger := log.GetLogger()
+			err := validateIDP(tc.idp, logger)
 			if tc.expectError {
 				s.NotNil(err)
 				s.Equal(tc.errorCode, err.Code)

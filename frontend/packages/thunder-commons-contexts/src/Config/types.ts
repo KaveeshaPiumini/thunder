@@ -40,6 +40,13 @@ export interface ServerConfig {
    * When false, HTTPS will be used for secure connections.
    */
   http_only: boolean;
+
+  /**
+   * Optional public URL for the server. If provided, this will be used instead of
+   * constructing the URL from hostname, port, and http_only.
+   * @example "https://thunder.example.com", "https://api.thunder.local:8080"
+   */
+  public_url?: string;
 }
 
 /**
@@ -60,6 +67,13 @@ export interface ClientConfig {
    * @example "DEVELOP", "thunder-admin", "my-app-client-id"
    */
   client_id: string;
+
+  /**
+   * UUID of the client application. If not provided in configuration,
+   * it will be extracted from the applicationId URL parameter.
+   * @example "e7db0b52-06a7-45e4-977b-6914b81a2069"
+   */
+  uuid?: string;
 
   /**
    * OAuth2/OIDC scopes requested during authentication.

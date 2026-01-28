@@ -60,11 +60,15 @@ database:
     sslmode: disable          # SSL mode: disable, require, verify-ca, verify-full
 
 jwt:
-  issuer: thunder     # JWT token issuer identifier
   validity: 3600      # JWT token validity in seconds (default: 1 hour)
 
 oauth:
   refresh_token_validity: 86400  # Refresh token validity in seconds (default: 24 hours)
+
+crypto:
+  encryption:
+    # WARNING: Replace the default key with a 32-byte (64 character) hex string in production deployments
+    key: "file://repository/resources/security/crypto.key"
 
 cache:
   type: "memory"      # Cache type: "memory" (in-memory cache)

@@ -26,7 +26,7 @@ import {
   Stack,
   Typography,
   IconButton,
-  useTheme
+  useTheme,
 } from '@wso2/oxygen-ui';
 import {User} from '@asgardeo/react';
 import {Menu} from '@wso2/oxygen-ui-icons-react';
@@ -37,19 +37,23 @@ import SidebarContext from './context/SidebarContext';
 import {DRAWER_WIDTH, MINI_DRAWER_WIDTH} from './constants';
 
 export interface SideMenuProps {
-  expanded?: boolean;
+  defaultExpanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   disableCollapsible?: boolean;
 }
 
 export default function SideMenu({
-  expanded: controlledExpanded,
+  defaultExpanded = true,
   onExpandedChange,
   disableCollapsible = false,
 }: SideMenuProps = {}): JSX.Element {
   const theme = useTheme();
-  const [internalExpanded, setInternalExpanded] = useState(true);
-  const expanded = controlledExpanded ?? internalExpanded;
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  // Sync expanded state when defaultExpanded changes (e.g., navigating between routes)
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
 
   const [isFullyExpanded, setIsFullyExpanded] = useState(expanded);
   const [isFullyCollapsed, setIsFullyCollapsed] = useState(!expanded);
@@ -86,11 +90,8 @@ export default function SideMenu({
 
   const handleToggle = () => {
     const newExpanded = !expanded;
-    if (onExpandedChange) {
-      onExpandedChange(newExpanded);
-    } else {
-      setInternalExpanded(newExpanded);
-    }
+    setExpanded(newExpanded);
+    onExpandedChange?.(newExpanded);
   };
 
   const sidebarContextValue = useMemo(
@@ -137,12 +138,12 @@ export default function SideMenu({
         <Box
           sx={{
             display: 'flex',
-            mt: 'calc(var(--template-frame-height, 0px) + 4px)',
-            py: 1.5,
+            height: 55,
             px: 2,
-            justifyContent: mini ? 'center' : 'space-between',
+            justifyContent: mini ? 'center' : 'flex-start',
             alignItems: 'center',
             overflow: 'hidden',
+            gap: 2,
           }}
         >
           <IconButton onClick={handleToggle} size="small" aria-label="Expand/Collapse sidebar">
@@ -161,7 +162,7 @@ export default function SideMenu({
                   dark: `${import.meta.env.BASE_URL}/assets/images/logo-inverted.svg`,
                 }}
                 alt={{light: 'Logo (Light)', dark: 'Logo (Dark)'}}
-                height={14}
+                height={20}
                 width="auto"
                 alignItems="center"
                 marginBottom="3px"
@@ -204,15 +205,34 @@ export default function SideMenu({
                 </Avatar>
                 {!mini && (
                   <>
-                    <Box sx={{mr: 'auto'}}>
-                      <Typography variant="body2" sx={{fontWeight: 500, lineHeight: '16px'}}>
+                    <Box sx={{mr: 'auto', minWidth: 0, flex: 1, overflow: 'hidden'}}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 500,
+                          lineHeight: '16px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {user?.name}
                       </Typography>
-                      <Typography variant="caption" sx={{color: 'text.secondary'}}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {user?.email}
                       </Typography>
                     </Box>
-                    <OptionsMenu />
+                    <Box sx={{flexShrink: 0}}>
+                      <OptionsMenu />
+                    </Box>
                   </>
                 )}
               </>

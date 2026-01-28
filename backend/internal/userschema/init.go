@@ -22,6 +22,8 @@ import (
 	"net/http"
 
 	oupkg "github.com/asgardeo/thunder/internal/ou"
+	"github.com/asgardeo/thunder/internal/system/config"
+	immutableresource "github.com/asgardeo/thunder/internal/system/immutable_resource"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 )
 
@@ -29,11 +31,28 @@ import (
 func Initialize(
 	mux *http.ServeMux,
 	ouService oupkg.OrganizationUnitServiceInterface,
-) UserSchemaServiceInterface {
-	userSchemaService := newUserSchemaService(ouService)
+) (UserSchemaServiceInterface, immutableresource.ResourceExporter, error) {
+	var userSchemaStore userSchemaStoreInterface
+	if config.GetThunderRuntime().Config.ImmutableResources.Enabled {
+		userSchemaStore = newUserSchemaFileBasedStore()
+	} else {
+		userSchemaStore = newUserSchemaStore()
+	}
+
+	userSchemaService := newUserSchemaService(ouService, userSchemaStore)
+
+	if config.GetThunderRuntime().Config.ImmutableResources.Enabled {
+		if err := loadImmutableResources(userSchemaStore, ouService); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	userSchemaHandler := newUserSchemaHandler(userSchemaService)
 	registerRoutes(mux, userSchemaHandler)
-	return userSchemaService
+
+	// Create and return exporter
+	exporter := newUserSchemaExporter(userSchemaService)
+	return userSchemaService, exporter, nil
 }
 
 // registerRoutes registers the routes for user schema management operations.

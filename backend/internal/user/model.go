@@ -34,12 +34,16 @@ type User struct {
 
 // Credential represents the credentials of a user.
 type Credential struct {
-	CredentialType string             `json:"credentialType"`
-	StorageType    string             `json:"storageType"`
-	StorageAlgo    hash.CredAlgorithm `json:"storageAlgo"`
-	Value          string             `json:"value"`
-	Salt           string             `json:"salt"`
+	StorageType       string              `json:"storageType"`
+	StorageAlgo       hash.CredAlgorithm  `json:"storageAlgo"`
+	StorageAlgoParams hash.CredParameters `json:"storageAlgoParams"`
+	Value             string              `json:"value"`
 }
+
+// Credentials represents the credential storage structure where credentials are organized by type.
+// Key: Credential type (e.g., "password", "pin", "secret", "passkey")
+// Value: Array of credentials of that type
+type Credentials map[CredentialType][]Credential
 
 // Link represents a pagination link.
 type Link struct {
@@ -86,6 +90,11 @@ type UpdateUserRequest struct {
 	Type             string          `json:"type,omitempty"`
 	Groups           []string        `json:"groups,omitempty"`
 	Attributes       json.RawMessage `json:"attributes,omitempty"`
+}
+
+// UpdateSelfUserRequest represents the request body for updating the authenticated user.
+type UpdateSelfUserRequest struct {
+	Attributes json.RawMessage `json:"attributes,omitempty"`
 }
 
 // CreateUserByPathRequest represents the request body for creating a user under a handle path.

@@ -21,21 +21,26 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	urlpath "path"
 	"path/filepath"
 	"reflect"
+	"strings"
+	"time"
 
-	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/system/utils"
 
 	yaml "gopkg.in/yaml.v3"
 )
 
 // ServerConfig holds the server configuration details.
 type ServerConfig struct {
-	Hostname       string `yaml:"hostname" json:"hostname"`
-	Port           int    `yaml:"port" json:"port"`
-	HTTPOnly       bool   `yaml:"http_only" json:"http_only"`
-	PublicHostname string `yaml:"public_hostname" json:"public_hostname"`
+	Hostname   string `yaml:"hostname" json:"hostname"`
+	Port       int    `yaml:"port" json:"port"`
+	HTTPOnly   bool   `yaml:"http_only" json:"http_only"`
+	PublicURL  string `yaml:"public_url" json:"public_url"`
+	Identifier string `yaml:"identifier" json:"identifier"`
 }
 
 // GateClientConfig holds the client configuration details.
@@ -43,15 +48,16 @@ type GateClientConfig struct {
 	Hostname  string `yaml:"hostname" json:"hostname"`
 	Port      int    `yaml:"port" json:"port"`
 	Scheme    string `yaml:"scheme" json:"scheme"`
+	Path      string `yaml:"path" json:"path"`
 	LoginPath string `yaml:"login_path" json:"login_path"`
 	ErrorPath string `yaml:"error_path" json:"error_path"`
 }
 
-// SecurityConfig holds the security configuration details.
-type SecurityConfig struct {
+// TLSConfig holds the TLS configuration details.
+type TLSConfig struct {
+	MinVersion string `yaml:"min_version" json:"min_version"`
 	CertFile   string `yaml:"cert_file" json:"cert_file"`
 	KeyFile    string `yaml:"key_file" json:"key_file"`
-	CryptoFile string `yaml:"crypto_file" json:"crypto_file"`
 }
 
 // DataSource holds the individual database connection details.
@@ -102,6 +108,8 @@ type JWTConfig struct {
 	Issuer         string `yaml:"issuer" json:"issuer"`
 	ValidityPeriod int64  `yaml:"validity_period" json:"validity_period"`
 	Audience       string `yaml:"audience" json:"audience"`
+	PreferredKeyID string `yaml:"preferred_key_id" json:"preferred_key_id"`
+	Leeway         int64  `yaml:"leeway" json:"leeway"`
 }
 
 // RefreshTokenConfig holds the refresh token configuration details.
@@ -110,30 +118,60 @@ type RefreshTokenConfig struct {
 	ValidityPeriod int64 `yaml:"validity_period" json:"validity_period"`
 }
 
-// OAuthConfig holds the OAuth configuration details.
-type OAuthConfig struct {
-	RefreshToken RefreshTokenConfig `yaml:"refresh_token" json:"refresh_token"`
+// AuthorizationCodeConfig holds the authorization code configuration details.
+type AuthorizationCodeConfig struct {
+	ValidityPeriod int64 `yaml:"validity_period" json:"validity_period"`
 }
 
-// FlowAuthnConfig holds the configuration details for the authentication flows.
-type FlowAuthnConfig struct {
-	DefaultFlow string `yaml:"default_flow" json:"default_flow"`
+// OAuthConfig holds the OAuth configuration details.
+type OAuthConfig struct {
+	RefreshToken      RefreshTokenConfig      `yaml:"refresh_token" json:"refresh_token"`
+	AuthorizationCode AuthorizationCodeConfig `yaml:"authorization_code" json:"authorization_code"`
 }
 
 // FlowConfig holds the configuration details for the flow service.
 type FlowConfig struct {
-	GraphDirectory string          `yaml:"graph_directory" json:"graph_directory"`
-	Authn          FlowAuthnConfig `yaml:"authn" json:"authn"`
+	DefaultAuthFlowHandle    string `yaml:"default_auth_flow_handle" json:"default_auth_flow_handle"`
+	UserOnboardingFlowHandle string `yaml:"user_onboarding_flow_handle" json:"user_onboarding_flow_handle"`
+	MaxVersionHistory        int    `yaml:"max_version_history" json:"max_version_history"`
+	AutoInferRegistration    bool   `yaml:"auto_infer_registration" json:"auto_infer_registration"`
+}
+
+// CryptoConfig holds the cryptographic configuration details.
+type CryptoConfig struct {
+	Encryption      EncryptionConfig      `yaml:"encryption" json:"encryption"`
+	PasswordHashing PasswordHashingConfig `yaml:"password_hashing" json:"password_hashing"`
+	Keys            []KeyConfig           `yaml:"keys" json:"keys"`
+}
+
+// KeyConfig holds the key configuration details.
+type KeyConfig struct {
+	ID       string `yaml:"id" json:"id"`
+	CertFile string `yaml:"cert_file" json:"cert_file"`
+	KeyFile  string `yaml:"key_file" json:"key_file"`
+}
+
+// EncryptionConfig holds the encryption configuration details.
+type EncryptionConfig struct {
+	Key string `yaml:"key" json:"key"`
+}
+
+// PasswordHashingConfig holds the password hashing configuration details.
+type PasswordHashingConfig struct {
+	Algorithm  string                      `yaml:"algorithm" json:"algorithm"`
+	Parameters PasswordHashingParamsConfig `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+}
+
+// PasswordHashingParamsConfig holds the parameters for password hashing.
+type PasswordHashingParamsConfig struct {
+	Iterations int `yaml:"iterations,omitempty" json:"iterations,omitempty"`
+	KeySize    int `yaml:"key_size,omitempty" json:"key_size,omitempty"`
+	SaltSize   int `yaml:"salt_size,omitempty" json:"salt_size,omitempty"`
 }
 
 // CORSConfig holds the configuration details for the CORS.
 type CORSConfig struct {
 	AllowedOrigins []string `yaml:"allowed_origins" json:"allowed_origins"`
-}
-
-// HashConfig holds the hashing configuration details.
-type HashConfig struct {
-	Algorithm string `yaml:"algorithm"`
 }
 
 // ImmutableResources holds the configuration details for the immutable resources.
@@ -143,47 +181,101 @@ type ImmutableResources struct {
 
 // ObservabilityConfig holds the observability configuration details.
 type ObservabilityConfig struct {
-	Enabled     bool                       `yaml:"enabled" json:"enabled"`
-	Output      ObservabilityOutputConfig  `yaml:"output" json:"output"`
-	Metrics     ObservabilityMetricsConfig `yaml:"metrics" json:"metrics"`
-	FailureMode string                     `yaml:"failure_mode" json:"failure_mode"`
+	Enabled     bool                      `yaml:"enabled" json:"enabled"`
+	Output      ObservabilityOutputConfig `yaml:"output" json:"output"`
+	FailureMode string                    `yaml:"failure_mode" json:"failure_mode"`
 }
 
 // ObservabilityOutputConfig holds observability output configuration.
 type ObservabilityOutputConfig struct {
-	Type   string `yaml:"type" json:"type"`
-	Format string `yaml:"format" json:"format"`
+	File          ObservabilityFileConfig    `yaml:"file" json:"file"`
+	Console       ObservabilityConsoleConfig `yaml:"console" json:"console"`
+	OpenTelemetry ObservabilityOTelConfig    `yaml:"opentelemetry" json:"opentelemetry"`
 }
 
-// ObservabilityMetricsConfig holds observability metrics configuration.
-type ObservabilityMetricsConfig struct {
-	Enabled bool `yaml:"enabled" json:"enabled"`
+// ObservabilityFileConfig captures file sink settings for observability events.
+type ObservabilityFileConfig struct {
+	Enabled       bool          `yaml:"enabled" json:"enabled"`
+	FilePath      string        `yaml:"file_path" json:"file_path"`
+	Format        string        `yaml:"format" json:"format"`
+	BufferSize    int           `yaml:"buffer_size" json:"buffer_size"`
+	FlushInterval time.Duration `yaml:"flush_interval" json:"flush_interval"`
+	Categories    []string      `yaml:"categories" json:"categories"`
+}
+
+// ObservabilityConsoleConfig captures console sink settings for observability events.
+type ObservabilityConsoleConfig struct {
+	Enabled    bool     `yaml:"enabled" json:"enabled"`
+	Format     string   `yaml:"format" json:"format"`
+	Categories []string `yaml:"categories" json:"categories"`
+}
+
+// ObservabilityOTelConfig holds OpenTelemetry configuration.
+type ObservabilityOTelConfig struct {
+	Enabled        bool     `yaml:"enabled" json:"enabled"`
+	ExporterType   string   `yaml:"exporter_type" json:"exporter_type"`
+	OTLPEndpoint   string   `yaml:"otlp_endpoint" json:"otlp_endpoint"`
+	ServiceName    string   `yaml:"service_name" json:"service_name"`
+	ServiceVersion string   `yaml:"service_version" json:"service_version"`
+	Environment    string   `yaml:"environment" json:"environment"`
+	SampleRate     float64  `yaml:"sample_rate" json:"sample_rate"`
+	Categories     []string `yaml:"categories" json:"categories"`
+	// Insecure disables TLS for OTLP (not recommended for production)
+	Insecure bool `yaml:"insecure" json:"insecure"`
+}
+
+// UserConfig holds the user management configuration details.
+type UserConfig struct {
+	IndexedAttributes []string `yaml:"indexed_attributes" json:"indexed_attributes"`
+}
+
+// ResourceConfig holds the resource management configuration details.
+type ResourceConfig struct {
+	DefaultDelimiter string `yaml:"default_delimiter" json:"default_delimiter"`
+}
+
+// OrganizationUnitConfig holds the organization unit service configuration.
+type OrganizationUnitConfig struct {
+	// Store defines the storage mode for organization units.
+	// Valid values: "mutable", "immutable", "composite" (hybrid mode)
+	// If not specified, falls back to global ImmutableResources.Enabled setting:
+	//   - If ImmutableResources.Enabled = true: behaves as "immutable"
+	//   - If ImmutableResources.Enabled = false: behaves as "mutable"
+	Store string `yaml:"store" json:"store"`
+}
+
+// PasskeyConfig holds the passkey configuration details.
+type PasskeyConfig struct {
+	AllowedOrigins []string `yaml:"allowed_origins" json:"allowed_origins"`
 }
 
 // Config holds the complete configuration details of the server.
 type Config struct {
-	Server             ServerConfig        `yaml:"server" json:"server"`
-	GateClient         GateClientConfig    `yaml:"gate_client" json:"gate_client"`
-	Security           SecurityConfig      `yaml:"security" json:"security"`
-	Database           DatabaseConfig      `yaml:"database" json:"database"`
-	Cache              CacheConfig         `yaml:"cache" json:"cache"`
-	JWT                JWTConfig           `yaml:"jwt" json:"jwt"`
-	OAuth              OAuthConfig         `yaml:"oauth" json:"oauth"`
-	Flow               FlowConfig          `yaml:"flow" json:"flow"`
-	Hash               HashConfig          `yaml:"hash"`
-	CORS               CORSConfig          `yaml:"cors" json:"cors"`
-	ImmutableResources ImmutableResources  `yaml:"immutable_resources" json:"immutable_resources"`
-	Observability      ObservabilityConfig `yaml:"observability" json:"observability"`
+	Server             ServerConfig           `yaml:"server" json:"server"`
+	GateClient         GateClientConfig       `yaml:"gate_client" json:"gate_client"`
+	TLS                TLSConfig              `yaml:"tls" json:"tls"`
+	Database           DatabaseConfig         `yaml:"database" json:"database"`
+	Cache              CacheConfig            `yaml:"cache" json:"cache"`
+	JWT                JWTConfig              `yaml:"jwt" json:"jwt"`
+	OAuth              OAuthConfig            `yaml:"oauth" json:"oauth"`
+	Flow               FlowConfig             `yaml:"flow" json:"flow"`
+	Crypto             CryptoConfig           `yaml:"crypto" json:"crypto"`
+	CORS               CORSConfig             `yaml:"cors" json:"cors"`
+	User               UserConfig             `yaml:"user" json:"user"`
+	ImmutableResources ImmutableResources     `yaml:"immutable_resources" json:"immutable_resources"`
+	Resource           ResourceConfig         `yaml:"resource" json:"resource"`
+	OrganizationUnit   OrganizationUnitConfig `yaml:"organization_unit" json:"organization_unit"`
+	Observability      ObservabilityConfig    `yaml:"observability" json:"observability"`
+	Passkey            PasskeyConfig          `yaml:"passkey" json:"passkey"`
 }
 
 // LoadConfig loads the configurations from the specified YAML file and applies defaults.
-func LoadConfig(path string, defaultsPath string) (*Config, error) {
+func LoadConfig(configPath string, defaultPath string, thunderHome string) (*Config, error) {
 	var cfg Config
-	path = filepath.Clean(path)
 
 	// Load default configuration if provided
-	if defaultsPath != "" {
-		defaultCfg, err := loadDefaultConfig(defaultsPath)
+	if defaultPath != "" {
+		defaultCfg, err := loadDefaultConfig(defaultPath, thunderHome)
 		if err != nil {
 			return nil, err
 		}
@@ -191,48 +283,86 @@ func LoadConfig(path string, defaultsPath string) (*Config, error) {
 	}
 
 	// Load user configuration
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if ferr := file.Close(); ferr != nil {
-			log.GetLogger().Error("Failed to close config file", log.Error(ferr))
-		}
-	}()
-
-	decoder := yaml.NewDecoder(file)
 	var userCfg Config
-	if err := decoder.Decode(&userCfg); err != nil {
+	userCfg, err := loadUserConfig(configPath, thunderHome)
+	if err != nil {
 		return nil, err
 	}
 
 	// Merge user configuration with defaults
 	mergeConfigs(&cfg, &userCfg)
+	// Derive login_path and error_path from path if not explicitly set
+	if cfg.GateClient.Path != "" {
+		if cfg.GateClient.LoginPath == "" {
+			cfg.GateClient.LoginPath = urlpath.Join(cfg.GateClient.Path, "signin")
+		}
+		if cfg.GateClient.ErrorPath == "" {
+			cfg.GateClient.ErrorPath = urlpath.Join(cfg.GateClient.Path, "error")
+		}
+	}
+
+	// Derive JWT issuer from server config if not set
+	if cfg.JWT.Issuer == "" {
+		cfg.JWT.Issuer = GetServerURL(&cfg.Server)
+	}
 
 	return &cfg, nil
 }
 
 // loadDefaultConfig loads the default configuration from a JSON file.
-func loadDefaultConfig(path string) (*Config, error) {
+func loadDefaultConfig(path string, thunderHome string) (*Config, error) {
 	var cfg Config
-	path = filepath.Clean(path)
-
-	file, err := os.Open(path)
+	configPath := filepath.Clean(path)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if ferr := file.Close(); ferr != nil {
-			log.GetLogger().Error("Failed to close default config file", log.Error(ferr))
-		}
-	}()
+	data, err = utils.SubstituteFilePaths(data, thunderHome)
+	if err != nil {
+		return nil, err
+	}
 
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&cfg); err != nil {
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+func loadUserConfig(path string, thunderHome string) (Config, error) {
+	var cfg Config
+	configPath := filepath.Clean(path)
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return Config{}, err
+	}
+	data, err = utils.SubstituteEnvironmentVariables(data)
+	if err != nil {
+		return Config{}, err
+	}
+	data, err = utils.SubstituteFilePaths(data, thunderHome)
+	if err != nil {
+		return Config{}, err
+	}
+
+	decoder := yaml.NewDecoder(strings.NewReader(string(data)))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&cfg); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+// GetServerURL constructs the server URL from the server configuration.
+// It uses PublicURL if set, otherwise constructs from hostname, port, and scheme.
+func GetServerURL(server *ServerConfig) string {
+	if server.PublicURL != "" {
+		return server.PublicURL
+	}
+	scheme := "https"
+	if server.HTTPOnly {
+		scheme = "http"
+	}
+	return fmt.Sprintf("%s://%s:%d", scheme, server.Hostname, server.Port)
 }
 
 // mergeConfigs merges user configuration into the base configuration.
@@ -313,3 +443,16 @@ func isZeroValue(v reflect.Value) bool {
 		return false
 	}
 }
+
+// Store modes for Immutable configurations.
+const (
+	// StoreModeMutable uses only the database store. All OUs are mutable and support full CRUD.
+	StoreModeMutable = "mutable"
+
+	// StoreModeImmutable uses only the file-based store. All OUs are immutable (read-only from YAML).
+	StoreModeImmutable = "immutable"
+
+	// StoreModeComposite (hybrid) uses both file-based (immutable) and database (mutable) stores.
+	// Reads merge both stores, writes only go to database store.
+	StoreModeComposite = "composite"
+)

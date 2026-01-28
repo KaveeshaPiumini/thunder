@@ -2,10 +2,9 @@ server:
   hostname: "localhost"
   port: 8095
 
-security:
+tls:
   cert_file: "repository/resources/security/server.cert"
   key_file: "repository/resources/security/server.key"
-  crypto_file: "repository/resources/security/crypto.key"
 
 database:
   identity:
@@ -22,6 +21,10 @@ database:
     options: "_journal_mode=WAL&_busy_timeout=60000"
 
 flow:
-  graph_directory: "repository/resources/graphs/"
-  authn:
-    default_flow: "auth_flow_config_basic"
+  max_version_history: 3
+
+passkey:
+  allowed_origins:
+    - "https://localhost:8095"
+    - "http://localhost:8095"
+

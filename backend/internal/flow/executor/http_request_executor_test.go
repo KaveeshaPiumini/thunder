@@ -28,8 +28,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
-	flowcm "github.com/asgardeo/thunder/internal/flow/common"
-	flowcore "github.com/asgardeo/thunder/internal/flow/core"
+	"github.com/asgardeo/thunder/internal/flow/common"
+	"github.com/asgardeo/thunder/internal/flow/core"
 )
 
 type HTTPRequestExecutorTestSuite struct {
@@ -43,7 +43,7 @@ func TestHTTPRequestExecutorTestSuite(t *testing.T) {
 }
 
 func (suite *HTTPRequestExecutorTestSuite) SetupTest() {
-	flowFactory := flowcore.Initialize()
+	flowFactory, _ := core.Initialize()
 	suite.executor = newHTTPRequestExecutor(flowFactory)
 }
 
@@ -54,114 +54,177 @@ func (suite *HTTPRequestExecutorTestSuite) TearDownTest() {
 	}
 }
 
-func (suite *HTTPRequestExecutorTestSuite) TestResolvePlaceholder() {
-	ctx := &flowcore.NodeContext{
+func (suite *HTTPRequestExecutorTestSuite) TestResolvePlaceholdersInConfig() {
+	var receivedURL string
+	var receivedHeaders http.Header
+	var receivedBody map[string]interface{}
+
+	suite.mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedURL = r.URL.Path
+		receivedHeaders = r.Header
+		err := json.NewDecoder(r.Body).Decode(&receivedBody)
+		if err != nil {
+			receivedBody = nil
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
-		UserInputData: map[string]string{
+		UserInputs: map[string]string{
 			"username": "testuser",
 			"email":    "test@example.com",
 		},
 		RuntimeData: map[string]string{
 			"sessionId": "session-123",
+			"orgId":     "org-456",
 		},
-		AuthenticatedUser: authncm.AuthenticatedUser{
-			UserID: "user-456",
-		},
-	}
-
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "Resolve from UserInputData",
-			input:    "Hello {{ context.username }}",
-			expected: "Hello testuser",
-		},
-		{
-			name:     "Resolve from RuntimeData",
-			input:    "Session: {{ context.sessionId }}",
-			expected: "Session: session-123",
-		},
-		{
-			name:     "Resolve userID from AuthenticatedUser",
-			input:    "User {{ context.userID }} logged in",
-			expected: "User user-456 logged in",
-		},
-		{
-			name:     "RuntimeData takes precedence over UserInputData",
-			input:    "{{ context.sessionId }}",
-			expected: "session-123",
-		},
-		{
-			name:     "Multiple placeholders",
-			input:    "{{ context.username }} - {{ context.email }}",
-			expected: "testuser - test@example.com",
-		},
-		{
-			name:     "Placeholder with spaces",
-			input:    "{{  context.username  }}",
-			expected: "testuser",
-		},
-		{
-			name:     "Non-existent placeholder remains unchanged",
-			input:    "{{ context.nonexistent }}",
-			expected: "{{ context.nonexistent }}",
-		},
-		{
-			name:     "No placeholders",
-			input:    "static text",
-			expected: "static text",
+		NodeProperties: map[string]interface{}{
+			"url":    suite.mockServer.URL + "/api/users/{{ context.username }}",
+			"method": "POST",
+			"headers": map[string]interface{}{
+				"X-Session-Id": "{{ context.sessionId }}",
+				"X-Org-Id":     "{{ context.orgId }}",
+			},
+			"body": map[string]interface{}{
+				"user":  "{{ context.username }}",
+				"email": "{{ context.email }}",
+			},
 		},
 	}
 
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			result := suite.executor.resolvePlaceholder(ctx, tt.input)
-			assert.Equal(suite.T(), tt.expected, result)
-		})
-	}
+	execResp, err := suite.executor.Execute(ctx)
+
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
+
+	// Verify URL placeholder was resolved
+	assert.Equal(suite.T(), "/api/users/testuser", receivedURL)
+
+	// Verify header placeholders were resolved
+	assert.Equal(suite.T(), "session-123", receivedHeaders.Get("X-Session-Id"))
+	assert.Equal(suite.T(), "org-456", receivedHeaders.Get("X-Org-Id"))
+
+	// Verify body placeholders were resolved
+	assert.Equal(suite.T(), "testuser", receivedBody["user"])
+	assert.Equal(suite.T(), "test@example.com", receivedBody["email"])
 }
 
-func (suite *HTTPRequestExecutorTestSuite) TestResolvePlaceholder_UserIDSpecialHandling() {
-	// Test 1: userID should not resolve from UserInputData
-	ctx := &flowcore.NodeContext{
+func (suite *HTTPRequestExecutorTestSuite) TestResolvePlaceholderUserIDSpecialHandling() {
+	// Test that userID is resolved correctly from AuthenticatedUser
+	var receivedBody map[string]interface{}
+
+	suite.mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewDecoder(r.Body).Decode(&receivedBody)
+		if err != nil {
+			receivedBody = nil
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
-		UserInputData: map[string]string{
-			"userID": "input-user-id", // This should NOT be used
+		UserInputs: map[string]string{
+			"userID": "input-user-id", // This should NOT be used for userID
 		},
-		AuthenticatedUser: authncm.AuthenticatedUser{},
+		RuntimeData: map[string]string{},
+		AuthenticatedUser: authncm.AuthenticatedUser{
+			UserID: "auth-user-456",
+		},
+		NodeProperties: map[string]interface{}{
+			"url":    suite.mockServer.URL + "/api/user",
+			"method": "POST",
+			"body": map[string]interface{}{
+				"userId": "{{ context.userID }}",
+			},
+		},
 	}
 
-	result := suite.executor.resolvePlaceholder(ctx, "{{ context.userID }}")
-	assert.Equal(suite.T(), "{{ context.userID }}", result,
-		"userID should not be resolved from UserInputData")
+	execResp, err := suite.executor.Execute(ctx)
 
-	// Test 2: userID resolves from AuthenticatedUser
-	ctx.AuthenticatedUser.UserID = "auth-user-id"
-	result = suite.executor.resolvePlaceholder(ctx, "{{ context.userID }}")
-	assert.Equal(suite.T(), "auth-user-id", result)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 
-	// Test 3: userID resolves from RuntimeData
-	ctx.AuthenticatedUser.UserID = ""
-	ctx.RuntimeData = map[string]string{
-		"userID": "runtime-user-id",
+	// userID should be resolved from AuthenticatedUser, not from UserInputs
+	assert.Equal(suite.T(), "auth-user-456", receivedBody["userId"])
+}
+
+func (suite *HTTPRequestExecutorTestSuite) TestResolvePlaceholderRuntimeDataPrecedence() {
+	// Test that RuntimeData takes precedence over UserInputs
+	var receivedBody map[string]interface{}
+
+	suite.mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewDecoder(r.Body).Decode(&receivedBody)
+		if err != nil {
+			receivedBody = nil
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	ctx := &core.NodeContext{
+		FlowID: "test-flow",
+		UserInputs: map[string]string{
+			"key": "user-input-value",
+		},
+		RuntimeData: map[string]string{
+			"key": "runtime-value",
+		},
+		NodeProperties: map[string]interface{}{
+			"url":    suite.mockServer.URL + "/api/test",
+			"method": "POST",
+			"body": map[string]interface{}{
+				"value": "{{ context.key }}",
+			},
+		},
 	}
-	result = suite.executor.resolvePlaceholder(ctx, "{{ context.userID }}")
-	assert.Equal(suite.T(), "runtime-user-id", result)
 
-	// Test 4: AuthenticatedUser takes precedence over RuntimeData for userID
-	ctx.AuthenticatedUser.UserID = "auth-user-id"
-	ctx.RuntimeData["userID"] = "runtime-user-id"
-	result = suite.executor.resolvePlaceholder(ctx, "{{ context.userID }}")
-	assert.Equal(suite.T(), "auth-user-id", result)
+	execResp, err := suite.executor.Execute(ctx)
+
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
+
+	// RuntimeData should take precedence
+	assert.Equal(suite.T(), "runtime-value", receivedBody["value"])
+}
+
+func (suite *HTTPRequestExecutorTestSuite) TestResolvePlaceholderNonExistentKey() {
+	// Test that non-existent keys keep the placeholder as-is
+	var receivedBody map[string]interface{}
+
+	suite.mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewDecoder(r.Body).Decode(&receivedBody)
+		if err != nil {
+			receivedBody = nil
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	ctx := &core.NodeContext{
+		FlowID:      "test-flow",
+		UserInputs:  map[string]string{},
+		RuntimeData: map[string]string{},
+		NodeProperties: map[string]interface{}{
+			"url":    suite.mockServer.URL + "/api/test",
+			"method": "POST",
+			"body": map[string]interface{}{
+				"value": "{{ context.nonexistent }}",
+			},
+		},
+	}
+
+	execResp, err := suite.executor.Execute(ctx)
+
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
+
+	// Non-existent key should keep placeholder
+	assert.Equal(suite.T(), "{{ context.nonexistent }}", receivedBody["value"])
 }
 
 func (suite *HTTPRequestExecutorTestSuite) TestResolveMapPlaceholders() {
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
-		UserInputData: map[string]string{
+		UserInputs: map[string]string{
 			"username": "testuser",
 			"email":    "test@example.com",
 		},
@@ -228,21 +291,21 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_SuccessfulGETRequest() {
 
 	responseMappingJSON := `{"id": "response.data.id", "name": "response.data.name"}`
 
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url":             suite.mockServer.URL + "/api/users/123",
 			"method":          "GET",
 			"responseMapping": responseMappingJSON,
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), flowcm.ExecComplete, execResp.Status)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 	assert.Equal(suite.T(), "123", execResp.RuntimeData["id"])
 	assert.Equal(suite.T(), "Test User", execResp.RuntimeData["name"])
 }
@@ -271,7 +334,7 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_SuccessfulPOSTRequest() {
 	headersJSON := `{"Authorization": "Bearer token123", "X-Custom-Header": "{{ context.customValue }}"}`
 	responseMappingJSON := `{"status": "response.data.status", "userId": "response.data.userId"}`
 
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url":             suite.mockServer.URL + "/api/users",
@@ -280,7 +343,7 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_SuccessfulPOSTRequest() {
 			"headers":         headersJSON,
 			"responseMapping": responseMappingJSON,
 		},
-		UserInputData: map[string]string{
+		UserInputs: map[string]string{
 			"username":    "newuser",
 			"email":       "newuser@example.com",
 			"customValue": "custom123",
@@ -291,7 +354,7 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_SuccessfulPOSTRequest() {
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), flowcm.ExecComplete, execResp.Status)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 	assert.Equal(suite.T(), "created", execResp.RuntimeData["status"])
 	assert.Equal(suite.T(), "new-user-123", execResp.RuntimeData["userId"])
 
@@ -323,20 +386,20 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_ResponseMapping() {
 	responseMappingJSON := `{"externalUserId": "response.data.data.userId", 
 	"profileUrl": "response.data.data.profileUrl", "timestamp": "response.data.metadata.timestamp"}`
 
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url":             suite.mockServer.URL + "/api/data",
 			"responseMapping": responseMappingJSON,
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), flowcm.ExecComplete, execResp.Status)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 	assert.Equal(suite.T(), "user-789", execResp.RuntimeData["externalUserId"])
 	assert.Equal(suite.T(), "https://example.com/profile", execResp.RuntimeData["profileUrl"])
 	assert.Equal(suite.T(), "2025-11-12T10:00:00Z", execResp.RuntimeData["timestamp"])
@@ -350,20 +413,20 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_DefaultMethod() {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url": suite.mockServer.URL + "/api/test",
 			// method not specified, should default to GET
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), flowcm.ExecComplete, execResp.Status)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 }
 
 func (suite *HTTPRequestExecutorTestSuite) TestExecute_ErrorHandling_FailOnErrorFalse() {
@@ -373,20 +436,20 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_ErrorHandling_FailOnError
 		assert.NoError(suite.T(), err, "Failed to write mock error response")
 	}))
 
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url": suite.mockServer.URL + "/api/error",
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
 	// Should complete without failure when failOnError defaults to false
-	assert.Equal(suite.T(), flowcm.ExecComplete, execResp.Status)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 }
 
 func (suite *HTTPRequestExecutorTestSuite) TestExecute_ErrorHandling_FailOnErrorTrue() {
@@ -398,58 +461,58 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_ErrorHandling_FailOnError
 
 	errorHandlingJSON := `{"failOnError": true}`
 
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url":           suite.mockServer.URL + "/api/error",
 			"errorHandling": errorHandlingJSON,
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), flowcm.ExecFailure, execResp.Status)
+	assert.Equal(suite.T(), common.ExecFailure, execResp.Status)
 	assert.Contains(suite.T(), execResp.FailureReason, "HTTP request failed with status 400")
 }
 
 func (suite *HTTPRequestExecutorTestSuite) TestExecute_MissingURL() {
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			// URL is missing
 			"method": "GET",
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
 	// Configuration errors always fail the flow regardless of failOnError setting
-	assert.Equal(suite.T(), flowcm.ExecFailure, execResp.Status)
+	assert.Equal(suite.T(), common.ExecFailure, execResp.Status)
 	assert.Contains(suite.T(), execResp.FailureReason, "url is required")
 }
 
 func (suite *HTTPRequestExecutorTestSuite) TestExecute_InvalidHTTPMethod() {
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url":    "https://example.com/api/test",
 			"method": "INVALID",
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
 	// Configuration errors always fail the flow regardless of failOnError setting
-	assert.Equal(suite.T(), flowcm.ExecFailure, execResp.Status)
+	assert.Equal(suite.T(), common.ExecFailure, execResp.Status)
 	assert.Contains(suite.T(), execResp.FailureReason, "invalid HTTP method")
 }
 
@@ -499,20 +562,20 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_AllHTTPMethods() {
 			}))
 			defer suite.mockServer.Close()
 
-			ctx := &flowcore.NodeContext{
+			ctx := &core.NodeContext{
 				FlowID: "test-flow",
 				NodeProperties: map[string]interface{}{
 					"url":    suite.mockServer.URL + "/api/test",
 					"method": method,
 				},
-				UserInputData: make(map[string]string),
-				RuntimeData:   make(map[string]string),
+				UserInputs:  make(map[string]string),
+				RuntimeData: make(map[string]string),
 			}
 
 			execResp, err := suite.executor.Execute(ctx)
 
 			assert.NoError(suite.T(), err)
-			assert.Equal(suite.T(), flowcm.ExecComplete, execResp.Status)
+			assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 		})
 	}
 }
@@ -579,20 +642,20 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_NonJSONResponse() {
 
 	responseMappingJSON := `{"raw": "response.data.raw"}`
 
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url":             suite.mockServer.URL + "/api/text",
 			"responseMapping": responseMappingJSON,
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), flowcm.ExecComplete, execResp.Status)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 	assert.Equal(suite.T(), "Plain text response", execResp.RuntimeData["raw"])
 }
 
@@ -609,21 +672,21 @@ func (suite *HTTPRequestExecutorTestSuite) TestExecute_ResponseStatusExtraction(
 
 	responseMappingJSON := `{"resourceId": "response.data.id", "statusCode": "response.status"}`
 
-	ctx := &flowcore.NodeContext{
+	ctx := &core.NodeContext{
 		FlowID: "test-flow",
 		NodeProperties: map[string]interface{}{
 			"url":             suite.mockServer.URL + "/api/resource",
 			"method":          "POST",
 			"responseMapping": responseMappingJSON,
 		},
-		UserInputData: make(map[string]string),
-		RuntimeData:   make(map[string]string),
+		UserInputs:  make(map[string]string),
+		RuntimeData: make(map[string]string),
 	}
 
 	execResp, err := suite.executor.Execute(ctx)
 
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), flowcm.ExecComplete, execResp.Status)
+	assert.Equal(suite.T(), common.ExecComplete, execResp.Status)
 	assert.Equal(suite.T(), "123", execResp.RuntimeData["resourceId"])
 	assert.Equal(suite.T(), "201", execResp.RuntimeData["statusCode"])
 }

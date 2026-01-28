@@ -17,6 +17,7 @@
  */
 
 import type {InboundAuthConfig} from './inbound-auth';
+import type {TokenConfig} from './token';
 
 /**
  * Application Response Model (Basic)
@@ -42,8 +43,8 @@ import type {InboundAuthConfig} from './inbound-auth';
  *     description: 'Customer portal application',
  *     client_id: 'myapp_client_id',
  *     logo_url: 'https://myapp.com/logo.png',
- *     auth_flow_graph_id: 'auth_flow_config_basic',
- *     registration_flow_graph_id: 'registration_flow_config_basic',
+ *     auth_flow_id: 'edc013d0-e893-4dc0-990c-3e1d203e005b',
+ *     registration_flow_id: '80024fb3-29ed-4c33-aa48-8aee5e96d522',
  *     is_registration_flow_enabled: true
  *   }
  * ];
@@ -55,9 +56,10 @@ export type BasicApplication = Pick<
   | 'name'
   | 'description'
   | 'logo_url'
-  | 'auth_flow_graph_id'
-  | 'registration_flow_graph_id'
+  | 'auth_flow_id'
+  | 'registration_flow_id'
   | 'is_registration_flow_enabled'
+  | 'template'
 > & {
   /**
    * OAuth2 client identifier
@@ -100,8 +102,8 @@ export type BasicApplication = Pick<
  *   tos_uri: 'https://myapp.com/terms',
  *   policy_uri: 'https://myapp.com/privacy',
  *   contacts: ['admin@myapp.com'],
- *   auth_flow_graph_id: 'auth_flow_config_basic',
- *   registration_flow_graph_id: 'registration_flow_config_basic',
+ *   auth_flow_id: 'edc013d0-e893-4dc0-990c-3e1d203e005b',
+ *   registration_flow_id: '80024fb3-29ed-4c33-aa48-8aee5e96d522',
  *   is_registration_flow_enabled: true,
  *   user_attributes: ['email', 'username'],
  *   inbound_auth_config: [{
@@ -186,16 +188,16 @@ export interface Application {
   contacts?: string[];
 
   /**
-   * Authentication flow graph ID
-   * @example 'auth_flow_config_basic'
+   * Authentication flow ID
+   * @example 'edc013d0-e893-4dc0-990c-3e1d203e005b'
    */
-  auth_flow_graph_id?: string;
+  auth_flow_id?: string;
 
   /**
-   * Registration flow graph ID
-   * @example 'registration_flow_config_basic'
+   * Registration flow ID
+   * @example '80024fb3-29ed-4c33-aa48-8aee5e96d522'
    */
-  registration_flow_graph_id?: string;
+  registration_flow_id?: string;
 
   /**
    * Whether registration flow is enabled
@@ -208,6 +210,19 @@ export interface Application {
    * @example ['email', 'username', 'given_name', 'family_name', 'roles']
    */
   user_attributes?: string[];
+
+  /**
+   * Allowed user types (user schema IDs) that can access this application
+   * @example ['person', 'person_2', 'person_3']
+   */
+  allowed_user_types?: string[];
+
+  /**
+   * Application template identifier
+   * Indicates which template was used to create this application
+   * @example 'react', 'nextjs', 'browser', 'mobile'
+   */
+  template?: string;
 
   /**
    * Inbound authentication configuration
@@ -236,4 +251,10 @@ export interface Application {
    * Allows for extension fields not explicitly defined in the interface
    */
   [key: string]: unknown;
+
+  /**
+   * Token configuration
+   * Defines how access tokens and ID tokens are generated.
+   */
+  token?: TokenConfig;
 }

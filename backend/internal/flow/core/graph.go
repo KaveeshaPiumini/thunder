@@ -94,8 +94,8 @@ func (g *graph) AddEdge(fromNodeID, toNodeID string) error {
 		return errors.New("node with toNodeID does not exist")
 	}
 
-	fromNode.AddNextNodeID(toNodeID)
-	toNode.AddPreviousNodeID(fromNodeID)
+	fromNode.AddNextNode(toNodeID)
+	toNode.AddPreviousNode(fromNodeID)
 
 	if _, exists := g.edges[fromNodeID]; !exists {
 		g.edges[fromNodeID] = []string{}
@@ -118,8 +118,8 @@ func (g *graph) RemoveEdge(fromNodeID, toNodeID string) error {
 		return errors.New("node with toNodeID does not exist")
 	}
 
-	fromNode.RemoveNextNodeID(toNodeID)
-	toNode.RemovePreviousNodeID(fromNodeID)
+	fromNode.RemoveNextNode(toNodeID)
+	toNode.RemovePreviousNode(fromNodeID)
 
 	if edges, exists := g.edges[fromNodeID]; exists {
 		for i, edge := range edges {
@@ -192,22 +192,29 @@ func (g *graph) SetStartNode(startNodeID string) error {
 
 // ToJSON converts the graph to a JSON string representation
 func (g *graph) ToJSON() (string, error) {
-	type JSONInputData struct {
-		Name     string   `json:"name"`
-		Type     string   `json:"type"`
-		Required bool     `json:"required"`
-		Options  []string `json:"options,omitempty"`
+	type JSONInputs struct {
+		Ref        string   `json:"ref,omitempty"`
+		Identifier string   `json:"identifier"`
+		Type       string   `json:"type"`
+		Required   bool     `json:"required"`
+		Options    []string `json:"options,omitempty"`
+	}
+
+	type JSONCondition struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
 	}
 
 	type JSONNode struct {
-		ID                 string          `json:"id"`
-		Type               string          `json:"type"`
-		IsStartNode        bool            `json:"isStartNode,omitempty"`
-		IsFinalNode        bool            `json:"isFinalNode,omitempty"`
-		NextNodeIDList     []string        `json:"nextNodeIds"`
-		PreviousNodeIDList []string        `json:"previousNodeIds"`
-		InputData          []JSONInputData `json:"inputData,omitempty"`
-		Executor           string          `json:"executor,omitempty"`
+		ID                 string         `json:"id"`
+		Type               string         `json:"type"`
+		IsStartNode        bool           `json:"isStartNode,omitempty"`
+		IsFinalNode        bool           `json:"isFinalNode,omitempty"`
+		NextNodeIDList     []string       `json:"nextNodeIds"`
+		PreviousNodeIDList []string       `json:"previousNodeIds"`
+		Inputs             []JSONInputs   `json:"inputs,omitempty"`
+		Executor           string         `json:"executor,omitempty"`
+		Condition          *JSONCondition `json:"condition,omitempty"`
 	}
 
 	type JSONGraph struct {
@@ -235,20 +242,27 @@ func (g *graph) ToJSON() (string, error) {
 			PreviousNodeIDList: node.GetPreviousNodeList(),
 		}
 
-		// Set executor name if the node is executor-backed
+		// Set executor name and inputs if the node is executor-backed
 		if executableNode, ok := node.(ExecutorBackedNodeInterface); ok {
 			executorName := executableNode.GetExecutorName()
 			if executorName != "" {
 				jsonNode.Executor = executorName
 			}
+
+			inputs := executableNode.GetInputs()
+			if len(inputs) > 0 {
+				jsonNode.Inputs = make([]JSONInputs, len(inputs))
+				for i, input := range inputs {
+					jsonNode.Inputs[i] = JSONInputs(input)
+				}
+			}
 		}
 
-		// Convert and set input data
-		inputData := node.GetInputData()
-		if len(inputData) > 0 {
-			jsonNode.InputData = make([]JSONInputData, len(inputData))
-			for i, input := range inputData {
-				jsonNode.InputData[i] = JSONInputData(input)
+		// Set condition if present
+		if condition := node.GetCondition(); condition != nil {
+			jsonNode.Condition = &JSONCondition{
+				Key:   condition.Key,
+				Value: condition.Value,
 			}
 		}
 

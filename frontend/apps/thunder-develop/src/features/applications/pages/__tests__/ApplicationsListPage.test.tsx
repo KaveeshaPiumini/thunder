@@ -22,6 +22,7 @@ import userEvent from '@testing-library/user-event';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {BrowserRouter} from 'react-router';
 import {ConfigProvider} from '@thunder/commons-contexts';
+import {LoggerProvider, LogLevel} from '@thunder/logger';
 import ApplicationsListPage from '../ApplicationsListPage';
 
 // Mock the ApplicationsList component
@@ -62,7 +63,14 @@ describe('ApplicationsListPage', () => {
       <BrowserRouter>
         <QueryClientProvider client={queryClient}>
           <ConfigProvider>
-            <ApplicationsListPage />
+            <LoggerProvider
+              logger={{
+                level: LogLevel.ERROR,
+                transports: [],
+              }}
+            >
+              <ApplicationsListPage />
+            </LoggerProvider>
           </ConfigProvider>
         </QueryClientProvider>
       </BrowserRouter>,
@@ -164,8 +172,8 @@ describe('ApplicationsListPage', () => {
 
       expect(mockNavigate).toHaveBeenCalledWith('/applications/create');
 
-      // Should not throw error
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      // Logger should log the error
+      expect(consoleErrorSpy).toHaveBeenCalled();
 
       consoleErrorSpy.mockRestore();
     });
@@ -293,6 +301,47 @@ describe('ApplicationsListPage', () => {
 
     it('should work with ConfigProvider', () => {
       expect(() => renderWithProviders()).not.toThrow();
+    });
+
+    it('should render the search input adornment with icon', () => {
+      renderWithProviders();
+
+      const searchInput = screen.getByPlaceholderText('Search applications...');
+      const inputContainer = searchInput.closest('.MuiInputBase-root');
+
+      // The InputAdornment with Search icon should be present
+      expect(inputContainer).toBeInTheDocument();
+      expect(inputContainer?.querySelector('svg')).toBeInTheDocument();
+    });
+
+    it('should render with all required MUI components', () => {
+      renderWithProviders();
+
+      // Verify Box, Stack, Typography components are rendered
+      expect(screen.getByRole('heading', {level: 1})).toBeInTheDocument();
+      expect(screen.getByText('Manage your applications and their configurations')).toBeInTheDocument();
+    });
+
+    it('should render button with startIcon', () => {
+      renderWithProviders();
+
+      const createButton = screen.getByRole('button', {name: /Create Application/i});
+      // Button should have SVG icon
+      expect(createButton.querySelector('svg')).toBeInTheDocument();
+    });
+
+    it('should render TextField with correct size', () => {
+      renderWithProviders();
+
+      const searchInput = screen.getByPlaceholderText('Search applications...');
+      const textField = searchInput.closest('.MuiTextField-root');
+      expect(textField).toBeInTheDocument();
+    });
+
+    it('should render ApplicationsList component', () => {
+      renderWithProviders();
+
+      expect(screen.getByTestId('applications-list')).toBeInTheDocument();
     });
   });
 

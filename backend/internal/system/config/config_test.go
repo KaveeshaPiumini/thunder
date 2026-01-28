@@ -21,7 +21,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -31,16 +30,49 @@ import (
 
 type ConfigTestSuite struct {
 	suite.Suite
+	originalEnvVars map[string]string
 }
 
 func TestConfigTestSuite(t *testing.T) {
 	suite.Run(t, new(ConfigTestSuite))
 }
 
+func (suite *ConfigTestSuite) SetupTest() {
+	// Store original environment variables
+	suite.originalEnvVars = make(map[string]string)
+}
+
+func (suite *ConfigTestSuite) TearDownTest() {
+	// Restore original environment variables
+	for key, value := range suite.originalEnvVars {
+		if value == "" {
+			err := os.Unsetenv(key)
+			suite.Require().NoError(err, "Failed to unset environment variable")
+		} else {
+			err := os.Setenv(key, value)
+			suite.Require().NoError(err, "Failed to set environment variable")
+		}
+	}
+}
+
+// Helper function to set environment variable and track for cleanup
+func (suite *ConfigTestSuite) setEnvVar(key, value string) {
+	if _, exists := suite.originalEnvVars[key]; !exists {
+		if originalValue, hasOriginal := os.LookupEnv(key); hasOriginal {
+			suite.originalEnvVars[key] = originalValue
+		} else {
+			suite.originalEnvVars[key] = ""
+		}
+	}
+	err := os.Setenv(key, value)
+	suite.Require().NoError(err, "Failed to set environment variable")
+}
+
 func (suite *ConfigTestSuite) TestLoadConfigWithDefaults() {
 	tempDir := suite.T().TempDir()
-	cryptoFilePath := filepath.Join(tempDir, "crypto.key")
 
+	dummyCryptoKey := "0579f866ac7c9273580d0ff163fa01a7b2401a7ff3ddc3e3b14ae3136fa6025e"
+	cryptoPath := suite.createTempFile(tempDir, "crypto*.key", dummyCryptoKey)
 	defaultContent := fmt.Sprintf(`{
   "server": {
     "hostname": "default-host",
@@ -54,8 +86,10 @@ func (suite *ConfigTestSuite) TestLoadConfigWithDefaults() {
     "login_path": "/default-login",
     "error_path": "/default-error"
   },
-  "security": {
-    "crypto_file": %q
+  "crypto": {
+    "encryption": {
+      "key": "file://%q"
+    }
   },
   "jwt": {
     "issuer": "default-issuer",
@@ -67,7 +101,9 @@ func (suite *ConfigTestSuite) TestLoadConfigWithDefaults() {
       "validity_period": 86400
     }
   }
-}`, cryptoFilePath)
+}`, cryptoPath)
+
+	defaultPath := suite.createTempFile(tempDir, "default*.json", defaultContent)
 
 	// Create a partial YAML user configuration file.
 	userContent := `
@@ -78,23 +114,10 @@ server:
 jwt:
   issuer: "user-issuer"
 `
-
-	defaultFile := filepath.Join(tempDir, "default.json")
-	userFile := filepath.Join(tempDir, "user.yaml")
-	cryptoFile := filepath.Join(tempDir, "crypto.key")
-	dummyCryptoKey := "0579f866ac7c9273580d0ff163fa01a7b2401a7ff3ddc3e3b14ae3136fa6025e"
-
-	err := os.WriteFile(defaultFile, []byte(defaultContent), 0600)
-	assert.NoError(suite.T(), err)
-
-	err = os.WriteFile(userFile, []byte(userContent), 0600)
-	assert.NoError(suite.T(), err)
-
-	err = os.WriteFile(cryptoFile, []byte(dummyCryptoKey), 0600)
-	assert.NoError(suite.T(), err)
+	userPath := suite.createTempFile(tempDir, "user*.yaml", userContent)
 
 	// Test loading the configuration with defaults.
-	config, err := LoadConfig(userFile, defaultFile)
+	config, err := LoadConfig(userPath, defaultPath, tempDir)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), config)
 
@@ -107,9 +130,9 @@ jwt:
 	assert.Equal(suite.T(), "http", config.GateClient.Scheme)
 	assert.Equal(suite.T(), "/default-login", config.GateClient.LoginPath)
 	assert.Equal(suite.T(), "/default-error", config.GateClient.ErrorPath)
-	assert.Equal(suite.T(), "user-issuer", config.JWT.Issuer)       // User override
-	assert.Equal(suite.T(), int64(7200), config.JWT.ValidityPeriod) // Default value
-	assert.Equal(suite.T(), cryptoFile, config.Security.CryptoFile)
+	assert.Equal(suite.T(), "user-issuer", config.JWT.Issuer)             // User override
+	assert.Equal(suite.T(), int64(7200), config.JWT.ValidityPeriod)       // Default value
+	assert.Equal(suite.T(), dummyCryptoKey, config.Crypto.Encryption.Key) // Default value
 }
 
 func (suite *ConfigTestSuite) TestLoadConfigWithDefaults_NoDefaults() {
@@ -118,16 +141,18 @@ func (suite *ConfigTestSuite) TestLoadConfigWithDefaults_NoDefaults() {
 server:
   hostname: "user-host"
   port: 8090
+database:
+  identity:
+    password: "{{.TestVar}}"
 `
 
 	tempDir := suite.T().TempDir()
-	userFile := filepath.Join(tempDir, "user.yaml")
+	userFile := suite.createTempFile(tempDir, "user*.yaml", userContent)
 
-	err := os.WriteFile(userFile, []byte(userContent), 0600)
-	assert.NoError(suite.T(), err)
+	suite.setEnvVar("TestVar", "mysql")
 
 	// Test loading the configuration without defaults (empty defaults path).
-	config, err := LoadConfig(userFile, "")
+	config, err := LoadConfig(userFile, "", tempDir)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), config)
 
@@ -135,29 +160,24 @@ server:
 	assert.Equal(suite.T(), "user-host", config.Server.Hostname)
 	assert.Equal(suite.T(), 8090, config.Server.Port)
 	assert.Equal(suite.T(), false, config.Server.HTTPOnly) // Zero value for bool
+	assert.Equal(suite.T(), "mysql", config.Database.Identity.Password)
 }
 
 func (suite *ConfigTestSuite) TestLoadConfigWithDefaults_ErrorCases() {
 	tempDir := suite.T().TempDir()
 
 	// Test with non-existent user config file.
-	_, err := LoadConfig("non-existent.yaml", "")
+	_, err := LoadConfig("non-existent.yaml", "", tempDir)
 	assert.Error(suite.T(), err)
 
 	// Test with non-existent defaults file.
-	userFile := filepath.Join(tempDir, "user.yaml")
-	err = os.WriteFile(userFile, []byte("server:\n  hostname: test"), 0600)
-	assert.NoError(suite.T(), err)
-
-	_, err = LoadConfig(userFile, "non-existent-defaults.json")
+	userFile := suite.createTempFile(tempDir, "user*.yaml", "server:\n  hostname: test")
+	_, err = LoadConfig(userFile, "non-existent-defaults.json", tempDir)
 	assert.Error(suite.T(), err)
 
 	// Test with invalid JSON defaults file.
-	invalidDefaultsFile := filepath.Join(tempDir, "invalid.json")
-	err = os.WriteFile(invalidDefaultsFile, []byte("invalid json"), 0600)
-	assert.NoError(suite.T(), err)
-
-	_, err = LoadConfig(userFile, invalidDefaultsFile)
+	invalidDefaultsFile := suite.createTempFile(tempDir, "invalid*.json", "invalid json")
+	_, err = LoadConfig(userFile, invalidDefaultsFile, tempDir)
 	assert.Error(suite.T(), err)
 }
 
@@ -559,13 +579,10 @@ server:
 `
 
 	tempDir := suite.T().TempDir()
-	userFile := filepath.Join(tempDir, "test-config.yaml")
-
-	err := os.WriteFile(userFile, []byte(userContent), 0600)
-	assert.NoError(suite.T(), err)
+	userFile := suite.createTempFile(tempDir, "test-config*.yaml", userContent)
 
 	// Test normal loading - file closing works fine
-	config, err := LoadConfig(userFile, "")
+	config, err := LoadConfig(userFile, "", tempDir)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), config)
 	assert.Equal(suite.T(), "test-host", config.Server.Hostname)
@@ -576,29 +593,159 @@ func (suite *ConfigTestSuite) TestLoadConfig_InvalidYAML() {
 	invalidYAMLContent := "invalid: yaml: content"
 
 	tempDir := suite.T().TempDir()
-	userFile := filepath.Join(tempDir, "invalid.yaml")
-
-	err := os.WriteFile(userFile, []byte(invalidYAMLContent), 0600)
-	assert.NoError(suite.T(), err)
+	userFile := suite.createTempFile(tempDir, "invalid*.yaml", invalidYAMLContent)
 
 	// Test loading invalid YAML should return error
-	_, err = LoadConfig(userFile, "")
+	_, err := LoadConfig(userFile, "", tempDir)
 	assert.Error(suite.T(), err)
 }
 
-func (suite *ConfigTestSuite) TestIsZeroValue_AdditionalCases() {
-	// Test some additional cases to improve coverage
+func (suite *ConfigTestSuite) TestLoadConfigWithDerivedIssuer() {
+	tempDir := suite.T().TempDir()
 
-	// Test with a custom struct type (should return false for default case)
-	type CustomType struct {
-		Value int
-	}
-	customVal := CustomType{Value: 0}
-	assert.False(suite.T(), isZeroValue(reflect.ValueOf(customVal)))
+	// Case 1: Issuer not set - should derive from server config
+	userContent1 := `
+server:
+  hostname: "auth.example.com"
+  port: 443
+  http_only: false
+`
+	userFile1 := suite.createTempFile(tempDir, "user1*.yaml", userContent1)
 
-	// Test with channel
-	ch := make(chan int, 1)
-	ch <- 42
-	assert.False(suite.T(), isZeroValue(reflect.ValueOf(ch))) // Non-empty channel
-	close(ch)
+	config1, err := LoadConfig(userFile1, "", tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "https://auth.example.com:443", config1.JWT.Issuer)
+
+	// Case 2: Issuer explicitly set - should use the explicit value
+	userContent2 := `
+server:
+  hostname: "auth.example.com"
+  port: 443
+jwt:
+  issuer: "custom-issuer"
+`
+	userFile2 := suite.createTempFile(tempDir, "user2*.yaml", userContent2)
+
+	config2, err := LoadConfig(userFile2, "", tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "custom-issuer", config2.JWT.Issuer)
+
+	// Case 3: PublicURL is set - issuer should use PublicURL
+	userContent3 := `
+server:
+  hostname: "internal-host"
+  port: 8090
+  public_url: "https://auth.public.com"
+`
+	userFile3 := suite.createTempFile(tempDir, "user3*.yaml", userContent3)
+
+	config3, err := LoadConfig(userFile3, "", tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "https://auth.public.com", config3.JWT.Issuer)
+
+	// Case 4: HTTP only mode
+	userContent4 := `
+server:
+  hostname: "localhost"
+  port: 8080
+  http_only: true
+`
+	userFile4 := suite.createTempFile(tempDir, "user4*.yaml", userContent4)
+
+	config4, err := LoadConfig(userFile4, "", tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "http://localhost:8080", config4.JWT.Issuer)
+}
+
+func (suite *ConfigTestSuite) TestLoadConfigWithDerivedPaths() {
+	tempDir := suite.T().TempDir()
+
+	// Case 1: Only path is set
+	userContent1 := `
+gate_client:
+  path: "/app"
+`
+	userFile1 := suite.createTempFile(tempDir, "user1*.yaml", userContent1)
+
+	config1, err := LoadConfig(userFile1, "", tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "/app", config1.GateClient.Path)
+	assert.Equal(suite.T(), "/app/signin", config1.GateClient.LoginPath)
+	assert.Equal(suite.T(), "/app/error", config1.GateClient.ErrorPath)
+
+	// Case 2: Path and LoginPath are set
+	userContent2 := `
+gate_client:
+  path: "/app"
+  login_path: "/custom/login"
+`
+	userFile2 := suite.createTempFile(tempDir, "user2*.yaml", userContent2)
+
+	config2, err := LoadConfig(userFile2, "", tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "/app", config2.GateClient.Path)
+	assert.Equal(suite.T(), "/custom/login", config2.GateClient.LoginPath)
+	assert.Equal(suite.T(), "/app/error", config2.GateClient.ErrorPath)
+
+	// Case 3: Path and ErrorPath are set
+	userContent3 := `
+gate_client:
+  path: "/app"
+  error_path: "/custom/error"
+`
+	userFile3 := suite.createTempFile(tempDir, "user3*.yaml", userContent3)
+
+	config3, err := LoadConfig(userFile3, "", tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "/app", config3.GateClient.Path)
+	assert.Equal(suite.T(), "/app/signin", config3.GateClient.LoginPath)
+	assert.Equal(suite.T(), "/custom/error", config3.GateClient.ErrorPath)
+
+	// Case 4: Path, LoginPath, and ErrorPath are set
+	userContent4 := `
+gate_client:
+  path: "/app"
+  login_path: "/custom/login"
+  error_path: "/custom/error"
+`
+	userFile4 := suite.createTempFile(tempDir, "user4*.yaml", userContent4)
+
+	config4, err := LoadConfig(userFile4, "", tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "/app", config4.GateClient.Path)
+	assert.Equal(suite.T(), "/custom/login", config4.GateClient.LoginPath)
+	assert.Equal(suite.T(), "/custom/error", config4.GateClient.ErrorPath)
+
+	// Case 5: Default config with path, user overrides path
+	defaultContent := `{
+  "gate_client": {
+    "path": "/gate"
+  }
+}`
+	defaultFile := suite.createTempFile(tempDir, "default*.json", defaultContent)
+
+	userContent5 := `
+gate_client:
+  path: "/newapp"
+`
+	userFile5 := suite.createTempFile(tempDir, "user5*.yaml", userContent5)
+
+	config5, err := LoadConfig(userFile5, defaultFile, tempDir)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "/newapp", config5.GateClient.Path)
+	assert.Equal(suite.T(), "/newapp/signin", config5.GateClient.LoginPath)
+	assert.Equal(suite.T(), "/newapp/error", config5.GateClient.ErrorPath)
+}
+
+func (suite *ConfigTestSuite) createTempFile(dir, pattern, content string) string {
+	tempFile, err := os.CreateTemp(dir, pattern)
+	suite.Require().NoError(err, "failed to create temp file")
+
+	_, err = tempFile.WriteString(content)
+	suite.Require().NoError(err, "failed to write to temp file")
+
+	err = tempFile.Close()
+	suite.Require().NoError(err, "failed to close temp file")
+
+	return tempFile.Name()
 }

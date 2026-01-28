@@ -28,9 +28,16 @@ const (
 	PBKDF2 CredAlgorithm = "PBKDF2"
 )
 
+// CredParameters holds the parameters for credential hashing algorithms
+type CredParameters struct {
+	Iterations int
+	KeySize    int
+	Salt       string
+}
+
 // Credential represents the credentials of a hashed value.
 type Credential struct {
-	Algorithm CredAlgorithm
-	Hash      string
-	Salt      string
+	Algorithm  CredAlgorithm
+	Hash       string
+	Parameters CredParameters
 }

@@ -28,9 +28,12 @@ import ViewUserTypePage from './features/user-types/pages/ViewUserTypePage';
 import IntegrationsPage from './features/integrations/pages/IntegrationsPage';
 import ApplicationsListPage from './features/applications/pages/ApplicationsListPage';
 import ApplicationCreatePage from './features/applications/pages/ApplicationCreatePage';
-import ViewApplicationPage from './features/applications/pages/ViewApplicationPage';
+import ApplicationEditPage from './features/applications/pages/ApplicationEditPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import FullScreenLayout from './layouts/FullScreenLayout';
+import ApplicationCreateProvider from './features/applications/contexts/ApplicationCreate/ApplicationCreateProvider';
+import FlowsListPage from './features/flows/pages/FlowsListPage';
+import LoginFlowBuilderPage from './features/login-flow/pages/LoginFlowPage';
 
 export default function App(): JSX.Element {
   return (
@@ -53,17 +56,40 @@ export default function App(): JSX.Element {
           <Route path="user-types/:id" element={<ViewUserTypePage />} />
           <Route path="integrations" element={<IntegrationsPage />} />
           <Route path="applications" element={<ApplicationsListPage />} />
-          <Route path="applications/:applicationId" element={<ViewApplicationPage />} />
+          <Route path="applications/:applicationId" element={<ApplicationEditPage />} />
+          <Route path="flows" element={<FlowsListPage />} />
         </Route>
         <Route
           path="/applications/create"
           element={
             <ProtectedRoute>
-              <FullScreenLayout />
+              <ApplicationCreateProvider>
+                <FullScreenLayout />
+              </ApplicationCreateProvider>
             </ProtectedRoute>
           }
         >
           <Route index element={<ApplicationCreatePage />} />
+        </Route>
+        <Route
+          path="/flows/signin"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout dense />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<LoginFlowBuilderPage />} />
+        </Route>
+        <Route
+          path="/flows/signin/:flowId"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout dense />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<LoginFlowBuilderPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

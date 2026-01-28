@@ -17,7 +17,7 @@ func BuildFilterQuery(
 	filters map[string]interface{},
 ) (model.DBQuery, []interface{}, error) {
 	// Validate the column name.
-	if err := validateKey(columnName); err != nil {
+	if err := ValidateKey(columnName); err != nil {
 		return model.DBQuery{}, nil, fmt.Errorf("invalid column name: %w", err)
 	}
 
@@ -25,7 +25,7 @@ func BuildFilterQuery(
 
 	keys := make([]string, 0, len(filters))
 	for key := range filters {
-		if err := validateKey(key); err != nil {
+		if err := ValidateKey(key); err != nil {
 			return model.DBQuery{}, nil, fmt.Errorf("invalid filter key: %w", err)
 		}
 		keys = append(keys, key)
@@ -35,8 +35,8 @@ func BuildFilterQuery(
 	postgresQuery := baseQuery
 	sqliteQuery := baseQuery
 	for i, key := range keys {
-		postgresQuery += buildPostgresJSONCondition(columnName, key, i+1)
-		sqliteQuery += buildSQLiteJSONCondition(columnName, key)
+		postgresQuery += BuildPostgresJSONCondition(columnName, key, i+1)
+		sqliteQuery += BuildSQLiteJSONCondition(columnName, key)
 		args = append(args, filters[key])
 	}
 
@@ -50,10 +50,31 @@ func BuildFilterQuery(
 	return resultQuery, args, nil
 }
 
-// buildPostgresJSONCondition builds a PostgreSQL JSON filter condition.
+// AppendDeploymentIDToFilterQuery appends a DEPLOYMENT_ID condition to the given filter query.
+func AppendDeploymentIDToFilterQuery(
+	query model.DBQuery, args []interface{}, deploymentID string,
+) (model.DBQuery, []interface{}) {
+	postgresQuery := fmt.Sprintf("%s AND DEPLOYMENT_ID = $%d", query.PostgresQuery, len(args)+1)
+	sqliteQuery := fmt.Sprintf("%s AND DEPLOYMENT_ID = ?", query.SQLiteQuery)
+
+	argsWithDeploymentID := make([]interface{}, 0, len(args)+1)
+	argsWithDeploymentID = append(argsWithDeploymentID, args...)
+	argsWithDeploymentID = append(argsWithDeploymentID, deploymentID)
+
+	updatedQuery := &model.DBQuery{
+		ID:            query.ID,
+		Query:         postgresQuery,
+		PostgresQuery: postgresQuery,
+		SQLiteQuery:   sqliteQuery,
+	}
+
+	return *updatedQuery, argsWithDeploymentID
+}
+
+// BuildPostgresJSONCondition builds a PostgreSQL JSON filter condition.
 // For nested paths (e.g., "address.city"), it uses the #>> operator with an array path.
 // For simple paths (e.g., "email"), it uses the ->> operator.
-func buildPostgresJSONCondition(columnName, key string, paramIndex int) string {
+func BuildPostgresJSONCondition(columnName, key string, paramIndex int) string {
 	if strings.Contains(key, ".") {
 		// Handle nested JSON path
 		keys := strings.Split(key, ".")
@@ -64,14 +85,15 @@ func buildPostgresJSONCondition(columnName, key string, paramIndex int) string {
 	return fmt.Sprintf(" AND %s->>'%s' = $%d", columnName, key, paramIndex)
 }
 
-// buildSQLiteJSONCondition builds a SQLite JSON filter condition.
+// BuildSQLiteJSONCondition builds a SQLite JSON filter condition.
 // For both nested and simple paths, it uses json_extract with dot notation.
-func buildSQLiteJSONCondition(columnName, key string) string {
+func BuildSQLiteJSONCondition(columnName, key string) string {
 	return fmt.Sprintf(" AND json_extract(%s, '$.%s') = ?", columnName, key)
 }
 
-// validateKey ensures that the provided key contains only safe characters (alphanumeric and underscores).
-func validateKey(key string) error {
+// ValidateKey ensures that the provided key contains only safe characters (alphanumeric, underscores, and dots).
+// This validation prevents SQL injection by ensuring keys can be safely used in queries.
+func ValidateKey(key string) error {
 	for _, char := range key {
 		if !(char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' ||
 			char >= '0' && char <= '9' || char == '_' || char == '.') {

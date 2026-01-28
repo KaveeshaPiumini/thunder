@@ -28,12 +28,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/application/model"
+	"github.com/asgardeo/thunder/internal/idp"
+	"github.com/asgardeo/thunder/internal/notification"
 	"github.com/asgardeo/thunder/internal/system/config"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	immutableresource "github.com/asgardeo/thunder/internal/system/immutable_resource"
 	"github.com/asgardeo/thunder/internal/system/log"
+	"github.com/asgardeo/thunder/internal/userschema"
 	"github.com/asgardeo/thunder/tests/mocks/applicationmock"
+	"github.com/asgardeo/thunder/tests/mocks/idp/idpmock"
+	"github.com/asgardeo/thunder/tests/mocks/notification/notificationmock"
+	"github.com/asgardeo/thunder/tests/mocks/userschemamock"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -42,9 +50,12 @@ import (
 // HandlerTestSuite contains comprehensive tests for the export handler functions.
 type HandlerTestSuite struct {
 	suite.Suite
-	mockAppService *applicationmock.ApplicationServiceInterfaceMock
-	exportService  ExportServiceInterface
-	handler        *exportHandler
+	mockAppService          *applicationmock.ApplicationServiceInterfaceMock
+	mockIDPService          *idpmock.IDPServiceInterfaceMock
+	mockNotificationService *notificationmock.NotificationSenderMgtSvcInterfaceMock
+	mockUserSchemaService   *userschemamock.UserSchemaServiceInterfaceMock
+	exportService           ExportServiceInterface
+	handler                 *exportHandler
 }
 
 func (suite *HandlerTestSuite) SetupTest() {
@@ -60,7 +71,17 @@ func (suite *HandlerTestSuite) SetupTest() {
 
 	// Setup services and handler
 	suite.mockAppService = applicationmock.NewApplicationServiceInterfaceMock(suite.T())
-	suite.exportService = newExportService(suite.mockAppService)
+	suite.mockIDPService = idpmock.NewIDPServiceInterfaceMock(suite.T())
+	suite.mockNotificationService = notificationmock.NewNotificationSenderMgtSvcInterfaceMock(suite.T())
+	suite.mockUserSchemaService = userschemamock.NewUserSchemaServiceInterfaceMock(suite.T())
+	exporters := []immutableresource.ResourceExporter{
+		application.NewApplicationExporterForTest(suite.mockAppService),
+		idp.NewIDPExporterForTest(suite.mockIDPService),
+		notification.NewNotificationSenderExporterForTest(suite.mockNotificationService),
+		userschema.NewUserSchemaExporterForTest(suite.mockUserSchemaService),
+	}
+	parameterizer := newParameterizer(templatingRules{})
+	suite.exportService = newExportService(exporters, parameterizer)
 	suite.handler = newExportHandler(suite.exportService)
 }
 
@@ -195,7 +216,8 @@ func (suite *HandlerTestSuite) TestGenerateAndSendZipResponse_SingleFileNoFolder
 		},
 	}
 
-	suite.testZipResponse(exportResponse, "standalone.yaml", "name: standalone-app\ndescription: Standalone Application")
+	suite.testZipResponse(exportResponse, "standalone.yaml",
+		"name: standalone-app\ndescription: Standalone Application")
 }
 
 // TestGenerateAndSendZipResponse_EmptyFiles tests ZIP generation with empty files list.
@@ -328,6 +350,7 @@ func (suite *HandlerTestSuite) TestGenerateAndSendZipResponse_DeepFolderStructur
 
 // TestGenerateAndSendZipResponse_Standalone tests the function without suite dependencies.
 func TestGenerateAndSendZipResponse_Standalone(t *testing.T) {
+	logger := log.GetLogger()
 	// Setup config
 	config.ResetThunderRuntime()
 	testConfig := &config.Config{
@@ -341,7 +364,17 @@ func TestGenerateAndSendZipResponse_Standalone(t *testing.T) {
 
 	// Setup handler
 	mockAppService := applicationmock.NewApplicationServiceInterfaceMock(t)
-	exportService := newExportService(mockAppService)
+	mockIDPService := idpmock.NewIDPServiceInterfaceMock(t)
+	mockNotificationService := notificationmock.NewNotificationSenderMgtSvcInterfaceMock(t)
+	mockUserSchemaService := userschemamock.NewUserSchemaServiceInterfaceMock(t)
+	exporters := []immutableresource.ResourceExporter{
+		application.NewApplicationExporterForTest(mockAppService),
+		idp.NewIDPExporterForTest(mockIDPService),
+		notification.NewNotificationSenderExporterForTest(mockNotificationService),
+		userschema.NewUserSchemaExporterForTest(mockUserSchemaService),
+	}
+	parameterizer := newParameterizer(templatingRules{})
+	exportService := newExportService(exporters, parameterizer)
 	handler := newExportHandler(exportService)
 
 	// Test data
@@ -358,7 +391,6 @@ func TestGenerateAndSendZipResponse_Standalone(t *testing.T) {
 
 	// Execute
 	w := httptest.NewRecorder()
-	logger := log.GetLogger()
 	err = handler.generateAndSendZipResponse(w, logger, exportResponse)
 
 	// Assert
@@ -371,7 +403,17 @@ func TestGenerateAndSendZipResponse_Standalone(t *testing.T) {
 // TestNewExportHandler tests the handler constructor.
 func TestNewExportHandler(t *testing.T) {
 	mockAppService := applicationmock.NewApplicationServiceInterfaceMock(t)
-	exportService := newExportService(mockAppService)
+	mockIDPService := idpmock.NewIDPServiceInterfaceMock(t)
+	mockNotificationService := notificationmock.NewNotificationSenderMgtSvcInterfaceMock(t)
+	mockUserSchemaService := userschemamock.NewUserSchemaServiceInterfaceMock(t)
+	exporters := []immutableresource.ResourceExporter{
+		application.NewApplicationExporterForTest(mockAppService),
+		idp.NewIDPExporterForTest(mockIDPService),
+		notification.NewNotificationSenderExporterForTest(mockNotificationService),
+		userschema.NewUserSchemaExporterForTest(mockUserSchemaService),
+	}
+	parameterizer := newParameterizer(templatingRules{})
+	exportService := newExportService(exporters, parameterizer)
 
 	handler := newExportHandler(exportService)
 
@@ -662,13 +704,12 @@ func (suite *HandlerTestSuite) TestHandleExportZipRequest_ServiceError() {
 // TestHandleError_ClientError tests error handling for client errors.
 func (suite *HandlerTestSuite) TestHandleError_ClientError() {
 	w := httptest.NewRecorder()
-	logger := log.GetLogger()
 
 	// Create client error
 	clientErr := &ErrorNoResourcesFound
 
 	// Execute
-	suite.handler.handleError(w, logger, clientErr)
+	suite.handler.handleError(w, clientErr)
 
 	// Assert response
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
@@ -685,13 +726,12 @@ func (suite *HandlerTestSuite) TestHandleError_ClientError() {
 // TestHandleError_ServerError tests error handling for server errors.
 func (suite *HandlerTestSuite) TestHandleError_ServerError() {
 	w := httptest.NewRecorder()
-	logger := log.GetLogger()
 
 	// Create server error
 	serverErr := &ErrorInternalServerError
 
 	// Execute
-	suite.handler.handleError(w, logger, serverErr)
+	suite.handler.handleError(w, serverErr)
 
 	// Assert response
 	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
@@ -780,6 +820,7 @@ func (suite *HandlerTestSuite) TestHandleExportJSONRequest_EmptyFiles() {
 
 // BenchmarkGenerateAndSendZipResponse benchmarks ZIP generation performance.
 func BenchmarkGenerateAndSendZipResponse(b *testing.B) {
+	logger := log.GetLogger()
 	// Setup
 	config.ResetThunderRuntime()
 	testConfig := &config.Config{}
@@ -787,7 +828,17 @@ func BenchmarkGenerateAndSendZipResponse(b *testing.B) {
 	defer config.ResetThunderRuntime()
 
 	mockAppService := applicationmock.NewApplicationServiceInterfaceMock(b)
-	exportService := newExportService(mockAppService)
+	mockIDPService := idpmock.NewIDPServiceInterfaceMock(b)
+	mockNotificationService := notificationmock.NewNotificationSenderMgtSvcInterfaceMock(b)
+	mockUserSchemaService := userschemamock.NewUserSchemaServiceInterfaceMock(b)
+	exporters := []immutableresource.ResourceExporter{
+		application.NewApplicationExporterForTest(mockAppService),
+		idp.NewIDPExporterForTest(mockIDPService),
+		notification.NewNotificationSenderExporterForTest(mockNotificationService),
+		userschema.NewUserSchemaExporterForTest(mockUserSchemaService),
+	}
+	parameterizer := newParameterizer(templatingRules{})
+	exportService := newExportService(exporters, parameterizer)
 	handler := newExportHandler(exportService)
 
 	exportResponse := &ExportResponse{
@@ -800,8 +851,6 @@ func BenchmarkGenerateAndSendZipResponse(b *testing.B) {
 			},
 		},
 	}
-
-	logger := log.GetLogger()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -819,7 +868,17 @@ func setupBenchmarkTest(b *testing.B) (*exportHandler, []byte) {
 	b.Cleanup(func() { config.ResetThunderRuntime() })
 
 	mockAppService := applicationmock.NewApplicationServiceInterfaceMock(b)
-	exportService := newExportService(mockAppService)
+	mockIDPService := idpmock.NewIDPServiceInterfaceMock(b)
+	mockNotificationService := notificationmock.NewNotificationSenderMgtSvcInterfaceMock(b)
+	mockUserSchemaService := userschemamock.NewUserSchemaServiceInterfaceMock(b)
+	exporters := []immutableresource.ResourceExporter{
+		application.NewApplicationExporterForTest(mockAppService),
+		idp.NewIDPExporterForTest(mockIDPService),
+		notification.NewNotificationSenderExporterForTest(mockNotificationService),
+		userschema.NewUserSchemaExporterForTest(mockUserSchemaService),
+	}
+	parameterizer := newParameterizer(templatingRules{})
+	exportService := newExportService(exporters, parameterizer)
 	handler := newExportHandler(exportService)
 
 	// Setup mock expectation

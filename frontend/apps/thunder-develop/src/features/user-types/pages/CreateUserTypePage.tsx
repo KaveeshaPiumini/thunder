@@ -37,6 +37,7 @@ import {
 } from '@wso2/oxygen-ui';
 import {ArrowLeft, Plus, Save, X} from '@wso2/oxygen-ui-icons-react';
 import {useTranslation} from 'react-i18next';
+import {useLogger} from '@thunder/logger/react';
 import useCreateUserType from '../api/useCreateUserType';
 import useGetOrganizationUnits from '../../organization-units/api/useGetOrganizationUnits';
 import type {
@@ -50,6 +51,7 @@ import type {
 export default function CreateUserTypePage() {
   const navigate = useNavigate();
   const {t} = useTranslation();
+  const logger = useLogger('CreateUserTypePage');
   const {createUserType, loading, error: createError} = useCreateUserType();
   const {
     data: organizationUnitsResponse,
@@ -74,7 +76,10 @@ export default function CreateUserTypePage() {
   const [enumInput, setEnumInput] = useState<Record<string, string>>({});
   const [validationError, setValidationError] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const organizationUnits = useMemo(() => organizationUnitsResponse?.organizationUnits ?? [], [organizationUnitsResponse]);
+  const organizationUnits = useMemo(
+    () => organizationUnitsResponse?.organizationUnits ?? [],
+    [organizationUnitsResponse],
+  );
   const selectedOrganizationUnit = useMemo(
     () => organizationUnits.find((unit) => unit.id === ouId),
     [organizationUnits, ouId],
@@ -244,9 +249,8 @@ export default function CreateUserTypePage() {
 
       // Navigate back to list on success
       await navigate('/user-types');
-    } catch {
-      // TODO: Log the errors
-      // Tracker: https://github.com/asgardeo/thunder/issues/618
+    } catch (error) {
+      logger.error('Failed to create user type or navigate', {error, userTypeName: name});
     }
   };
 
@@ -255,7 +259,7 @@ export default function CreateUserTypePage() {
   };
 
   return (
-    <Box sx={{maxWidth: 1000, mx: 'auto', px: 2, position: 'relative'}}>
+    <Box>
       <Button
         onClick={() => {
           handleBack().catch(() => {
@@ -363,10 +367,7 @@ export default function CreateUserTypePage() {
 
           <FormControlLabel
             control={
-              <Checkbox
-                checked={allowSelfRegistration}
-                onChange={(e) => setAllowSelfRegistration(e.target.checked)}
-              />
+              <Checkbox checked={allowSelfRegistration} onChange={(e) => setAllowSelfRegistration(e.target.checked)} />
             }
             label={t('userTypes:allowSelfRegistration')}
             sx={{mb: 2}}
@@ -407,8 +408,6 @@ export default function CreateUserTypePage() {
                     <MenuItem value="number">{t('userTypes:types.number')}</MenuItem>
                     <MenuItem value="boolean">{t('userTypes:types.boolean')}</MenuItem>
                     <MenuItem value="enum">{t('userTypes:types.enum')}</MenuItem>
-                    <MenuItem value="array">{t('userTypes:types.array')}</MenuItem>
-                    <MenuItem value="object">{t('userTypes:types.object')}</MenuItem>
                   </Select>
                 </FormControl>
               </Box>

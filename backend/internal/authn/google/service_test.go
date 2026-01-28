@@ -21,7 +21,6 @@ package google
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"testing"
 	"time"
 
@@ -29,7 +28,9 @@ import (
 
 	"github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/authn/oidc"
+	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/user"
 	"github.com/asgardeo/thunder/tests/mocks/authn/oidcmock"
 	"github.com/asgardeo/thunder/tests/mocks/jwtmock"
@@ -58,7 +59,16 @@ func (suite *GoogleOIDCAuthnServiceTestSuite) SetupTest() {
 	suite.service = &googleOIDCAuthnService{
 		internal:   suite.mockOIDCService,
 		jwtService: suite.mockJWTService,
+		logger:     log.GetLogger().With(log.String(log.LoggerKeyComponentName, "GoogleOIDCAuthnService")),
 	}
+
+	// Initialize config with leeway for tests
+	testConfig := &config.Config{
+		JWT: config.JWTConfig{
+			Leeway: 30, // 30 seconds leeway for clock skew
+		},
+	}
+	_ = config.InitializeThunderRuntime("test", testConfig)
 }
 
 func (suite *GoogleOIDCAuthnServiceTestSuite) TestBuildAuthorizeURLSuccess() {
@@ -443,7 +453,12 @@ func (suite *GoogleOIDCAuthnServiceTestSuite) TestValidateIDTokenWithFailure() {
 			setupMocks: func(idToken string, config *oauth.OAuthClientConfig) {
 				suite.mockOIDCService.On("GetOAuthClientConfig", testGoogleIDPID).Return(config, nil).Once()
 				suite.mockJWTService.On("VerifyJWTSignatureWithJWKS", idToken, config.OAuthEndpoints.JwksEndpoint).
-					Return(errors.New("signature verification failed")).Once()
+					Return(&serviceerror.ServiceError{
+						Type:             serviceerror.ServerErrorType,
+						Code:             "SIGNATURE_VERIFICATION_FAILED",
+						Error:            "Signature verification failed",
+						ErrorDescription: "signature verification failed",
+					}).Once()
 			},
 		},
 		{
@@ -786,14 +801,213 @@ func generateTestJWT(claims map[string]interface{}) string {
 	return encodedHeader + "." + encodedClaims + "." + signature
 }
 
-func (suite *GoogleOIDCAuthnServiceTestSuite) TestCustomServiceError() {
-	// Ensure customServiceError sets description when provided and preserves original fields
-	base := serviceerror.ServiceError{Type: "T", Code: "C", Error: "E", ErrorDescription: "orig"}
+// ============================================================================
+// Leeway Tests - Time-based claim validation with clock skew tolerance
+// ============================================================================
 
-	res := customServiceError(base, "")
-	// when empty description provided, original description must be preserved
-	suite.Equal("orig", res.ErrorDescription)
-	// when custom description provided, it should be set
-	res2 := customServiceError(base, "my-desc")
-	suite.Equal("my-desc", res2.ErrorDescription)
+func (suite *GoogleOIDCAuthnServiceTestSuite) TestValidateIDToken_Leeway_ExpiredWithinLeeway_ShouldPass() {
+	now := time.Now()
+	// Token expired 10 seconds ago, but leeway is 30 seconds - should pass
+	claims := map[string]interface{}{
+		"iss": Issuer1,
+		"aud": testClientID,
+		"sub": "user123",
+		"exp": float64(now.Add(-10 * time.Second).Unix()), // Expired 10 seconds ago
+		"iat": float64(now.Add(-1 * time.Hour).Unix()),
+	}
+	idToken := generateTestJWT(claims)
+
+	oAuthConfig := &oauth.OAuthClientConfig{
+		ClientID:       testClientID,
+		ClientSecret:   "test-secret",
+		OAuthEndpoints: oauth.OAuthEndpoints{},
+	}
+
+	suite.mockOIDCService.On("GetOAuthClientConfig", testGoogleIDPID).Return(oAuthConfig, nil).Once()
+
+	err := suite.service.ValidateIDToken(testGoogleIDPID, idToken)
+	suite.Nil(err)
+}
+
+func (suite *GoogleOIDCAuthnServiceTestSuite) TestValidateIDToken_Leeway_ExpiredBeyondLeeway_ShouldFail() {
+	now := time.Now()
+	// Token expired 60 seconds ago, leeway is 30 seconds - should fail
+	claims := map[string]interface{}{
+		"iss": Issuer1,
+		"aud": testClientID,
+		"sub": "user123",
+		"exp": float64(now.Add(-60 * time.Second).Unix()), // Expired 60 seconds ago
+		"iat": float64(now.Add(-2 * time.Hour).Unix()),
+	}
+	idToken := generateTestJWT(claims)
+
+	oAuthConfig := &oauth.OAuthClientConfig{
+		ClientID:       testClientID,
+		ClientSecret:   "test-secret",
+		OAuthEndpoints: oauth.OAuthEndpoints{},
+	}
+
+	suite.mockOIDCService.On("GetOAuthClientConfig", testGoogleIDPID).Return(oAuthConfig, nil).Once()
+
+	err := suite.service.ValidateIDToken(testGoogleIDPID, idToken)
+	suite.NotNil(err)
+	suite.Equal(oidc.ErrorInvalidIDToken.Code, err.Code)
+	suite.Contains(err.ErrorDescription, "expired")
+}
+
+func (suite *GoogleOIDCAuthnServiceTestSuite) TestValidateIDToken_Leeway_IssuedInFutureWithinLeeway_ShouldPass() {
+	now := time.Now()
+	// Token iat is 10 seconds in future, but leeway is 30 seconds - should pass
+	claims := map[string]interface{}{
+		"iss": Issuer1,
+		"aud": testClientID,
+		"sub": "user123",
+		"exp": float64(now.Add(1 * time.Hour).Unix()),
+		"iat": float64(now.Add(10 * time.Second).Unix()), // Issued 10 seconds in future
+	}
+	idToken := generateTestJWT(claims)
+
+	oAuthConfig := &oauth.OAuthClientConfig{
+		ClientID:       testClientID,
+		ClientSecret:   "test-secret",
+		OAuthEndpoints: oauth.OAuthEndpoints{},
+	}
+
+	suite.mockOIDCService.On("GetOAuthClientConfig", testGoogleIDPID).Return(oAuthConfig, nil).Once()
+
+	err := suite.service.ValidateIDToken(testGoogleIDPID, idToken)
+	suite.Nil(err)
+}
+
+func (suite *GoogleOIDCAuthnServiceTestSuite) TestValidateIDToken_Leeway_IssuedInFutureBeyondLeeway_ShouldFail() {
+	now := time.Now()
+	// Token iat is 60 seconds in future, leeway is 30 seconds - should fail
+	claims := map[string]interface{}{
+		"iss": Issuer1,
+		"aud": testClientID,
+		"sub": "user123",
+		"exp": float64(now.Add(2 * time.Hour).Unix()),
+		"iat": float64(now.Add(60 * time.Second).Unix()), // Issued 60 seconds in future
+	}
+	idToken := generateTestJWT(claims)
+
+	oAuthConfig := &oauth.OAuthClientConfig{
+		ClientID:       testClientID,
+		ClientSecret:   "test-secret",
+		OAuthEndpoints: oauth.OAuthEndpoints{},
+	}
+
+	suite.mockOIDCService.On("GetOAuthClientConfig", testGoogleIDPID).Return(oAuthConfig, nil).Once()
+
+	err := suite.service.ValidateIDToken(testGoogleIDPID, idToken)
+	suite.NotNil(err)
+	suite.Equal(oidc.ErrorInvalidIDToken.Code, err.Code)
+	suite.Contains(err.ErrorDescription, "future")
+}
+
+func (suite *GoogleOIDCAuthnServiceTestSuite) TestValidateIDToken_Leeway_ZeroLeeway_ExpiredShouldFail() {
+	// Reset and reinitialize with zero leeway
+	config.ResetThunderRuntime()
+	testConfig := &config.Config{
+		JWT: config.JWTConfig{
+			Leeway: 0, // No leeway
+		},
+	}
+	_ = config.InitializeThunderRuntime("test", testConfig)
+
+	now := time.Now()
+	// Token expired 1 second ago - should fail with zero leeway
+	claims := map[string]interface{}{
+		"iss": Issuer1,
+		"aud": testClientID,
+		"sub": "user123",
+		"exp": float64(now.Add(-1 * time.Second).Unix()), // Expired 1 second ago
+		"iat": float64(now.Add(-1 * time.Hour).Unix()),
+	}
+	idToken := generateTestJWT(claims)
+
+	oAuthConfig := &oauth.OAuthClientConfig{
+		ClientID:       testClientID,
+		ClientSecret:   "test-secret",
+		OAuthEndpoints: oauth.OAuthEndpoints{},
+	}
+
+	suite.mockOIDCService.On("GetOAuthClientConfig", testGoogleIDPID).Return(oAuthConfig, nil).Once()
+
+	err := suite.service.ValidateIDToken(testGoogleIDPID, idToken)
+	suite.NotNil(err)
+	suite.Equal(oidc.ErrorInvalidIDToken.Code, err.Code)
+	suite.Contains(err.ErrorDescription, "expired")
+}
+
+func (suite *GoogleOIDCAuthnServiceTestSuite) TestValidateIDToken_Leeway_IatExactlyAtBoundary_ShouldPass() {
+	// Reset and reinitialize with 30 second leeway
+	config.ResetThunderRuntime()
+	testConfig := &config.Config{
+		JWT: config.JWTConfig{
+			Leeway: 30, // 30 seconds leeway
+		},
+	}
+	_ = config.InitializeThunderRuntime("test", testConfig)
+
+	now := time.Now()
+	// Token iat is exactly at leeway boundary (now + 30 seconds)
+	// Condition: time.Now().Unix() < int64(iat) - leeway
+	// = now < (now + 30) - 30 = now < now = FALSE (should pass)
+	claims := map[string]interface{}{
+		"iss": Issuer1,
+		"aud": testClientID,
+		"sub": "user123",
+		"exp": float64(now.Add(1 * time.Hour).Unix()),
+		"iat": float64(now.Add(30 * time.Second).Unix()), // Exactly at boundary
+	}
+	idToken := generateTestJWT(claims)
+
+	oAuthConfig := &oauth.OAuthClientConfig{
+		ClientID:       testClientID,
+		ClientSecret:   "test-secret",
+		OAuthEndpoints: oauth.OAuthEndpoints{},
+	}
+
+	suite.mockOIDCService.On("GetOAuthClientConfig", testGoogleIDPID).Return(oAuthConfig, nil).Once()
+
+	err := suite.service.ValidateIDToken(testGoogleIDPID, idToken)
+	suite.Nil(err)
+}
+
+func (suite *GoogleOIDCAuthnServiceTestSuite) TestValidateIDToken_Leeway_IatJustBeyondBoundary_ShouldFail() {
+	// Reset and reinitialize with 30 second leeway
+	config.ResetThunderRuntime()
+	testConfig := &config.Config{
+		JWT: config.JWTConfig{
+			Leeway: 30, // 30 seconds leeway
+		},
+	}
+	_ = config.InitializeThunderRuntime("test", testConfig)
+
+	now := time.Now()
+	// Token iat is just beyond leeway boundary (now + 31 seconds)
+	// Condition: time.Now().Unix() < int64(iat) - leeway
+	// = now < (now + 31) - 30 = now < now + 1 = TRUE (should fail)
+	claims := map[string]interface{}{
+		"iss": Issuer1,
+		"aud": testClientID,
+		"sub": "user123",
+		"exp": float64(now.Add(2 * time.Hour).Unix()),
+		"iat": float64(now.Add(31 * time.Second).Unix()), // Just beyond boundary
+	}
+	idToken := generateTestJWT(claims)
+
+	oAuthConfig := &oauth.OAuthClientConfig{
+		ClientID:       testClientID,
+		ClientSecret:   "test-secret",
+		OAuthEndpoints: oauth.OAuthEndpoints{},
+	}
+
+	suite.mockOIDCService.On("GetOAuthClientConfig", testGoogleIDPID).Return(oAuthConfig, nil).Once()
+
+	err := suite.service.ValidateIDToken(testGoogleIDPID, idToken)
+	suite.NotNil(err)
+	suite.Equal(oidc.ErrorInvalidIDToken.Code, err.Code)
+	suite.Contains(err.ErrorDescription, "future")
 }

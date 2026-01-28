@@ -47,11 +47,9 @@ var (
 	testApp = Application{
 		Name:                      "Test App",
 		Description:               "Test application for API testing",
-		IsRegistrationFlowEnabled: false,
 		URL:                       "https://testapp.example.com",
 		LogoURL:                   "https://testapp.example.com/logo.png",
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
+		IsRegistrationFlowEnabled: false,
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -77,10 +75,9 @@ var (
 		Name:                      "App To Create",
 		Description:               "Application to create for API testing",
 		IsRegistrationFlowEnabled: true,
+		Template:                  "spa",
 		URL:                       "https://apptocreate.example.com",
 		LogoURL:                   "https://apptocreate.example.com/logo.png",
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -106,10 +103,9 @@ var (
 		Name:                      "Updated App",
 		Description:               "Updated Description",
 		IsRegistrationFlowEnabled: false,
+		Template:                  "mobile",
 		URL:                       "https://appToUpdate.example.com",
 		LogoURL:                   "https://appToUpdate.example.com/logo.png",
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -133,9 +129,11 @@ var (
 )
 
 var (
-	testOUID        string
-	testAppID       string
-	testAppInstance Application
+	testOUID                  string
+	defaultAuthFlowID         string
+	defaultRegistrationFlowID string
+	testAppID                 string
+	testAppInstance           Application
 )
 
 type ApplicationAPITestSuite struct {
@@ -153,6 +151,15 @@ func (ts *ApplicationAPITestSuite) SetupSuite() {
 	ouID, err := testutils.CreateOrganizationUnit(testOU)
 	ts.Require().NoError(err, "Failed to create test organization unit")
 	testOUID = ouID
+
+	// Get Flow IDs
+	defaultAuthFlowID, err = testutils.GetFlowIDByHandle("default-basic-flow", "AUTHENTICATION")
+	ts.Require().NoError(err, "Failed to get basic auth flow ID")
+	testApp.AuthFlowID = defaultAuthFlowID
+
+	defaultRegistrationFlowID, err = testutils.GetFlowIDByHandle("default-basic-flow", "REGISTRATION")
+	ts.Require().NoError(err, "Failed to get basic registration flow ID")
+	testApp.RegistrationFlowID = defaultRegistrationFlowID
 
 	// Create test application
 	app1ID, err := createApplication(testApp)
@@ -258,9 +265,9 @@ func (ts *ApplicationAPITestSuite) TestApplicationListingWithLogoURL() {
 	appWithLogo := Application{
 		Name:                      "App With Logo",
 		Description:               "Application with logo URL",
+		AuthFlowID:                defaultAuthFlowID,
+		RegistrationFlowID:        defaultRegistrationFlowID,
 		IsRegistrationFlowEnabled: false,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		URL:                       "https://appwithlogo.example.com",
 		LogoURL:                   "https://appwithlogo.example.com/logo.png",
 		Certificate: &ApplicationCert{
@@ -287,9 +294,9 @@ func (ts *ApplicationAPITestSuite) TestApplicationListingWithLogoURL() {
 	appWithoutLogo := Application{
 		Name:                      "App Without Logo",
 		Description:               "Application without logo URL",
+		AuthFlowID:                defaultAuthFlowID,
+		RegistrationFlowID:        defaultRegistrationFlowID,
 		IsRegistrationFlowEnabled: false,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		URL:                       "https://appwithoutlogo.example.com",
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
@@ -390,6 +397,10 @@ func (ts *ApplicationAPITestSuite) TestApplicationListingWithLogoURL() {
 
 // Test application get by ID
 func (ts *ApplicationAPITestSuite) TestApplicationGetByID() {
+	// Set default flow IDs
+	appToCreate.AuthFlowID = defaultAuthFlowID
+	appToCreate.RegistrationFlowID = defaultRegistrationFlowID
+
 	// Create an application for get testing
 	appID, err := createApplication(appToCreate)
 	if err != nil {
@@ -414,6 +425,10 @@ func (ts *ApplicationAPITestSuite) TestApplicationGetByID() {
 
 // Test application update
 func (ts *ApplicationAPITestSuite) TestApplicationUpdate() {
+	// Set default flow IDs
+	appToCreate.AuthFlowID = defaultAuthFlowID
+	appToCreate.RegistrationFlowID = defaultRegistrationFlowID
+
 	// Create an application for update testing
 	appID, err := createApplication(appToCreate)
 	if err != nil {
@@ -429,6 +444,10 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdate() {
 	// Add the ID to the application to update
 	appToUpdateWithID := appToUpdate
 	appToUpdateWithID.ID = appID
+
+	// Set the default flow IDs
+	appToUpdateWithID.AuthFlowID = defaultAuthFlowID
+	appToUpdateWithID.RegistrationFlowID = defaultRegistrationFlowID
 
 	appJSON, err := json.Marshal(appToUpdateWithID)
 	if err != nil {
@@ -529,6 +548,8 @@ func retrieveAndValidateApplicationDetails(ts *ApplicationAPITestSuite, expected
 			Value: "",
 		}
 	}
+	appForComparison.AuthFlowID = defaultAuthFlowID
+	appForComparison.RegistrationFlowID = defaultRegistrationFlowID
 
 	// If expected doesn't have Token but API returned one (default), copy it to expected
 	// This handles cases where the server provides default token config
@@ -617,11 +638,11 @@ func (ts *ApplicationAPITestSuite) TestApplicationCreationWithDefaults() {
 	appWithDefaults := Application{
 		Name:                      "App With Defaults",
 		Description:               "Application to test default values",
-		IsRegistrationFlowEnabled: false,
 		URL:                       "https://defaults.example.com",
 		LogoURL:                   "https://defaults.example.com/logo.png",
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
+		IsRegistrationFlowEnabled: false,
+		AuthFlowID:                defaultAuthFlowID,
+		RegistrationFlowID:        defaultRegistrationFlowID,
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -690,11 +711,11 @@ func (ts *ApplicationAPITestSuite) TestApplicationCreationWithInvalidTokenEndpoi
 	appWithInvalidAuthMethod := Application{
 		Name:                      "App With Invalid Auth Method",
 		Description:               "Application to test invalid token endpoint auth method",
-		IsRegistrationFlowEnabled: false,
 		URL:                       "https://invalid.example.com",
 		LogoURL:                   "https://invalid.example.com/logo.png",
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
+		AuthFlowID:                defaultAuthFlowID,
+		RegistrationFlowID:        defaultRegistrationFlowID,
+		IsRegistrationFlowEnabled: false,
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -724,11 +745,11 @@ func (ts *ApplicationAPITestSuite) TestApplicationCreationWithInvalidTokenEndpoi
 	appWithEmptyAuthMethod := Application{
 		Name:                      "App With Empty Auth Method",
 		Description:               "Application to test empty token endpoint auth method",
-		IsRegistrationFlowEnabled: false,
 		URL:                       "https://empty.example.com",
 		LogoURL:                   "https://empty.example.com/logo.png",
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
+		AuthFlowID:                defaultAuthFlowID,
+		RegistrationFlowID:        defaultRegistrationFlowID,
+		IsRegistrationFlowEnabled: false,
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -795,11 +816,11 @@ func (ts *ApplicationAPITestSuite) TestApplicationCreationWithPartialDefaults() 
 	appWithPartialDefaults := Application{
 		Name:                      "App With Partial Defaults",
 		Description:               "Application to test partial default values",
-		IsRegistrationFlowEnabled: false,
 		URL:                       "https://partial.example.com",
 		LogoURL:                   "https://partial.example.com/logo.png",
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
+		AuthFlowID:                defaultAuthFlowID,
+		RegistrationFlowID:        defaultRegistrationFlowID,
+		IsRegistrationFlowEnabled: false,
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -2450,6 +2471,35 @@ func (ts *ApplicationAPITestSuite) TestApplicationPublicClientWithoutSecret() {
 	ts.Assert().Equal("none", string(retrievedApp.InboundAuthConfig[0].OAuthAppConfig.TokenEndpointAuthMethod))
 }
 
+// TestApplicationPublicClientPKCEValidation tests that public clients must have PKCE required.
+func (ts *ApplicationAPITestSuite) TestApplicationPublicClientPKCEValidation() {
+	app := Application{
+		Name:        "Public Client PKCE Validation",
+		Description: "Public client with PKCE explicitly set to false should fail",
+		Certificate: &ApplicationCert{Type: "NONE", Value: ""},
+		InboundAuthConfig: []InboundAuthConfig{
+			{
+				Type: "oauth2",
+				OAuthAppConfig: &OAuthAppConfig{
+					RedirectURIs:            []string{"https://public-pkce-validation.example.com/callback"},
+					GrantTypes:              []string{"authorization_code"},
+					ResponseTypes:           []string{"code"},
+					TokenEndpointAuthMethod: "none",
+					PublicClient:            true,
+					PKCERequired:            false, // Explicitly set to false - should fail validation
+					Scopes:                  []string{"openid", "profile"},
+				},
+			},
+		},
+	}
+
+	// Attempt to create application - should fail validation
+	appID, err := createApplication(app)
+	ts.Require().Error(err, "Public client with pkce_required=false should fail validation")
+	ts.Assert().Contains(err.Error(), "PKCE required", "Error should mention PKCE requirement")
+	ts.Assert().Empty(appID, "Application ID should be empty on validation failure")
+}
+
 // TestApplicationWithRefreshTokenGrant tests app with refresh_token grant.
 func (ts *ApplicationAPITestSuite) TestApplicationWithRefreshTokenGrant() {
 	app := Application{
@@ -2744,31 +2794,31 @@ func (ts *ApplicationAPITestSuite) TestApplicationDeleteNonExistent() {
 	ts.Assert().Equal(http.StatusNoContent, resp.StatusCode)
 }
 
-// TestApplicationWithInvalidAuthFlowGraphID tests creating app with invalid auth flow graph ID.
-func (ts *ApplicationAPITestSuite) TestApplicationWithInvalidAuthFlowGraphID() {
+// TestApplicationWithInvalidAuthFlowID tests creating app with invalid auth flow ID.
+func (ts *ApplicationAPITestSuite) TestApplicationWithInvalidAuthFlowID() {
 	app := Application{
-		Name:            "Invalid Auth Flow App",
-		Description:     "App with invalid auth flow graph ID",
-		AuthFlowGraphID: "non_existent_auth_flow_config",
-		Certificate:     &ApplicationCert{Type: "NONE", Value: ""},
+		Name:        "Invalid Auth Flow App",
+		Description: "App with invalid auth flow ID",
+		AuthFlowID:  "edc013d0-e893-4dc0-990c-3e1d203e005b",
+		Certificate: &ApplicationCert{Type: "NONE", Value: ""},
 	}
 
 	_, err := createApplication(app)
-	ts.Assert().Error(err, "Should fail with invalid auth flow graph ID")
+	ts.Assert().Error(err, "Should fail with invalid auth flow ID")
 }
 
-// TestApplicationWithInvalidRegistrationFlowGraphID tests creating app with invalid registration flow graph ID.
-func (ts *ApplicationAPITestSuite) TestApplicationWithInvalidRegistrationFlowGraphID() {
+// TestApplicationWithInvalidRegistrationFlowID tests creating app with invalid registration flow ID.
+func (ts *ApplicationAPITestSuite) TestApplicationWithInvalidRegistrationFlowID() {
 	app := Application{
 		Name:                      "Invalid Registration Flow App",
-		Description:               "App with invalid registration flow graph ID",
-		RegistrationFlowGraphID:   "non_existent_registration_flow_config",
+		Description:               "App with invalid registration flow ID",
+		RegistrationFlowID:        "80024fb3-29ed-4c33-aa48-8aee5e96d522",
 		IsRegistrationFlowEnabled: true,
 		Certificate:               &ApplicationCert{Type: "NONE", Value: ""},
 	}
 
 	_, err := createApplication(app)
-	ts.Assert().Error(err, "Should fail with invalid registration flow graph ID")
+	ts.Assert().Error(err, "Should fail with invalid registration flow ID")
 }
 
 // TestApplicationWithDuplicateName tests creating app with duplicate name.
@@ -2892,12 +2942,12 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdateInvalidAuthFlow() {
 	ts.Require().NoError(err)
 	defer deleteApplication(appID)
 
-	// Try to update with invalid auth flow graph ID
+	// Try to update with invalid auth flow ID
 	updateApp := Application{
-		Name:            "Updated with Invalid Auth Flow",
-		Description:     "Updated description",
-		AuthFlowGraphID: "non_existent_auth_flow_config",
-		Certificate:     &ApplicationCert{Type: "NONE", Value: ""},
+		Name:        "Updated with Invalid Auth Flow",
+		Description: "Updated description",
+		AuthFlowID:  "edc013d0-e893-4dc0-990c-3e1d203e005b",
+		Certificate: &ApplicationCert{Type: "NONE", Value: ""},
 	}
 
 	appJSON, err := json.Marshal(updateApp)
@@ -3306,13 +3356,13 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdateWithDuplicateClientID() 
 	ts.Assert().True(resp.StatusCode == http.StatusConflict || resp.StatusCode == http.StatusBadRequest)
 }
 
-// TestApplicationCreateWithDefaultAuthFlowGraphID tests creating application without auth flow graph ID (should use default)
-func (ts *ApplicationAPITestSuite) TestApplicationCreateWithDefaultAuthFlowGraphID() {
+// TestApplicationCreateWithDefaultAuthFlowID tests creating application without auth flow ID (should use default)
+func (ts *ApplicationAPITestSuite) TestApplicationCreateWithDefaultAuthFlowID() {
 	app := Application{
 		Name:        "Default Auth Flow Test",
-		Description: "Test default auth flow graph ID",
+		Description: "Test default auth flow ID",
 		Certificate: &ApplicationCert{Type: "NONE", Value: ""},
-		// AuthFlowGraphID not set - should use default
+		// AuthFlowID not set - should use default
 	}
 
 	appID, err := createApplication(app)
@@ -3322,18 +3372,19 @@ func (ts *ApplicationAPITestSuite) TestApplicationCreateWithDefaultAuthFlowGraph
 	retrievedApp, err := getApplicationByID(appID)
 	ts.Require().NoError(err)
 
-	// Verify default auth flow graph ID was set
-	ts.Assert().NotEmpty(retrievedApp.AuthFlowGraphID)
+	// Verify default auth flow ID was set
+	ts.Assert().NotEmpty(retrievedApp.AuthFlowID)
 }
 
-// TestApplicationCreateWithInferredRegistrationFlowGraphID tests creating application with registration flow inferred from auth flow
-func (ts *ApplicationAPITestSuite) TestApplicationCreateWithInferredRegistrationFlowGraphID() {
+// TestApplicationCreateWithInferredRegistrationFlowID tests creating application with registration
+// flow inferred from auth flow
+func (ts *ApplicationAPITestSuite) TestApplicationCreateWithInferredRegistrationFlowID() {
 	app := Application{
 		Name:                      "Inferred Registration Flow Test",
 		Description:               "Test registration flow inference",
 		IsRegistrationFlowEnabled: true,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		// RegistrationFlowGraphID not set - should be inferred from auth flow
+		AuthFlowID:                defaultAuthFlowID,
+		// RegistrationFlowID not set - should be inferred from auth flow
 		Certificate: &ApplicationCert{Type: "NONE", Value: ""},
 	}
 
@@ -3344,9 +3395,9 @@ func (ts *ApplicationAPITestSuite) TestApplicationCreateWithInferredRegistration
 	retrievedApp, err := getApplicationByID(appID)
 	ts.Require().NoError(err)
 
-	// Verify registration flow graph ID was inferred
-	ts.Assert().NotEmpty(retrievedApp.RegistrationFlowGraphID)
-	ts.Assert().Equal("registration_flow_config_basic", retrievedApp.RegistrationFlowGraphID)
+	// Verify registration flow ID was inferred
+	ts.Assert().NotEmpty(retrievedApp.RegistrationFlowID)
+	ts.Assert().Equal(defaultRegistrationFlowID, retrievedApp.RegistrationFlowID)
 }
 
 // TestApplicationUpdateRemoveCertificate tests updating application to remove certificate
@@ -3924,8 +3975,6 @@ func (ts *ApplicationAPITestSuite) TestApplicationWithAllowedUserTypes() {
 		Name:                      "App With Allowed User Types",
 		Description:               "Application with allowed user types",
 		IsRegistrationFlowEnabled: false,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		AllowedUserTypes:          []string{"employee", "customer"},
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
@@ -3969,8 +4018,6 @@ func (ts *ApplicationAPITestSuite) TestApplicationWithInvalidAllowedUserTypes() 
 		Name:                      "App With Invalid User Types",
 		Description:               "Application with invalid user types",
 		IsRegistrationFlowEnabled: false,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		AllowedUserTypes:          []string{"nonexistent_type_1", "nonexistent_type_2"},
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
@@ -4065,8 +4112,6 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdateWithAllowedUserTypes() {
 		Name:                      "App To Update With User Types",
 		Description:               "Application to update",
 		IsRegistrationFlowEnabled: false,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -4130,8 +4175,6 @@ func (ts *ApplicationAPITestSuite) TestApplicationUpdateWithInvalidAllowedUserTy
 		Name:                      "App To Update With Invalid Types",
 		Description:               "Application to update",
 		IsRegistrationFlowEnabled: false,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
 			Value: "",
@@ -4200,8 +4243,6 @@ func (ts *ApplicationAPITestSuite) TestApplicationWithEmptyAllowedUserTypes() {
 		Name:                      "App With Empty Allowed User Types",
 		Description:               "Application with empty allowed user types",
 		IsRegistrationFlowEnabled: false,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		AllowedUserTypes:          []string{},
 		Certificate: &ApplicationCert{
 			Type:  "NONE",
@@ -4267,8 +4308,6 @@ func (ts *ApplicationAPITestSuite) TestApplicationWithPartialInvalidAllowedUserT
 		Name:                      "App With Partial Invalid User Types",
 		Description:               "Application with mix of valid and invalid user types",
 		IsRegistrationFlowEnabled: false,
-		AuthFlowGraphID:           "auth_flow_config_basic",
-		RegistrationFlowGraphID:   "registration_flow_config_basic",
 		AllowedUserTypes:          []string{"valid_user_type", "invalid_user_type"},
 		Certificate: &ApplicationCert{
 			Type:  "NONE",

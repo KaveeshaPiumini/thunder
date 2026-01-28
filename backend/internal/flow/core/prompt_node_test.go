@@ -35,18 +35,18 @@ func TestPromptOnlyNodeTestSuite(t *testing.T) {
 }
 
 func (s *PromptOnlyNodeTestSuite) TestNewPromptOnlyNode() {
-	node := newPromptOnlyNode("prompt-1", map[string]interface{}{"key": "value"}, true, false)
+	node := newPromptNode("prompt-1", map[string]interface{}{"key": "value"}, true, false)
 
 	s.NotNil(node)
 	s.Equal("prompt-1", node.GetID())
-	s.Equal(common.NodeTypePromptOnly, node.GetType())
+	s.Equal(common.NodeTypePrompt, node.GetType())
 	s.True(node.IsStartNode())
 	s.False(node.IsFinalNode())
 }
 
-func (s *PromptOnlyNodeTestSuite) TestExecuteNoInputData() {
-	node := newPromptOnlyNode("prompt-1", map[string]interface{}{}, false, false)
-	ctx := &NodeContext{FlowID: "test-flow", UserInputData: map[string]string{}}
+func (s *PromptOnlyNodeTestSuite) TestExecuteNoInputs() {
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	ctx := &NodeContext{FlowID: "test-flow", UserInputs: map[string]string{}}
 
 	resp, err := node.Execute(ctx)
 
@@ -59,7 +59,7 @@ func (s *PromptOnlyNodeTestSuite) TestExecuteNoInputData() {
 func (s *PromptOnlyNodeTestSuite) TestExecuteWithRequiredData() {
 	tests := []struct {
 		name           string
-		userInputData  map[string]string
+		userInputs     map[string]string
 		expectComplete bool
 		requiredCount  int
 	}{
@@ -75,13 +75,19 @@ func (s *PromptOnlyNodeTestSuite) TestExecuteWithRequiredData() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			node := newPromptOnlyNode("prompt-1", map[string]interface{}{}, false, false)
-			node.SetInputData([]common.InputData{
-				{Name: "username", Required: true},
-				{Name: "email", Required: true},
+			node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+			promptNode := node.(PromptNodeInterface)
+			promptNode.SetPrompts([]common.Prompt{
+				{
+					Inputs: []common.Input{
+						{Identifier: "username", Required: true},
+						{Identifier: "email", Required: true},
+					},
+					Action: &common.Action{Ref: "submit", NextNode: "next"},
+				},
 			})
 
-			ctx := &NodeContext{FlowID: "test-flow", UserInputData: tt.userInputData}
+			ctx := &NodeContext{FlowID: "test-flow", CurrentAction: "submit", UserInputs: tt.userInputs}
 			resp, err := node.Execute(ctx)
 
 			s.Nil(err)
@@ -93,20 +99,30 @@ func (s *PromptOnlyNodeTestSuite) TestExecuteWithRequiredData() {
 			} else {
 				s.Equal(common.NodeStatusIncomplete, resp.Status)
 				s.Equal(common.NodeResponseTypeView, resp.Type)
-				s.Len(resp.RequiredData, tt.requiredCount)
+				s.Len(resp.Inputs, tt.requiredCount)
 			}
 		})
 	}
 }
 
 func (s *PromptOnlyNodeTestSuite) TestExecuteWithOptionalData() {
-	node := newPromptOnlyNode("prompt-1", map[string]interface{}{}, false, false)
-	node.SetInputData([]common.InputData{
-		{Name: "username", Required: true},
-		{Name: "nickname", Required: false},
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+				{Identifier: "nickname", Required: false},
+			},
+			Action: &common.Action{Ref: "submit", NextNode: "next"},
+		},
 	})
 
-	ctx := &NodeContext{FlowID: "test-flow", UserInputData: map[string]string{"username": "testuser"}}
+	ctx := &NodeContext{
+		FlowID:        "test-flow",
+		CurrentAction: "submit",
+		UserInputs:    map[string]string{"username": "testuser"},
+	}
 	resp, err := node.Execute(ctx)
 
 	s.Nil(err)
@@ -116,26 +132,293 @@ func (s *PromptOnlyNodeTestSuite) TestExecuteWithOptionalData() {
 }
 
 func (s *PromptOnlyNodeTestSuite) TestExecuteMissingRequiredOnly() {
-	node := newPromptOnlyNode("prompt-1", map[string]interface{}{}, false, false)
-	node.SetInputData([]common.InputData{
-		{Name: "username", Required: true},
-		{Name: "nickname", Required: false},
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+				{Identifier: "nickname", Required: false},
+			},
+			Action: &common.Action{Ref: "submit", NextNode: "next"},
+		},
 	})
 
-	ctx := &NodeContext{FlowID: "test-flow", UserInputData: map[string]string{"nickname": "testnick"}}
+	ctx := &NodeContext{
+		FlowID:        "test-flow",
+		CurrentAction: "submit",
+		UserInputs:    map[string]string{"nickname": "testnick"},
+	}
 	resp, err := node.Execute(ctx)
 
 	s.Nil(err)
 	s.NotNil(resp)
 	s.Equal(common.NodeStatusIncomplete, resp.Status)
 	s.Equal(common.NodeResponseTypeView, resp.Type)
-	s.Len(resp.RequiredData, 1)
+	s.Len(resp.Inputs, 1)
 
 	foundRequired := false
-	for _, data := range resp.RequiredData {
-		if data.Name == "username" && data.Required {
+	for _, data := range resp.Inputs {
+		if data.Identifier == "username" && data.Required {
 			foundRequired = true
 		}
 	}
 	s.True(foundRequired)
+}
+
+func (s *PromptOnlyNodeTestSuite) TestExecuteWithVerboseModeEnabled() {
+	meta := map[string]interface{}{
+		"components": []interface{}{
+			map[string]interface{}{
+				"type":  "TEXT",
+				"id":    "text_001",
+				"label": "Welcome",
+			},
+		},
+	}
+
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+	promptNode.SetMeta(meta)
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+			},
+			Action: &common.Action{Ref: "submit", NextNode: "next"},
+		},
+	})
+
+	// Test with verbose mode enabled
+	ctx := &NodeContext{
+		FlowID:     "test-flow",
+		UserInputs: map[string]string{},
+		Verbose:    true,
+	}
+	resp, err := node.Execute(ctx)
+
+	s.Nil(err)
+	s.NotNil(resp)
+	s.Equal(common.NodeStatusIncomplete, resp.Status)
+	s.Equal(common.NodeResponseTypeView, resp.Type)
+	s.NotNil(resp.Meta)
+	s.Equal(meta, resp.Meta)
+}
+
+func (s *PromptOnlyNodeTestSuite) TestExecuteWithVerboseModeDisabled() {
+	meta := map[string]interface{}{
+		"components": []interface{}{
+			map[string]interface{}{
+				"type":  "TEXT",
+				"id":    "text_001",
+				"label": "Welcome",
+			},
+		},
+	}
+
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+	promptNode.SetMeta(meta)
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+			},
+			Action: &common.Action{Ref: "submit", NextNode: "next"},
+		},
+	})
+
+	// Test with verbose mode disabled (default)
+	ctx := &NodeContext{
+		FlowID:     "test-flow",
+		UserInputs: map[string]string{},
+		Verbose:    false,
+	}
+	resp, err := node.Execute(ctx)
+
+	s.Nil(err)
+	s.NotNil(resp)
+	s.Equal(common.NodeStatusIncomplete, resp.Status)
+	s.Equal(common.NodeResponseTypeView, resp.Type)
+	s.Nil(resp.Meta)
+}
+
+func (s *PromptOnlyNodeTestSuite) TestExecuteVerboseModeNoMeta() {
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+			},
+			Action: &common.Action{Ref: "submit", NextNode: "next"},
+		},
+	})
+
+	// Test with verbose mode enabled but no meta defined
+	ctx := &NodeContext{
+		FlowID:     "test-flow",
+		UserInputs: map[string]string{},
+		Verbose:    true,
+	}
+	resp, err := node.Execute(ctx)
+
+	s.Nil(err)
+	s.NotNil(resp)
+	s.Equal(common.NodeStatusIncomplete, resp.Status)
+	s.Equal(common.NodeResponseTypeView, resp.Type)
+	s.Nil(resp.Meta)
+}
+
+func (s *PromptOnlyNodeTestSuite) TestExecuteWithSets_ActionWithInputs() {
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+				{Identifier: "password", Required: true},
+			},
+			Action: &common.Action{Ref: "action_001", NextNode: "basic_auth"},
+		},
+		{
+			Action: &common.Action{Ref: "action_002", NextNode: "google_auth"},
+		},
+	})
+
+	// Select action_001 but don't provide inputs
+	ctx := &NodeContext{
+		FlowID:        "test-flow",
+		CurrentAction: "action_001",
+		UserInputs:    map[string]string{},
+	}
+	resp, err := node.Execute(ctx)
+
+	s.Nil(err)
+	s.NotNil(resp)
+	s.Equal(common.NodeStatusIncomplete, resp.Status)
+	s.Len(resp.Inputs, 2)
+}
+
+func (s *PromptOnlyNodeTestSuite) TestExecuteWithSets_ActionWithoutInputs() {
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+				{Identifier: "password", Required: true},
+			},
+			Action: &common.Action{Ref: "action_001", NextNode: "basic_auth"},
+		},
+		{
+			Action: &common.Action{Ref: "action_002", NextNode: "google_auth"},
+		},
+	})
+
+	// Select action_002 which has no inputs
+	ctx := &NodeContext{
+		FlowID:        "test-flow",
+		CurrentAction: "action_002",
+		UserInputs:    map[string]string{},
+	}
+	resp, err := node.Execute(ctx)
+
+	s.Nil(err)
+	s.NotNil(resp)
+	s.Equal(common.NodeStatusComplete, resp.Status)
+	s.Equal("google_auth", resp.NextNodeID)
+}
+
+func (s *PromptOnlyNodeTestSuite) TestExecuteWithSets_ActionWithInputsProvided() {
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+				{Identifier: "password", Required: true},
+			},
+			Action: &common.Action{Ref: "action_001", NextNode: "basic_auth"},
+		},
+	})
+
+	// Select action_001 with all inputs provided
+	ctx := &NodeContext{
+		FlowID:        "test-flow",
+		CurrentAction: "action_001",
+		UserInputs: map[string]string{
+			"username": "testuser",
+			"password": "testpass",
+		},
+	}
+	resp, err := node.Execute(ctx)
+
+	s.Nil(err)
+	s.NotNil(resp)
+	s.Equal(common.NodeStatusComplete, resp.Status)
+	s.Equal("basic_auth", resp.NextNodeID)
+}
+
+func (s *PromptOnlyNodeTestSuite) TestExecuteWithSets_NoActionSelected() {
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{{Identifier: "username", Required: true}},
+			Action: &common.Action{Ref: "action_001", NextNode: "basic_auth"},
+		},
+		{
+			Action: &common.Action{Ref: "action_002", NextNode: "google_auth"},
+		},
+	})
+
+	ctx := &NodeContext{
+		FlowID:        "test-flow",
+		CurrentAction: "",
+		UserInputs:    map[string]string{},
+	}
+	resp, err := node.Execute(ctx)
+
+	s.Nil(err)
+	s.NotNil(resp)
+	s.Equal(common.NodeStatusIncomplete, resp.Status)
+	s.Len(resp.Actions, 2)
+	s.Len(resp.Inputs, 1, "Should return all inputs from sets when no action selected")
+	s.Equal("username", resp.Inputs[0].Identifier)
+}
+
+func (s *PromptOnlyNodeTestSuite) TestExecuteWithInvalidAction() {
+	node := newPromptNode("prompt-1", map[string]interface{}{}, false, false)
+	promptNode := node.(PromptNodeInterface)
+
+	promptNode.SetPrompts([]common.Prompt{
+		{
+			Inputs: []common.Input{
+				{Identifier: "username", Required: true},
+			},
+			Action: &common.Action{Ref: "login", NextNode: "auth"},
+		},
+	})
+
+	// Select an action that doesn't exist
+	ctx := &NodeContext{
+		FlowID:        "test-flow",
+		CurrentAction: "unknown_action",
+		UserInputs:    map[string]string{},
+	}
+	resp, err := node.Execute(ctx)
+
+	s.Nil(err)
+	s.NotNil(resp)
+	// Should treat as no action selected - return both inputs and actions
+	s.Equal(common.NodeStatusIncomplete, resp.Status)
+	s.Len(resp.Inputs, 1)
+	s.Equal("username", resp.Inputs[0].Identifier)
+	s.Len(resp.Actions, 1, "Should return actions when invalid action is provided")
+	s.Equal("login", resp.Actions[0].Ref)
 }

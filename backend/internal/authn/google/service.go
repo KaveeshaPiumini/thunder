@@ -27,6 +27,7 @@ import (
 	authnoauth "github.com/asgardeo/thunder/internal/authn/oauth"
 	authnoidc "github.com/asgardeo/thunder/internal/authn/oidc"
 	"github.com/asgardeo/thunder/internal/idp"
+	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	syshttp "github.com/asgardeo/thunder/internal/system/http"
 	"github.com/asgardeo/thunder/internal/system/jwt"
@@ -47,22 +48,19 @@ type GoogleOIDCAuthnServiceInterface interface {
 type googleOIDCAuthnService struct {
 	internal   authnoidc.OIDCAuthnServiceInterface
 	jwtService jwt.JWTServiceInterface
+	logger     *log.Logger
 }
 
 // newGoogleOIDCAuthnService creates a new instance of Google OIDC authenticator service.
 func newGoogleOIDCAuthnService(idpSvc idp.IDPServiceInterface, userSvc user.UserServiceInterface,
 	jwtSvc jwt.JWTServiceInterface) GoogleOIDCAuthnServiceInterface {
 	httpClient := syshttp.NewHTTPClient()
-	internal := authnoidc.NewOIDCAuthnService(httpClient, idpSvc, userSvc, jwtSvc, authnoauth.OAuthEndpoints{
-		AuthorizationEndpoint: AuthorizeEndpoint,
-		TokenEndpoint:         TokenEndpoint,
-		UserInfoEndpoint:      UserInfoEndpoint,
-		JwksEndpoint:          JwksEndpoint,
-	})
+	internal := authnoidc.NewOIDCAuthnService(httpClient, idpSvc, userSvc, jwtSvc)
 
 	service := &googleOIDCAuthnService{
 		internal:   internal,
 		jwtService: jwtSvc,
+		logger:     log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName)),
 	}
 	common.RegisterAuthenticator(service.getMetadata())
 
@@ -111,8 +109,7 @@ func (g *googleOIDCAuthnService) ValidateTokenResponse(idpID string,
 // to true. Hence generally you may not need to call this method explicitly if ExchangeCodeForToken method
 // is called with validateResponse set to true.
 func (g *googleOIDCAuthnService) ValidateIDToken(idpID, idToken string) *serviceerror.ServiceError {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName),
-		log.String("idpId", idpID))
+	logger := g.logger.With(log.String("idpId", idpID))
 	logger.Debug("Validating ID token")
 
 	if strings.TrimSpace(idToken) == "" {
@@ -130,7 +127,7 @@ func (g *googleOIDCAuthnService) ValidateIDToken(idpID, idToken string) *service
 	if oAuthClientConfig.OAuthEndpoints.JwksEndpoint != "" {
 		err := g.jwtService.VerifyJWTSignatureWithJWKS(idToken, oAuthClientConfig.OAuthEndpoints.JwksEndpoint)
 		if err != nil {
-			logger.Debug("ID token signature validation failed", log.Error(err))
+			logger.Debug("ID token signature validation failed", log.String("error", err.Error))
 			return &authnoidc.ErrorInvalidIDTokenSignature
 		}
 	} else {
@@ -149,7 +146,7 @@ func (g *googleOIDCAuthnService) ValidateIDToken(idpID, idToken string) *service
 	iss, ok := claims["iss"].(string)
 	if !ok || (iss != Issuer1 && iss != Issuer2) {
 		logger.Debug("Invalid ID token issuer", log.String("issuer", iss))
-		return customServiceError(authnoidc.ErrorInvalidIDToken,
+		return serviceerror.CustomServiceError(authnoidc.ErrorInvalidIDToken,
 			"The issuer of the ID token is not a valid Google issuer")
 	}
 
@@ -158,32 +155,35 @@ func (g *googleOIDCAuthnService) ValidateIDToken(idpID, idToken string) *service
 	if !ok || aud != oAuthClientConfig.ClientID {
 		logger.Debug("Invalid ID token audience", log.String("audience", aud),
 			log.String("clientId", log.MaskString(oAuthClientConfig.ClientID)))
-		return customServiceError(authnoidc.ErrorInvalidIDToken,
+		return serviceerror.CustomServiceError(authnoidc.ErrorInvalidIDToken,
 			"The ID token audience does not match the expected client ID")
 	}
+
+	// Get leeway from config to account for clock skew
+	leeway := config.GetThunderRuntime().Config.JWT.Leeway
 
 	// Validate expiration time
 	exp, ok := claims["exp"].(float64)
 	if !ok {
 		logger.Debug("Invalid ID token expiration claim", log.Any("exp", claims["exp"]))
-		return customServiceError(authnoidc.ErrorInvalidIDToken,
+		return serviceerror.CustomServiceError(authnoidc.ErrorInvalidIDToken,
 			"The ID token expiration claim is missing or invalid")
 	}
-	if time.Now().Unix() >= int64(exp) {
+	if time.Now().Unix() >= int64(exp)+leeway {
 		logger.Debug("ID token has expired", log.Int("exp", int(exp)))
-		return customServiceError(authnoidc.ErrorInvalidIDToken, "The ID token has expired")
+		return serviceerror.CustomServiceError(authnoidc.ErrorInvalidIDToken, "The ID token has expired")
 	}
 
-	// Check if token was issued in the future (to prevent clock skew issues)
+	// Check if token was issued in the future (with leeway for clock skew)
 	iat, ok := claims["iat"].(float64)
 	if !ok {
 		logger.Debug("Invalid ID token issued-at claim", log.Any("iat", claims["iat"]))
-		return customServiceError(authnoidc.ErrorInvalidIDToken,
+		return serviceerror.CustomServiceError(authnoidc.ErrorInvalidIDToken,
 			"The ID token issued-at (iat) claim is missing or invalid")
 	}
-	if time.Now().Unix() < int64(iat) {
+	if time.Now().Unix() < int64(iat)-leeway {
 		logger.Debug("ID token was issued in the future", log.Int("iat", int(iat)))
-		return customServiceError(authnoidc.ErrorInvalidIDToken,
+		return serviceerror.CustomServiceError(authnoidc.ErrorInvalidIDToken,
 			"The ID token was issued in the future")
 	}
 
@@ -195,7 +195,7 @@ func (g *googleOIDCAuthnService) ValidateIDToken(idpID, idToken string) *service
 			if hdStr, ok := hd.(string); !ok || hdStr != domain {
 				logger.Debug("Invalid hosted domain (hd) claim", log.String("hd", hdStr),
 					log.String("expectedDomain", domain))
-				return customServiceError(authnoidc.ErrorInvalidIDToken,
+				return serviceerror.CustomServiceError(authnoidc.ErrorInvalidIDToken,
 					"The ID token is not from the expected hosted domain: "+domain)
 			}
 		}

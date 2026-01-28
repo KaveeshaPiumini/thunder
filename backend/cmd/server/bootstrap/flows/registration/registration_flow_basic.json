@@ -1,0 +1,224 @@
+{
+    "name": "Default Basic Registration Flow",
+    "handle": "default-basic-flow",
+    "flowType": "REGISTRATION",
+    "nodes": [
+        {
+            "id": "start",
+            "type": "START",
+            "onSuccess": "user_type_resolver"
+        },
+        {
+            "id": "user_type_resolver",
+            "type": "TASK_EXECUTION",
+            "executor": {
+                "name": "UserTypeResolver"
+            },
+            "onSuccess": "prompt_credentials"
+        },
+        {
+            "id": "prompt_credentials",
+            "type": "PROMPT",
+            "meta": {
+                "components": [
+                    {
+                        "type": "TEXT",
+                        "id": "heading_credentials",
+                        "label": "Sign Up",
+                        "variant": "HEADING_2"
+                    },
+                    {
+                        "type": "BLOCK",
+                        "id": "block_credentials",
+                        "components": [
+                            {
+                                "type": "TEXT_INPUT",
+                                "id": "input_username",
+                                "ref": "username",
+                                "label": "Username",
+                                "placeholder": "Enter your username",
+                                "required": true
+                            },
+                            {
+                                "type": "PASSWORD_INPUT",
+                                "id": "input_password",
+                                "ref": "password",
+                                "label": "Password",
+                                "placeholder": "Enter your password",
+                                "required": true
+                            },
+                            {
+                                "type": "ACTION",
+                                "id": "action_credentials",
+                                "label": "Continue",
+                                "variant": "PRIMARY",
+                                "eventType": "SUBMIT"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "prompts": [
+                {
+                    "inputs": [
+                        {
+                            "ref": "input_username",
+                            "identifier": "username",
+                            "type": "TEXT_INPUT",
+                            "required": true
+                        },
+                        {
+                            "ref": "input_password",
+                            "identifier": "password",
+                            "type": "PASSWORD_INPUT",
+                            "required": true
+                        }
+                    ],
+                    "action": {
+                        "ref": "action_credentials",
+                        "nextNode": "basic_auth"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "basic_auth",
+            "type": "TASK_EXECUTION",
+            "executor": {
+                "name": "BasicAuthExecutor"
+            },
+            "onSuccess": "prompt_user_info"
+        },
+        {
+            "id": "prompt_user_info",
+            "type": "PROMPT",
+            "meta": {
+                "components": [
+                    {
+                        "type": "TEXT",
+                        "id": "heading_user_info",
+                        "label": "Sign Up",
+                        "variant": "HEADING_2"
+                    },
+                    {
+                        "type": "BLOCK",
+                        "id": "block_user_info",
+                        "components": [
+                            {
+                                "type": "TEXT_INPUT",
+                                "id": "input_firstName",
+                                "ref": "firstName",
+                                "label": "First Name",
+                                "placeholder": "Enter your first name",
+                                "required": true
+                            },
+                            {
+                                "type": "TEXT_INPUT",
+                                "id": "input_lastName",
+                                "ref": "lastName",
+                                "label": "Last Name",
+                                "placeholder": "Enter your last name",
+                                "required": true
+                            },
+                            {
+                                "type": "EMAIL_INPUT",
+                                "id": "input_email",
+                                "ref": "email",
+                                "label": "Email Address",
+                                "placeholder": "Enter your email address",
+                                "required": true
+                            },
+                            {
+                                "type": "ACTION",
+                                "id": "action_user_info",
+                                "label": "Sign Up",
+                                "variant": "PRIMARY",
+                                "eventType": "SUBMIT"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "prompts": [
+                {
+                    "inputs": [
+                        {
+                            "ref": "input_firstName",
+                            "identifier": "firstName",
+                            "type": "TEXT_INPUT",
+                            "required": true
+                        },
+                        {
+                            "ref": "input_lastName",
+                            "identifier": "lastName",
+                            "type": "TEXT_INPUT",
+                            "required": true
+                        },
+                        {
+                            "ref": "input_email",
+                            "identifier": "email",
+                            "type": "EMAIL_INPUT",
+                            "required": true
+                        }
+                    ],
+                    "action": {
+                        "ref": "action_user_info",
+                        "nextNode": "provisioning"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "provisioning",
+            "type": "TASK_EXECUTION",
+            "executor": {
+                "name": "ProvisioningExecutor",
+                "inputs": [
+                    {
+                        "ref": "input_001",
+                        "identifier": "username",
+                        "type": "TEXT_INPUT",
+                        "required": true
+                    },
+                    {
+                        "ref": "input_002",
+                        "identifier": "password",
+                        "type": "PASSWORD_INPUT",
+                        "required": true
+                    },
+                    {
+                        "ref": "input_003",
+                        "identifier": "firstName",
+                        "type": "TEXT_INPUT",
+                        "required": true
+                    },
+                    {
+                        "ref": "input_004",
+                        "identifier": "lastName",
+                        "type": "TEXT_INPUT",
+                        "required": true
+                    },
+                    {
+                        "ref": "input_005",
+                        "identifier": "email",
+                        "type": "EMAIL_INPUT",
+                        "required": true
+                    }
+                ]
+            },
+            "onSuccess": "auth_assert"
+        },
+        {
+            "id": "auth_assert",
+            "type": "TASK_EXECUTION",
+            "executor": {
+                "name": "AuthAssertExecutor"
+            },
+            "onSuccess": "end"
+        },
+        {
+            "id": "end",
+            "type": "END"
+        }
+    ]
+}

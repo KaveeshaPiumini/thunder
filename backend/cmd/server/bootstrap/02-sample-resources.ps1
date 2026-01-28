@@ -17,10 +17,29 @@
 # under the License.
 # ----------------------------------------------------------------------------
 
+# Check for PowerShell Version Compatibility
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Red
+    Write-Host " [ERROR] UNSUPPORTED POWERSHELL VERSION" -ForegroundColor Red
+    Write-Host "================================================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host " You are currently running PowerShell $($PSVersionTable.PSVersion.ToString())" -ForegroundColor Yellow
+    Write-Host " Thunder requires PowerShell 7 (Core) or later." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host " Please install the latest version from:"
+    Write-Host " https://github.com/PowerShell/PowerShell" -ForegroundColor Cyan
+    Write-Host ""
+    exit 1
+}
+
 # Bootstrap Script: Sample Resources Setup
 # Creates resources required to run the Thunder sample experience
 
 $ErrorActionPreference = 'Stop'
+
+# Dot-source common functions from the same directory as this script
+. "$PSScriptRoot/common.ps1"
 
 Log-Info "Creating sample Thunder resources..."
 Write-Host ""
@@ -48,16 +67,14 @@ if ($response.StatusCode -eq 201 -or $response.StatusCode -eq 200) {
 }
 elseif ($response.StatusCode -eq 409) {
     Log-Warning "Customers organization unit already exists, retrieving ID..."
-    $response = Invoke-ThunderApi -Method GET -Endpoint "/organization-units"
+    # Get existing OU ID by handle to ensure we get the correct "customers" OU
+    $response = Invoke-ThunderApi -Method GET -Endpoint "/organization-units/tree/$customerOuHandle"
     if ($response.StatusCode -eq 200) {
         $body = $response.Body | ConvertFrom-Json
-        $customersOu = $body.organizationUnits | Where-Object { $_.handle -eq $customerOuHandle } | Select-Object -First 1
-        if ($customersOu) {
-            $CUSTOMER_OU_ID = $customersOu.id
-        }
+        $CUSTOMER_OU_ID = $body.id
     }
     else {
-        Log-Error "Failed to fetch organization units (HTTP $($response.StatusCode))"
+        Log-Error "Failed to fetch organization unit by handle '$customerOuHandle' (HTTP $($response.StatusCode))"
         Write-Host "Response: $($response.Body)"
         exit 1
     }
@@ -139,8 +156,6 @@ $appData = @{
     tos_uri = "https://localhost:3000/terms"
     policy_uri = "https://localhost:3000/privacy"
     contacts = @("admin@example.com", "support@example.com")
-    auth_flow_graph_id = "auth_flow_config_basic"
-    registration_flow_graph_id = "registration_flow_config_basic"
     is_registration_flow_enabled = $true
     user_attributes = @("given_name","family_name","email","groups")
     allowed_user_types = @("Customer")
@@ -149,13 +164,12 @@ $appData = @{
             type = "oauth2"
             config = @{
                 client_id = "sample_app_client"
-                client_secret = "sample_app_secret"
                 redirect_uris = @("https://localhost:3000")
-                grant_types = @("authorization_code", "client_credentials")
+                grant_types = @("authorization_code")
                 response_types = @("code")
-                token_endpoint_auth_method = "client_secret_basic"
-                pkce_required = $false
-                public_client = $false
+                token_endpoint_auth_method = "none"
+                pkce_required = $true
+                public_client = $true
                 scopes = @("openid", "profile", "email")
                 token = @{
                     issuer = "thunder"

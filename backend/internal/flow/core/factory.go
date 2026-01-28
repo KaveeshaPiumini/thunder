@@ -32,7 +32,7 @@ type FlowFactoryInterface interface {
 		NodeInterface, error)
 	CreateGraph(id string, _type common.FlowType) GraphInterface
 	CreateExecutor(name string, executorType common.ExecutorType,
-		defaultInputs, prerequisites []common.InputData) ExecutorInterface
+		defaultInputs, prerequisites []common.Input) ExecutorInterface
 	CloneNode(source NodeInterface) (NodeInterface, error)
 	CloneNodes(nodes map[string]NodeInterface) (map[string]NodeInterface, error)
 }
@@ -60,14 +60,10 @@ func (f *flowFactory) CreateNode(id, _type string, properties map[string]interfa
 	switch nodeType {
 	case common.NodeTypeTaskExecution:
 		return newTaskExecutionNode(id, properties, isStartNode, isFinalNode), nil
-	case common.NodeTypeDecision:
-		return newDecisionNode(id, properties, isStartNode, isFinalNode), nil
-	case common.NodeTypePromptOnly:
-		return newPromptOnlyNode(id, properties, isStartNode, isFinalNode), nil
-	case common.NodeTypeAuthSuccess:
-		return newTaskExecutionNode(id, properties, isStartNode, isFinalNode), nil
-	case common.NodeTypeRegistrationStart:
-		return newTaskExecutionNode(id, properties, isStartNode, isFinalNode), nil
+	case common.NodeTypePrompt:
+		return newPromptNode(id, properties, isStartNode, isFinalNode), nil
+	case common.NodeTypeStart, common.NodeTypeEnd:
+		return newRepresentationNode(id, nodeType, properties, isStartNode, isFinalNode), nil
 	default:
 		return nil, errors.New("unsupported node type: " + _type)
 	}
@@ -92,7 +88,7 @@ func (f *flowFactory) CreateGraph(id string, _type common.FlowType) GraphInterfa
 
 // CreateExecutor creates a new executor with the given properties
 func (f *flowFactory) CreateExecutor(name string, executorType common.ExecutorType,
-	defaultInputs, prerequisites []common.InputData) ExecutorInterface {
+	defaultInputs, prerequisites []common.Input) ExecutorInterface {
 	return newExecutor(name, executorType, defaultInputs, prerequisites)
 }
 
@@ -125,14 +121,45 @@ func (f *flowFactory) CloneNode(source NodeInterface) (NodeInterface, error) {
 	// Copy node connections and metadata
 	nodeCopy.SetNextNodeList(append([]string{}, source.GetNextNodeList()...))
 	nodeCopy.SetPreviousNodeList(append([]string{}, source.GetPreviousNodeList()...))
-	nodeCopy.SetInputData(append([]common.InputData{}, source.GetInputData()...))
 
-	// Copy executor name if the node is executor-backed
+	// Copy condition if present
+	if sourceCondition := source.GetCondition(); sourceCondition != nil {
+		nodeCopy.SetCondition(&NodeCondition{
+			Key:   sourceCondition.Key,
+			Value: sourceCondition.Value,
+		})
+	}
+
+	// Copy meta if present
+	if sourceMeta := source.GetMeta(); sourceMeta != nil {
+		nodeCopy.SetMeta(sourceMeta)
+	}
+
+	// Copy onSuccess for representation nodes (START/END)
+	if repSource, ok := source.(RepresentationNodeInterface); ok {
+		if repCopy, ok := nodeCopy.(RepresentationNodeInterface); ok {
+			repCopy.SetOnSuccess(repSource.GetOnSuccess())
+		}
+	}
+
+	// Copy executor name, inputs, onSuccess, and onFailure if the node is executor-backed
 	if executableSource, ok := source.(ExecutorBackedNodeInterface); ok {
 		if executableCopy, ok := nodeCopy.(ExecutorBackedNodeInterface); ok {
 			executableCopy.SetExecutorName(executableSource.GetExecutorName())
+			executableCopy.SetInputs(append([]common.Input{}, executableSource.GetInputs()...))
+			executableCopy.SetOnSuccess(executableSource.GetOnSuccess())
+			executableCopy.SetOnFailure(executableSource.GetOnFailure())
 		} else {
 			return nil, errors.New("mismatch in node types during cloning. copy is not executor-backed")
+		}
+	}
+
+	// Copy prompts if the node is a prompt node
+	if promptSource, ok := source.(PromptNodeInterface); ok {
+		if promptCopy, ok := nodeCopy.(PromptNodeInterface); ok {
+			promptCopy.SetPrompts(append([]common.Prompt{}, promptSource.GetPrompts()...))
+		} else {
+			return nil, errors.New("mismatch in node types during cloning. copy is not a prompt node")
 		}
 	}
 

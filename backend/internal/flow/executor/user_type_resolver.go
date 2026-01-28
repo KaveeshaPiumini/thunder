@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"slices"
 
-	flowcm "github.com/asgardeo/thunder/internal/flow/common"
-	flowcore "github.com/asgardeo/thunder/internal/flow/core"
+	"github.com/asgardeo/thunder/internal/flow/common"
+	"github.com/asgardeo/thunder/internal/flow/core"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/userschema"
 )
@@ -40,23 +40,33 @@ type schemaWithOU struct {
 
 // userTypeResolver is a registration-flow executor that resolves the user type at flow start.
 type userTypeResolver struct {
-	flowcore.ExecutorInterface
+	core.ExecutorInterface
 	userSchemaService userschema.UserSchemaServiceInterface
 	logger            *log.Logger
 }
 
-var _ flowcore.ExecutorInterface = (*userTypeResolver)(nil)
+var _ core.ExecutorInterface = (*userTypeResolver)(nil)
 
 // newUserTypeResolver creates a new instance of the UserTypeResolver executor.
 func newUserTypeResolver(
-	flowFactory flowcore.FlowFactoryInterface,
+	flowFactory core.FlowFactoryInterface,
 	userSchemaService userschema.UserSchemaServiceInterface,
 ) *userTypeResolver {
-	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, userTypeResolverLoggerComponentName),
+	logger := log.GetLogger().With(
+		log.String(log.LoggerKeyComponentName, userTypeResolverLoggerComponentName),
 		log.String(log.LoggerKeyExecutorName, ExecutorNameUserTypeResolver))
 
-	base := flowFactory.CreateExecutor(ExecutorNameUserTypeResolver, flowcm.ExecutorTypeRegistration,
-		[]flowcm.InputData{}, []flowcm.InputData{})
+	defaultInputs := []common.Input{
+		{
+			Ref:        "usertype_input",
+			Identifier: userTypeKey,
+			Type:       "SELECT",
+			Required:   true,
+		},
+	}
+
+	base := flowFactory.CreateExecutor(ExecutorNameUserTypeResolver, common.ExecutorTypeRegistration,
+		defaultInputs, []common.Input{})
 
 	return &userTypeResolver{
 		ExecutorInterface: base,
@@ -66,27 +76,34 @@ func newUserTypeResolver(
 }
 
 // Execute resolves the user type from inputs or prompts the user to select one.
-func (u *userTypeResolver) Execute(ctx *flowcore.NodeContext) (*flowcm.ExecutorResponse, error) {
+func (u *userTypeResolver) Execute(ctx *core.NodeContext) (*common.ExecutorResponse, error) {
 	logger := u.logger.With(log.String(log.LoggerKeyFlowID, ctx.FlowID))
 	logger.Debug("Executing user type resolver")
 
-	execResp := &flowcm.ExecutorResponse{
+	execResp := &common.ExecutorResponse{
 		AdditionalData: make(map[string]string),
 		RuntimeData:    make(map[string]string),
 	}
 
-	// Only applies to registration flows
-	if ctx.FlowType != flowcm.FlowTypeRegistration {
-		execResp.Status = flowcm.ExecComplete
-		return execResp, nil
-	}
-
 	allowed := ctx.Application.AllowedUserTypes
 
-	// If a userType is provided in inputs, validate and accept it
-	if userType, ok := ctx.UserInputData[userTypeKey]; ok && userType != "" {
-		err := u.resolveUserTypeFromInput(execResp, userType, allowed)
-		return execResp, err
+	if ctx.FlowType == common.FlowTypeAuthentication {
+		// For authentication flows, validate that allowed user types are defined
+		if len(allowed) == 0 {
+			logger.Debug("No allowed user types configured for authentication")
+			execResp.Status = common.ExecFailure
+			execResp.FailureReason = "Authentication not available for this application"
+			return execResp, nil
+		}
+
+		execResp.Status = common.ExecComplete
+		return execResp, nil
+	} else if ctx.FlowType == common.FlowTypeUserOnboarding {
+		return u.resolveForUserOnboarding(ctx, execResp)
+	} else if ctx.FlowType != common.FlowTypeRegistration {
+		logger.Debug("User type resolver is only applicable for registration, user onboarding and authentication flows")
+		execResp.Status = common.ExecComplete
+		return execResp, nil
 	}
 
 	// Check for allowed user types to decide next steps
@@ -96,9 +113,15 @@ func (u *userTypeResolver) Execute(ctx *flowcore.NodeContext) (*flowcm.ExecutorR
 		//  Also should check if self registration is enabled for the user type when the support is available.
 
 		logger.Debug("No allowed user types found for the application")
-		execResp.Status = flowcm.ExecFailure
+		execResp.Status = common.ExecFailure
 		execResp.FailureReason = "Self-registration not available for this application"
 		return execResp, nil
+	}
+
+	// Check if userType is provided in inputs
+	if u.HasRequiredInputs(ctx, execResp) {
+		err := u.resolveUserTypeFromInput(execResp, ctx.UserInputs[userTypeKey], allowed)
+		return execResp, err
 	}
 
 	if len(allowed) == 1 {
@@ -110,11 +133,24 @@ func (u *userTypeResolver) Execute(ctx *flowcore.NodeContext) (*flowcm.ExecutorR
 	return execResp, err
 }
 
-// resolveUserTypeFromInput resolves the user type from input and updates the executor response accordingly.
-func (u *userTypeResolver) resolveUserTypeFromInput(execResp *flowcm.ExecutorResponse,
+// GetDefaultMeta returns the default meta structure for the user type selection page.
+func (u *userTypeResolver) GetDefaultMeta() interface{} {
+	return core.NewMetaBuilder().
+		WithIDPrefix("usertype").
+		WithHeading("{{ t(signup:heading) }}").
+		WithInput(u.GetDefaultInputs()[0], core.MetaInputConfig{
+			Label:       "{{ t(elements:fields.usertype.label) }}",
+			Placeholder: "{{ t(elements:fields.usertype.placeholder) }}",
+		}).
+		WithSubmitButton("{{ t(elements:buttons.submit.text) }}").
+		Build()
+}
+
+// resolveUserTypeFromInput resolves the user type from input and updates the executor response.
+func (u *userTypeResolver) resolveUserTypeFromInput(execResp *common.ExecutorResponse,
 	userType string, allowed []string) error {
 	logger := u.logger
-	if len(allowed) == 0 || slices.Contains(allowed, userType) {
+	if slices.Contains(allowed, userType) {
 		logger.Debug("User type resolved from input", log.String(userTypeKey, userType))
 
 		userSchema, ouID, err := u.getUserSchemaAndOU(userType)
@@ -123,7 +159,7 @@ func (u *userTypeResolver) resolveUserTypeFromInput(execResp *flowcm.ExecutorRes
 		}
 		if !userSchema.AllowSelfRegistration {
 			logger.Debug("Self registration not enabled for user type", log.String(userTypeKey, userType))
-			execResp.Status = flowcm.ExecFailure
+			execResp.Status = common.ExecFailure
 			execResp.FailureReason = "Self-registration not enabled for the user type"
 			return nil
 		}
@@ -132,17 +168,17 @@ func (u *userTypeResolver) resolveUserTypeFromInput(execResp *flowcm.ExecutorRes
 		execResp.RuntimeData[userTypeKey] = userType
 		execResp.RuntimeData[defaultOUIDKey] = ouID
 
-		execResp.Status = flowcm.ExecComplete
+		execResp.Status = common.ExecComplete
 		return nil
 	}
 
-	execResp.Status = flowcm.ExecFailure
+	execResp.Status = common.ExecFailure
 	execResp.FailureReason = "Application does not allow registration for the user type"
 	return nil
 }
 
 // resolveUserTypeFromSingleAllowed resolves the user type when there is only a single allowed user type.
-func (u *userTypeResolver) resolveUserTypeFromSingleAllowed(execResp *flowcm.ExecutorResponse,
+func (u *userTypeResolver) resolveUserTypeFromSingleAllowed(execResp *common.ExecutorResponse,
 	allowedUserType string) error {
 	logger := u.logger
 	userSchema, ouID, err := u.getUserSchemaAndOU(allowedUserType)
@@ -152,7 +188,7 @@ func (u *userTypeResolver) resolveUserTypeFromSingleAllowed(execResp *flowcm.Exe
 
 	if !userSchema.AllowSelfRegistration {
 		logger.Debug("Self registration not enabled for user type", log.String(userTypeKey, allowedUserType))
-		execResp.Status = flowcm.ExecFailure
+		execResp.Status = common.ExecFailure
 		execResp.FailureReason = "Self-registration not enabled for the user type"
 		return nil
 	}
@@ -163,12 +199,12 @@ func (u *userTypeResolver) resolveUserTypeFromSingleAllowed(execResp *flowcm.Exe
 	execResp.RuntimeData[userTypeKey] = allowedUserType
 	execResp.RuntimeData[defaultOUIDKey] = ouID
 
-	execResp.Status = flowcm.ExecComplete
+	execResp.Status = common.ExecComplete
 	return nil
 }
 
 // resolveUserTypeFromMultipleAllowed resolves the user type when multiple allowed user types exist.
-func (u *userTypeResolver) resolveUserTypeFromMultipleAllowed(execResp *flowcm.ExecutorResponse,
+func (u *userTypeResolver) resolveUserTypeFromMultipleAllowed(execResp *common.ExecutorResponse,
 	allowed []string) error {
 	logger := u.logger
 
@@ -190,7 +226,7 @@ func (u *userTypeResolver) resolveUserTypeFromMultipleAllowed(execResp *flowcm.E
 	// Fail if no user types have self registration enabled
 	if len(selfRegEnabledUserTypes) == 0 {
 		logger.Debug("No user types with self registration enabled")
-		execResp.Status = flowcm.ExecFailure
+		execResp.Status = common.ExecFailure
 		execResp.FailureReason = "Self-registration not available for this application"
 		return nil
 	}
@@ -204,7 +240,7 @@ func (u *userTypeResolver) resolveUserTypeFromMultipleAllowed(execResp *flowcm.E
 		execResp.RuntimeData[userTypeKey] = record.userSchema.Name
 		execResp.RuntimeData[defaultOUIDKey] = record.ouID
 
-		execResp.Status = flowcm.ExecComplete
+		execResp.Status = common.ExecComplete
 		return nil
 	}
 
@@ -217,15 +253,7 @@ func (u *userTypeResolver) resolveUserTypeFromMultipleAllowed(execResp *flowcm.E
 	logger.Debug("Prompting for user type selection as multiple user types are available for self registration",
 		log.Any("userTypes", selfRegUserTypes))
 
-	execResp.Status = flowcm.ExecUserInputRequired
-	execResp.RequiredData = []flowcm.InputData{
-		{
-			Name:     userTypeKey,
-			Type:     "dropdown",
-			Required: true,
-			Options:  selfRegUserTypes,
-		},
-	}
+	u.promptUserSelection(execResp, selfRegUserTypes)
 	return nil
 }
 
@@ -248,4 +276,66 @@ func (u *userTypeResolver) getUserSchemaAndOU(userType string) (*userschema.User
 	logger.Debug("User schema resolved for user type", log.String(userTypeKey, userType),
 		log.String(ouIDKey, userSchema.OrganizationUnitID))
 	return userSchema, userSchema.OrganizationUnitID, nil
+}
+
+// resolveForUserOnboarding handles user type resolution for user onboarding flows.
+func (u *userTypeResolver) resolveForUserOnboarding(ctx *core.NodeContext,
+	execResp *common.ExecutorResponse) (*common.ExecutorResponse, error) {
+	logger := u.logger.With(log.String(log.LoggerKeyFlowID, ctx.FlowID))
+
+	// If userType already provided, validate and set runtime data
+	if userType, ok := ctx.UserInputs[userTypeKey]; ok && userType != "" {
+		userSchema, ouID, err := u.getUserSchemaAndOU(userType)
+		if err != nil {
+			execResp.Status = common.ExecFailure
+			execResp.FailureReason = "Invalid user type"
+			return execResp, nil
+		}
+
+		execResp.RuntimeData[userTypeKey] = userType
+		execResp.RuntimeData[defaultOUIDKey] = ouID
+		logger.Debug("User type resolved for user onboarding", log.String(userTypeKey, userType),
+			log.String(ouIDKey, userSchema.OrganizationUnitID))
+		execResp.Status = common.ExecComplete
+		return execResp, nil
+	}
+
+	// List all available user schemas
+	schemas, svcErr := u.userSchemaService.GetUserSchemaList(100, 0)
+	if svcErr != nil {
+		logger.Debug("Failed to list user schemas", log.String("error", svcErr.Error))
+		execResp.Status = common.ExecFailure
+		execResp.FailureReason = "Failed to retrieve user types"
+		return execResp, nil
+	}
+
+	if len(schemas.Schemas) == 0 {
+		logger.Debug("No user schemas available")
+		execResp.Status = common.ExecFailure
+		execResp.FailureReason = "No user types available"
+		return execResp, nil
+	}
+
+	options := make([]string, 0, len(schemas.Schemas))
+	for _, schema := range schemas.Schemas {
+		options = append(options, schema.Name)
+	}
+
+	u.promptUserSelection(execResp, options)
+	return execResp, nil
+}
+
+// promptUserSelection prompts the user to select a user type from the provided options.
+func (u *userTypeResolver) promptUserSelection(execResp *common.ExecutorResponse, options []string) {
+	u.logger.Debug("Prompting user for user type selection", log.Any("userTypes", options))
+
+	execResp.Status = common.ExecUserInputRequired
+
+	// Use the default input configuration
+	inputs := u.GetDefaultInputs()
+	if len(inputs) > 0 {
+		input := inputs[0]
+		input.Options = options
+		execResp.Inputs = []common.Input{input}
+	}
 }

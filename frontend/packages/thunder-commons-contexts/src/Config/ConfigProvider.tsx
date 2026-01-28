@@ -87,6 +87,11 @@ export default function ConfigProvider({children}: ConfigProviderProps) {
     () => ({
       config,
       getServerUrl: () => {
+        // If public_url is provided, use it directly
+        if (config.server.public_url) {
+          return config.server.public_url;
+        }
+        // Otherwise, construct from hostname, port, and http_only
         const {hostname, port, http_only: httpOnly} = config.server;
         const protocol: string = httpOnly ? 'http' : 'https';
         return `${protocol}://${hostname}:${port}`;
@@ -109,6 +114,23 @@ export default function ConfigProvider({children}: ConfigProviderProps) {
         // Otherwise, use window.location.origin and add base if it exists
         const origin: string = typeof window !== 'undefined' ? window.location.origin : '';
         return base ? `${origin}${base}` : origin;
+      },
+      getClientUuid: () => {
+        // First, check if UUID is available in configuration
+        if (config.client.uuid) {
+          return config.client.uuid;
+        }
+
+        // If not in config, try to get applicationId from URL parameters
+        if (typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const applicationId = urlParams.get('applicationId');
+          if (applicationId) {
+            return applicationId;
+          }
+        }
+
+        return undefined;
       },
     }),
     [config],

@@ -20,7 +20,8 @@ package export
 
 // ExportRequest represents the request structure for exporting resources.
 type ExportRequest struct {
-	Applications []string `json:"applications,omitempty"`
+	Applications      []string `json:"applications,omitempty"`
+	IdentityProviders []string `json:"identity_providers,omitempty"`
 }
 
 // ExportResponse represents the response structure for exporting resources.
@@ -41,8 +42,8 @@ type Application struct {
 	Description               string              `json:"description,omitempty"`
 	ClientID                  string              `json:"client_id,omitempty"`
 	ClientSecret              string              `json:"client_secret,omitempty"`
-	AuthFlowGraphID           string              `json:"auth_flow_graph_id,omitempty"`
-	RegistrationFlowGraphID   string              `json:"registration_flow_graph_id,omitempty"`
+	AuthFlowID                string              `json:"auth_flow_id,omitempty"`
+	RegistrationFlowID        string              `json:"registration_flow_id,omitempty"`
 	IsRegistrationFlowEnabled bool                `json:"is_registration_flow_enabled"`
 	URL                       string              `json:"url,omitempty"`
 	LogoURL                   string              `json:"logo_url,omitempty"`
@@ -96,7 +97,22 @@ type TokenConfig struct {
 
 // IDTokenConfig represents the ID token configuration.
 type IDTokenConfig struct {
-	ValidityPeriod int64               `json:"validity_period,omitempty"`
-	UserAttributes []string            `json:"user_attributes,omitempty"`
-	ScopeClaims    map[string][]string `json:"scope_claims,omitempty"`
+	ValidityPeriod int64    `json:"validity_period,omitempty"`
+	UserAttributes []string `json:"user_attributes,omitempty"`
+}
+
+// IDPProperty represents a property of an identity provider.
+type IDPProperty struct {
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+	IsSecret bool   `json:"is_secret"`
+}
+
+// IDP represents an identity provider.
+type IDP struct {
+	ID          string        `json:"id,omitempty"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Type        string        `json:"type"`
+	Properties  []IDPProperty `json:"properties"`
 }

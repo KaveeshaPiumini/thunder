@@ -476,4 +476,88 @@ describe('UserTypesList', () => {
     const grid = screen.getByTestId('data-grid');
     expect(grid).toBeInTheDocument();
   });
+
+  it('closes delete dialog on delete error', async () => {
+    const user = userEvent.setup();
+    mockDeleteUserType.mockRejectedValue(new Error('Delete failed'));
+
+    render(<UserTypesList />);
+
+    const actionButtons = screen.getAllByRole('button', {name: /open actions menu/i});
+    await user.click(actionButtons[0]);
+
+    const deleteButton = screen.getByText('Delete');
+    await user.click(deleteButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete User Type')).toBeInTheDocument();
+    });
+
+    const confirmButton = screen.getByRole('button', {name: /delete/i});
+    await user.click(confirmButton);
+
+    await waitFor(() => {
+      expect(mockDeleteUserType).toHaveBeenCalledWith('schema1');
+      // Dialog should be closed on error
+      expect(screen.queryByText('Delete User Type')).not.toBeInTheDocument();
+    });
+  });
+
+  it('displays error from organization units in snackbar', async () => {
+    const orgError: ApiError = {
+      code: 'ORG_ERROR',
+      message: 'Failed to load organization units',
+      description: 'Error description',
+    };
+
+    mockUseGetOrganizationUnits.mockReturnValue({
+      data: null,
+      loading: false,
+      error: orgError,
+      refetch: mockRefetchOrganizationUnits,
+    });
+
+    render(<UserTypesList />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load organization units')).toBeInTheDocument();
+    });
+  });
+
+  it('handles navigation error when row is clicked', async () => {
+    const user = userEvent.setup();
+    mockNavigate.mockRejectedValue(new Error('Navigation failed'));
+
+    render(<UserTypesList />);
+
+    const row = screen.getByTestId('row-schema1');
+    await user.click(row);
+
+    // Navigation was called but failed - the catch handler silently handles the error
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/user-types/schema1');
+    });
+  });
+
+  it('handles navigation error when View menu item is clicked', async () => {
+    const user = userEvent.setup();
+    mockNavigate.mockRejectedValue(new Error('Navigation failed'));
+
+    render(<UserTypesList />);
+
+    const actionButtons = screen.getAllByRole('button', {name: /open actions menu/i});
+    await user.click(actionButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('View')).toBeInTheDocument();
+    });
+
+    const viewButton = screen.getByText('View');
+    await user.click(viewButton);
+
+    // Navigation was called but failed - the catch handler silently handles the error
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/user-types/schema1');
+    });
+  });
 });

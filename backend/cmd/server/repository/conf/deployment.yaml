@@ -2,10 +2,10 @@ server:
   hostname: "localhost"
   port: 8090
 
-security:
+tls:
+  min_version: "1.3"
   cert_file: "repository/resources/security/server.cert"
   key_file: "repository/resources/security/server.key"
-  crypto_file: "repository/resources/security/crypto.key"
 
 database:
   identity:
@@ -32,16 +32,14 @@ database:
     max_idle_conns: 100
     conn_max_lifetime: 3600
 
+crypto:
+  encryption:
+    key: "file://repository/resources/security/crypto.key"
 
 cors:
   allowed_origins:
     - "https://localhost:3000"
 
-observability:
-  enabled: false
-  output:
-    type: "console"
-    format: "json"
-  metrics:
-    enabled: false
-  failure_mode: "graceful"
+passkey:
+  allowed_origins:
+    - "https://localhost:8090"

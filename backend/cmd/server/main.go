@@ -24,17 +24,18 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
-	"github.com/asgardeo/thunder/internal/observability"
 	"github.com/asgardeo/thunder/internal/system/cache"
-	"github.com/asgardeo/thunder/internal/system/cert"
 	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/internal/system/crypto/pki"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -45,7 +46,13 @@ import (
 // shutdownTimeout defines the timeout duration for graceful shutdown.
 const shutdownTimeout = 5 * time.Second
 
+var (
+	netListen = net.Listen
+	tlsListen = tls.Listen
+)
+
 func main() {
+	startupStartedAt := time.Now()
 	logger := log.GetLogger()
 
 	thunderHome := getThunderHome(logger)
@@ -58,9 +65,6 @@ func main() {
 	// Initialize the cache manager.
 	initCacheManager(logger)
 
-	// Initialize observability from configuration
-	initObservability(logger, cfg)
-
 	// Create a new HTTP multiplexer.
 	mux := http.NewServeMux()
 	if mux == nil {
@@ -68,13 +72,18 @@ func main() {
 	}
 
 	// Load the server's private key for signing JWTs.
-	jwtService := jwt.GetJWTService()
-	if err := jwtService.Init(); err != nil { // TODO: Two-Phase Initialization is anti-pattern. Refactor this.
+	pkiService, err := pki.Initialize()
+	if err != nil {
+		logger.Fatal("Failed to initialize certificate service", log.Error(err))
+	}
+
+	jwtService, err := jwt.Initialize(pkiService)
+	if err != nil {
 		logger.Fatal("Failed to load private key", log.Error(err))
 	}
 
 	// Register the services.
-	registerServices(mux, jwtService)
+	registerServices(mux, jwtService, pkiService)
 
 	// Register static file handlers for frontend applications.
 	registerStaticFileHandlers(logger, mux, thunderHome)
@@ -83,18 +92,30 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// Load the certificate configuration.
-	tlsConfig := loadCertConfig(logger, cfg, thunderHome)
-
 	// Create the HTTP server.
 	server := createHTTPServer(logger, cfg, mux, jwtService)
-	// Start the server with or without TLS based on configuration.
+	var ln net.Listener
 	if cfg.Server.HTTPOnly {
 		logger.Info("TLS is not enabled, starting server without TLS")
-		startHTTPServer(logger, server)
+		ln = createListener(logger, server)
 	} else {
-		startTLSServer(logger, server, tlsConfig)
+		tlsConfig := loadCertConfig(logger, cfg, thunderHome)
+		ln = createTLSListener(logger, server, tlsConfig)
 	}
+
+	serverURL := config.GetServerURL(&cfg.Server)
+	consoleURL := fmt.Sprintf("%s/develop", strings.TrimSuffix(serverURL, "/"))
+	logger.Info("Thunder Server URL", log.String("url", serverURL))
+	logger.Info("Thunder Console URL", log.String("url", consoleURL))
+
+	// Start server in a goroutine
+	go func() {
+		startupDuration := time.Since(startupStartedAt)
+		logger.Info("Thunder Server started", log.String("startup_time", startupDuration.String()))
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Failed to serve requests", log.Error(err))
+		}
+	}()
 
 	// Wait for shutdown signal
 	<-sigChan
@@ -129,7 +150,7 @@ func initThunderConfigurations(logger *log.Logger, thunderHome string) *config.C
 	// Load the configurations.
 	configFilePath := path.Join(thunderHome, "repository/conf/deployment.yaml")
 	defaultConfigPath := path.Join(thunderHome, "repository/resources/conf/default.json")
-	cfg, err := config.LoadConfig(configFilePath, defaultConfigPath)
+	cfg, err := config.LoadConfig(configFilePath, defaultConfigPath, thunderHome)
 	if err != nil {
 		logger.Fatal("Failed to load configurations", log.Error(err))
 	}
@@ -151,89 +172,18 @@ func initCacheManager(logger *log.Logger) {
 	cm.Init()
 }
 
-// initObservability initializes the observability service from configuration.
-func initObservability(logger *log.Logger, cfg *config.Config) {
-	// Start with defaults and override with non-empty values from system config
-	observabilityCfg := observability.DefaultConfig()
-
-	// Override with system configuration values if provided
-	observabilityCfg.Enabled = cfg.Observability.Enabled
-
-	if cfg.Observability.Output.Type != "" {
-		observabilityCfg.Output.Type = cfg.Observability.Output.Type
-	}
-	if cfg.Observability.Output.Format != "" {
-		observabilityCfg.Output.Format = cfg.Observability.Output.Format
-	}
-	if cfg.Observability.FailureMode != "" {
-		observabilityCfg.FailureMode = cfg.Observability.FailureMode
-	}
-
-	observabilityCfg.Metrics.Enabled = cfg.Observability.Metrics.Enabled
-
-	svc, err := observability.InitializeWithConfig(observabilityCfg)
-	if err != nil {
-		logger.Error("Failed to initialize observability service", log.Error(err))
-		return
-	}
-
-	if svc.IsEnabled() {
-		logger.Debug("Observability service initialized successfully with console adapter and JSON format")
-	} else {
-		logger.Debug("Observability service is disabled")
-	}
-}
-
 // loadCertConfig loads the certificate configuration and extracts the Key ID (kid).
 func loadCertConfig(logger *log.Logger, cfg *config.Config, thunderHome string) *tls.Config {
-	sysCertSvc := cert.NewSystemCertificateService()
-	tlsConfig, err := sysCertSvc.GetTLSConfig(cfg, thunderHome)
+	// Build full paths for certificate and key files
+	certFilePath := path.Join(thunderHome, cfg.TLS.CertFile)
+	keyFilePath := path.Join(thunderHome, cfg.TLS.KeyFile)
+
+	// Load TLS configuration
+	tlsConfig, err := pki.LoadTLSConfig(cfg, certFilePath, keyFilePath)
 	if err != nil {
 		logger.Fatal("Failed to load TLS configuration", log.Error(err))
 	}
-
-	// Extract and set the certificate Key ID (kid).
-	kid, err := sysCertSvc.GetCertificateKid(tlsConfig)
-	if err != nil {
-		logger.Fatal("Failed to extract certificate kid", log.Error(err))
-	}
-
-	certConfig := config.CertConfig{
-		TLSConfig: tlsConfig,
-		CertKid:   kid,
-	}
-	config.GetThunderRuntime().SetCertConfig(certConfig)
-
 	return tlsConfig
-}
-
-// startTLSServer starts the HTTPS server with TLS configuration.
-func startTLSServer(logger *log.Logger, server *http.Server, tlsConfig *tls.Config) {
-	ln, err := tls.Listen("tcp", server.Addr, tlsConfig)
-	if err != nil {
-		logger.Fatal("Failed to start TLS listener", log.Error(err))
-	}
-
-	logger.Info("WSO2 Thunder server started (HTTPS)...", log.String("address", server.Addr))
-
-	// Start server in a goroutine
-	go func() {
-		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Failed to serve requests", log.Error(err))
-		}
-	}()
-}
-
-// startHTTPServer starts the HTTP server without TLS.
-func startHTTPServer(logger *log.Logger, server *http.Server) {
-	logger.Info("WSO2 Thunder server started (HTTP)...", log.String("address", server.Addr))
-
-	// Start server in a goroutine
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Failed to serve HTTP requests", log.Error(err))
-		}
-	}()
 }
 
 // createHTTPServer creates and configures an HTTP server with common settings.
@@ -266,6 +216,24 @@ func createHTTPServer(logger *log.Logger, cfg *config.Config, mux *http.ServeMux
 	return server
 }
 
+// createListener creates and returns a listener for the HTTP server.
+func createListener(logger *log.Logger, server *http.Server) net.Listener {
+	ln, err := netListen("tcp", server.Addr)
+	if err != nil {
+		logger.Fatal("Failed to start HTTP listener", log.Error(err))
+	}
+	return ln
+}
+
+// createTLSListener creates and returns a TLS listener for the HTTPS server.
+func createTLSListener(logger *log.Logger, server *http.Server, tlsConfig *tls.Config) net.Listener {
+	ln, err := tlsListen("tcp", server.Addr, tlsConfig)
+	if err != nil {
+		logger.Fatal("Failed to start TLS listener", log.Error(err))
+	}
+	return ln
+}
+
 func createSecurityMiddleware(logger *log.Logger, mux *http.ServeMux,
 	jwtService jwt.JWTServiceInterface) http.Handler {
 	// Check if security should be skipped via environment variable
@@ -290,7 +258,10 @@ func createSecurityMiddleware(logger *log.Logger, mux *http.ServeMux,
 }
 
 // gracefulShutdown handles the graceful shutdown of all components.
-func gracefulShutdown(logger *log.Logger, server *http.Server) {
+func gracefulShutdown(
+	logger *log.Logger,
+	server *http.Server,
+) {
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
@@ -301,12 +272,8 @@ func gracefulShutdown(logger *log.Logger, server *http.Server) {
 		logger.Debug("HTTP server shutdown completed")
 	}
 
-	// Shutdown observability service
-	observabilitySvc := observability.GetService()
-	if observabilitySvc != nil {
-		observabilitySvc.Shutdown()
-		logger.Debug("Observability service shutdown completed")
-	}
+	// Shutdown services
+	unregisterServices()
 
 	// Close database connections
 	dbCloser := provider.GetDBProviderCloser()

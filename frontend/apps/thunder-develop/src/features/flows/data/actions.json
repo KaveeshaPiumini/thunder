@@ -1,0 +1,22 @@
+[
+  {
+    "resourceType": "ELEMENT",
+    "category": "NAVIGATION",
+    "display": {
+      "label": "Navigation",
+      "image": ""
+    },
+    "types": [
+      {
+        "action": {
+          "type": "NEXT"
+        },
+        "display": {
+          "label": "Next",
+          "image": "assets/images/icons/arrowhead-right-outline.svg",
+          "defaultVariant": "PRIMARY"
+        }
+      }
+    ]
+  }
+]

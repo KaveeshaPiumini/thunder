@@ -19,6 +19,8 @@
 package core
 
 import (
+	"context"
+
 	appmodel "github.com/asgardeo/thunder/internal/application/model"
 	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/flow/common"
@@ -26,17 +28,32 @@ import (
 
 // NodeContext holds the context for a specific node in the flow execution.
 type NodeContext struct {
-	FlowID          string
-	FlowType        common.FlowType
-	AppID           string
-	CurrentActionID string
+	Context context.Context
+
+	FlowID        string
+	FlowType      common.FlowType
+	AppID         string
+	Verbose       bool
+	CurrentAction string
+	CurrentNodeID string
+	ExecutorMode  string
 
 	NodeProperties map[string]interface{}
-	NodeInputData  []common.InputData
-	UserInputData  map[string]string
+	NodeInputs     []common.Input
+	UserInputs     map[string]string
 	RuntimeData    map[string]string
 
+	HTTPContext       context.Context
 	Application       appmodel.Application
 	AuthenticatedUser authncm.AuthenticatedUser
 	ExecutionHistory  map[string]*common.NodeExecutionRecord
+}
+
+// NodeCondition represents a condition that must be met for a node to execute.
+// If specified, the node will only execute when the resolved value of key matches value.
+// OnSkip specifies which node to skip to if the condition is not met.
+type NodeCondition struct {
+	Key    string
+	Value  string
+	OnSkip string
 }
