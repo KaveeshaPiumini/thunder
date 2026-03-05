@@ -13,7 +13,7 @@ jobs:
       - name: Fetch Milestone and Notify Google Chat
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+          WEBHOOK_URL: ${{ secrets.TEST }}
         run: |
           # 1. Get today's date in YYYY-MM-DD format
           TODAY=$(date +%Y-%m-%d)
