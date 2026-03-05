@@ -1,0 +1,82 @@
+name: 🚨 Release Milestone Reminder
+
+on:
+  schedule:
+    # This cron expression represents 3:00 PM IST/SLST (9:30 AM UTC) every Thursday
+    - cron: '30 6 * * 4'
+  workflow_dispatch: # Allows you to trigger it manually for testing
+
+jobs:
+  notify-chat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Milestone and Notify Google Chat
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEBHOOK_URL: ${{ secrets.TEST }}
+        run: |
+          # 0. Check if the Webhook URL is provided
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "Error: WEBHOOK_URL is empty. Please check your GOOGLE_CHAT_WEBHOOK repository secret."
+            exit 1
+          fi
+
+          # 1. Get today's date in YYYY-MM-DD format
+          TODAY=$(date +%Y-%m-%d)
+          
+          # 2. Fetch open milestones from the repo
+          MILESTONES=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/asgardeo/thunder/milestones?state=open")
+          
+          # 3. Filter for the milestone due today
+          DUE_MILESTONE=$(echo "$MILESTONES" | jq -r ".[] | select(.due_on != null and (.due_on | startswith(\"$TODAY\")))")
+          
+          if [ -z "$DUE_MILESTONE" ]; then
+            echo "No milestones due today. Exiting."
+            exit 0
+          fi
+          
+          # 4. Extract Milestone details
+          MILESTONE_TITLE=$(echo "$DUE_MILESTONE" | jq -r '.title')
+          MILESTONE_URL=$(echo "$DUE_MILESTONE" | jq -r '.html_url')
+          MILESTONE_NUMBER=$(echo "$DUE_MILESTONE" | jq -r '.number')
+          
+          # 5. Fetch ALL open items (Issues AND PRs) assigned to the milestone
+          ITEMS=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/asgardeo/thunder/issues?milestone=$MILESTONE_NUMBER&state=open")
+          
+          # 6. Separate the counts for Issues and PRs
+          ISSUE_COUNT=$(echo "$ITEMS" | jq '[.[] | select(.pull_request == null)] | length')
+          PR_COUNT=$(echo "$ITEMS" | jq '[.[] | select(.pull_request != null)] | length')
+          
+          # 7. Extract unique assignees, NO '@' symbol, with proper comma spacing
+          ASSIGNEES=$(echo "$ITEMS" | jq -r '.[].assignees[].login' | sort -u | paste -sd "," - | sed 's/,/, /g')
+          
+          if [ -z "$ASSIGNEES" ]; then
+            ASSIGNEES="No one currently assigned"
+          fi
+          
+          # 8. Construct the dynamic message with exact formatting and indents
+          # Added the bold topic to the very start of the BODY string
+          BODY="*Preparing for the Thunder Release %s ⚡️*\n\nThunder %s release build is scheduled to run tomorrow at 12:00 PM.\n\n📊 *Current milestone status*\n  • Open Issues: *%s*"
+          
+          # Conditionally add the PR line ONLY if there are open PRs
+          if [ "$PR_COUNT" -gt 0 ]; then
+            BODY="$BODY\n  • Open PRs: *%s*"
+          fi
+          
+          # Append the rest of the message
+          BODY="$BODY\n\nPlease review the assigned issues and update their status if needed.\n\nKindly ensure that any pending PRs intended for this release are merged before the automated release is triggered.\n\n🔗 *Milestone:* %s\n\n👥 *Assignees:*\n\`%s\`"
+          
+          # Evaluate the string variables. 
+          # Notice $MILESTONE_TITLE is passed TWICE now (once for the topic, once for the schedule sentence)
+          if [ "$PR_COUNT" -gt 0 ]; then
+            printf -v MESSAGE "$BODY" "$MILESTONE_TITLE" "$MILESTONE_TITLE" "$ISSUE_COUNT" "$PR_COUNT" "$MILESTONE_URL" "$ASSIGNEES"
+          else
+            printf -v MESSAGE "$BODY" "$MILESTONE_TITLE" "$MILESTONE_TITLE" "$ISSUE_COUNT" "$MILESTONE_URL" "$ASSIGNEES"
+          fi
+          
+          PAYLOAD=$(jq -n --arg text "$MESSAGE" '{text: $text}')
+          
+          # 9. Send the message to Google Chat
+          curl -f -X POST -H 'Content-Type: application/json' -d "$PAYLOAD" "$WEBHOOK_URL"
