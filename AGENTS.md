@@ -45,3 +45,11 @@ Clone the SDK repository only if you are developing or debugging the SDK itself,
 - [`docs/contributing/backend-guidelines.md`](docs/contributing/backend-guidelines.md) — Go backend: package structure, database patterns, error handling, service initialization, transactions, testing
 - [`docs/contributing/frontend-guidelines.md`](docs/contributing/frontend-guidelines.md) — React/TypeScript: component patterns, testing, linting
 - [`docs/AGENTS.md`](/docs/AGENTS.md) — Documentation authoring standards
+
+# Agent Guidance Index
+
+Repository-level agent guidance lives under `.agents/`.
+
+- Database schema and query conventions: `.agents/db_skills.md`
+
+For any database-related work, follow `.agents/db_skills.md`.
