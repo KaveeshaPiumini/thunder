@@ -23,6 +23,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/consent"
 	oupkg "github.com/asgardeo/thunder/internal/ou"
+	"github.com/asgardeo/thunder/internal/system/cache"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	declarativeresource "github.com/asgardeo/thunder/internal/system/declarative_resource"
 	"github.com/asgardeo/thunder/internal/system/middleware"
@@ -33,13 +34,14 @@ import (
 // Initialize initializes the user schema service and registers its routes.
 func Initialize(
 	mux *http.ServeMux,
+	cacheManager cache.CacheManagerInterface,
 	ouService oupkg.OrganizationUnitServiceInterface,
 	authzService sysauthz.SystemAuthorizationServiceInterface,
 	consentService consent.ConsentServiceInterface,
 ) (UserSchemaServiceInterface, declarativeresource.ResourceExporter, error) {
 	// Step 1: Determine store mode and initialize store and transactioner
 	storeMode := getUserSchemaStoreMode()
-	userSchemaStore, transactioner, err := initializeStore(storeMode)
+	userSchemaStore, transactioner, err := initializeStore(cacheManager, storeMode)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -90,7 +92,8 @@ func Initialize(
 // - If user_schema.store is not specified, falls back to global declarative_resources.enabled:
 //   - If declarative_resources.enabled = true: behaves as IMMUTABLE mode
 //   - If declarative_resources.enabled = false: behaves as MUTABLE mode
-func initializeStore(storeMode serverconst.StoreMode) (userSchemaStoreInterface, transaction.Transactioner, error) {
+func initializeStore(cacheManager cache.CacheManagerInterface,
+	storeMode serverconst.StoreMode) (userSchemaStoreInterface, transaction.Transactioner, error) {
 	switch storeMode {
 	case serverconst.StoreModeComposite:
 		fileStore, _ := newUserSchemaFileBasedStore()
@@ -109,7 +112,9 @@ func initializeStore(storeMode serverconst.StoreMode) (userSchemaStoreInterface,
 		if err != nil {
 			return nil, nil, err
 		}
-		return newCachedBackedUserSchemaStore(dbStore), transactioner, nil
+		schemaByIDCache := cache.GetCache[*UserSchema](cacheManager, "UserSchemaByIDCache")
+		schemaByNameCache := cache.GetCache[*UserSchema](cacheManager, "UserSchemaByNameCache")
+		return newCachedBackedUserSchemaStore(dbStore, schemaByIDCache, schemaByNameCache), transactioner, nil
 	}
 }
 

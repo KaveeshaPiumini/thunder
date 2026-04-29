@@ -42,10 +42,12 @@ type cachedBackStore struct {
 }
 
 // newCachedBackStore wraps an existing inboundClientStoreInterface with caching.
-func newCachedBackStore(inner inboundClientStoreInterface) inboundClientStoreInterface {
+func newCachedBackStore(inner inboundClientStoreInterface,
+	inboundClientCache cache.CacheInterface[*inboundmodel.InboundClient],
+	oauthProfileCache cache.CacheInterface[*inboundmodel.OAuthProfile]) inboundClientStoreInterface {
 	return &cachedBackStore{
-		inboundClientCache: cache.GetCache[*inboundmodel.InboundClient](inboundClientCacheName),
-		oauthProfileCache:  cache.GetCache[*inboundmodel.OAuthProfile](oauthProfileCacheName),
+		inboundClientCache: inboundClientCache,
+		oauthProfileCache:  oauthProfileCache,
 		inner:              inner,
 	}
 }

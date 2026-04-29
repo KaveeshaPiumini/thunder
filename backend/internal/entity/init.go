@@ -20,6 +20,7 @@ package entity
 
 import (
 	"github.com/asgardeo/thunder/internal/ou"
+	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/transaction"
 	"github.com/asgardeo/thunder/internal/userschema"
@@ -30,11 +31,12 @@ import (
 // Declarative resources are loaded on demand by consumer packages (e.g. user, application)
 // based on their own store mode configuration.
 func Initialize(
+	cacheManager cache.CacheManagerInterface,
 	hashService hash.HashServiceInterface,
 	userSchemaService userschema.UserSchemaServiceInterface,
 	ouService ou.OrganizationUnitServiceInterface,
 ) (EntityServiceInterface, error) {
-	store, transactioner, err := initializeStore()
+	store, transactioner, err := initializeStore(cacheManager)
 	if err != nil {
 		return nil, err
 	}
@@ -44,12 +46,14 @@ func Initialize(
 }
 
 // initializeStore always creates a composite store (DB + in-memory file store).
-func initializeStore() (entityStoreInterface, transaction.Transactioner, error) {
+func initializeStore(cacheManager cache.CacheManagerInterface) (
+	entityStoreInterface, transaction.Transactioner, error) {
 	fileStore := newEntityFileBasedStore()
 	dbStore, transactioner, err := newEntityDBStore()
 	if err != nil {
 		return nil, nil, err
 	}
-	cacheBackedEntityStore := newCacheBackedEntityStore(dbStore)
+	entityByIDCache := cache.GetCache[*Entity](cacheManager, "EntityByIDCache")
+	cacheBackedEntityStore := newCacheBackedEntityStore(dbStore, entityByIDCache)
 	return newEntityCompositeStore(fileStore, cacheBackedEntityStore), transactioner, nil
 }

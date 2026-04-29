@@ -36,10 +36,12 @@ type cachedBackedUserSchemaStore struct {
 }
 
 // newCachedBackedUserSchemaStore creates a cache-backed wrapper around the given store.
-func newCachedBackedUserSchemaStore(store userSchemaStoreInterface) userSchemaStoreInterface {
+func newCachedBackedUserSchemaStore(store userSchemaStoreInterface,
+	schemaByIDCache cache.CacheInterface[*UserSchema],
+	schemaByNameCache cache.CacheInterface[*UserSchema]) userSchemaStoreInterface {
 	return &cachedBackedUserSchemaStore{
-		schemaByIDCache:   cache.GetCache[*UserSchema]("UserSchemaByIDCache"),
-		schemaByNameCache: cache.GetCache[*UserSchema]("UserSchemaByNameCache"),
+		schemaByIDCache:   schemaByIDCache,
+		schemaByNameCache: schemaByNameCache,
 		store:             store,
 		logger: log.GetLogger().With(
 			log.String(log.LoggerKeyComponentName, "CacheBackedUserSchemaStore")),

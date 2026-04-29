@@ -30,6 +30,7 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/common"
 	"github.com/asgardeo/thunder/internal/flow/core"
 	flowmgt "github.com/asgardeo/thunder/internal/flow/mgt"
+	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	i18ncore "github.com/asgardeo/thunder/internal/system/i18n/core"
@@ -123,7 +124,7 @@ func TestInitiateFlowSuccessScenarios(t *testing.T) {
 	testConfig := &config.Config{}
 	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
 
-	flowFactory, _ := core.Initialize()
+	flowFactory, _ := core.Initialize(cache.GetCacheManager())
 	testGraph := flowFactory.CreateGraph("auth-graph-1", common.FlowTypeAuthentication)
 
 	// Mock application and graph - shared across all test cases
@@ -297,7 +298,7 @@ func TestInitiateFlowErrorScenarios(t *testing.T) {
 	testConfig := &config.Config{}
 	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
 
-	flowFactory, _ := core.Initialize()
+	flowFactory, _ := core.Initialize(cache.GetCacheManager())
 
 	tests := []struct {
 		name       string
@@ -518,7 +519,7 @@ func TestExecute_ContextDecryptionSuccess(t *testing.T) {
 	config.ResetThunderRuntime()
 	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
 
-	flowFactory, _ := core.Initialize()
+	flowFactory, _ := core.Initialize(cache.GetCacheManager())
 	testGraph := flowFactory.CreateGraph("test-graph-id", common.FlowTypeAuthentication)
 
 	// Build a properly encrypted FlowContextDB
@@ -582,7 +583,7 @@ func TestExecute_ExistingFlowWithoutChallengeToken(t *testing.T) {
 	config.ResetThunderRuntime()
 	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
 
-	flowFactory, _ := core.Initialize()
+	flowFactory, _ := core.Initialize(cache.GetCacheManager())
 	testGraph := flowFactory.CreateGraph("test-graph-id", common.FlowTypeAuthentication)
 
 	engineCtx := EngineContext{
@@ -645,7 +646,7 @@ func TestExecute_ExistingFlowWithDifferentChallengeTokens(t *testing.T) {
 	config.ResetThunderRuntime()
 	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
 
-	flowFactory, _ := core.Initialize()
+	flowFactory, _ := core.Initialize(cache.GetCacheManager())
 	testGraph := flowFactory.CreateGraph("test-graph-id", common.FlowTypeAuthentication)
 
 	tests := []struct {
@@ -736,7 +737,7 @@ func TestExecute_EngineError_InvalidChallengeToken_PreservesContext(t *testing.T
 	config.ResetThunderRuntime()
 	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
 
-	flowFactory, _ := core.Initialize()
+	flowFactory, _ := core.Initialize(cache.GetCacheManager())
 	testGraph := flowFactory.CreateGraph("test-graph-id", common.FlowTypeAuthentication)
 
 	engineCtx := EngineContext{
@@ -795,7 +796,7 @@ func TestExecute_EngineError_NonChallengeToken_RemovesContext(t *testing.T) {
 	config.ResetThunderRuntime()
 	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
 
-	flowFactory, _ := core.Initialize()
+	flowFactory, _ := core.Initialize(cache.GetCacheManager())
 	testGraph := flowFactory.CreateGraph("test-graph-id", common.FlowTypeAuthentication)
 
 	engineCtx := EngineContext{
@@ -862,7 +863,7 @@ func TestExecute_EngineError_NewFlow_ContextNeverRemoved(t *testing.T) {
 	config.ResetThunderRuntime()
 	_ = config.InitializeThunderRuntime("/tmp/test", testConfig)
 
-	flowFactory, _ := core.Initialize()
+	flowFactory, _ := core.Initialize(cache.GetCacheManager())
 	testGraph := flowFactory.CreateGraph("auth-graph-1", common.FlowTypeAuthentication)
 
 	mockStore := newFlowStoreInterfaceMock(t)

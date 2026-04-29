@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	yaml "gopkg.in/yaml.v3"
 
+	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/config"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
 	"github.com/asgardeo/thunder/internal/system/cors"
@@ -755,7 +756,7 @@ func (s *InitTestSuite) TestInitializeStore_MutableMode() {
 	cleanup := setupMockDBProvider()
 	defer cleanup()
 
-	store, compositeStore, _, err := initializeStore()
+	store, compositeStore, _, err := initializeStore(cache.GetCacheManager())
 
 	s.NoError(err)
 	s.NotNil(store)
@@ -792,7 +793,7 @@ func (s *InitTestSuite) TestInitializeStore_DeclarativeMode() {
 	_ = config.InitializeThunderRuntime("test", testConfig)
 	defer config.ResetThunderRuntime()
 
-	store, compositeStore, _, err := initializeStore()
+	store, compositeStore, _, err := initializeStore(cache.GetCacheManager())
 
 	// Note: err might occur if declarative resources path doesn't exist, but that's expected
 	// We're testing store type initialization, not resource loading
@@ -834,7 +835,7 @@ func (s *InitTestSuite) TestInitializeStore_CompositeMode() {
 	cleanup := setupMockDBProvider()
 	defer cleanup()
 
-	store, compositeStore, _, err := initializeStore()
+	store, compositeStore, _, err := initializeStore(cache.GetCacheManager())
 
 	// Note: err might occur if declarative resources path doesn't exist, but that's expected
 	// We're testing store type initialization, not resource loading
@@ -875,7 +876,7 @@ func (s *InitTestSuite) TestInitializeStore_DeclarativeMode_ResourceLoadingError
 	_ = config.InitializeThunderRuntime("test", testConfig)
 	defer config.ResetThunderRuntime()
 
-	store, compositeStore, _, err := initializeStore()
+	store, compositeStore, _, err := initializeStore(cache.GetCacheManager())
 
 	// When declarative resources path doesn't exist or has issues, error is returned
 	// The store and compositeStore should be nil when error occurs
@@ -919,7 +920,7 @@ func (s *InitTestSuite) TestInitializeStore_CompositeMode_ResourceLoadingError()
 	cleanup := setupMockDBProvider()
 	defer cleanup()
 
-	store, compositeStore, _, err := initializeStore()
+	store, compositeStore, _, err := initializeStore(cache.GetCacheManager())
 
 	// When declarative resources path doesn't exist or has issues, error is returned
 	// The store and compositeStore should be nil when error occurs
@@ -963,7 +964,7 @@ func (s *InitTestSuite) TestInitializeStore_DefaultMode() {
 	cleanup := setupMockDBProvider()
 	defer cleanup()
 
-	store, compositeStore, _, err := initializeStore()
+	store, compositeStore, _, err := initializeStore(cache.GetCacheManager())
 
 	s.NoError(err)
 	s.NotNil(store)
@@ -1003,7 +1004,7 @@ func (s *InitTestSuite) TestInitializeStore_ModeNormalization() {
 	cleanup := setupMockDBProvider()
 	defer cleanup()
 
-	store, compositeStore, _, err := initializeStore()
+	store, compositeStore, _, err := initializeStore(cache.GetCacheManager())
 
 	// Note: err might occur if declarative resources path doesn't exist, but that's expected
 	// We're testing store type initialization and mode normalization

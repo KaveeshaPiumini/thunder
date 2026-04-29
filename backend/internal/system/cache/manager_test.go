@@ -152,16 +152,16 @@ func (suite *CacheManagerTestSuite) TestGetCache() {
 
 	// Get a cache for string type
 	cacheName := "testCache"
-	cache1 := GetCache[string](cacheName)
+	cache1 := GetCache[string](GetCacheManager(), cacheName)
 	assert.NotNil(t, cache1, "Cache should not be nil")
 
 	// Get the same cache again
-	cache2 := GetCache[string](cacheName)
+	cache2 := GetCache[string](GetCacheManager(), cacheName)
 	assert.Same(t, cache1, cache2, "GetCache should return the same instance for the same type and name")
 
 	// Test with a different cache name but same type
 	differentCacheName := "anotherCache"
-	cache3 := GetCache[string](differentCacheName)
+	cache3 := GetCache[string](GetCacheManager(), differentCacheName)
 	assert.NotNil(t, cache3, "Cache should not be nil")
 	assert.NotSame(t, cache1, cache3, "Different cache names should create different caches")
 }
@@ -172,10 +172,10 @@ func (suite *CacheManagerTestSuite) TestGetCacheMultipleTypes() {
 	cacheName := "testMultiTypeCache"
 
 	// Get caches for different types
-	cacheString := GetCache[string](cacheName)
-	cacheInt := GetCache[int](cacheName)
-	cacheTestString := GetCache[TestString](cacheName)
-	cacheTestInt := GetCache[TestInt](cacheName)
+	cacheString := GetCache[string](GetCacheManager(), cacheName)
+	cacheInt := GetCache[int](GetCacheManager(), cacheName)
+	cacheTestString := GetCache[TestString](GetCacheManager(), cacheName)
+	cacheTestInt := GetCache[TestInt](GetCacheManager(), cacheName)
 
 	// Verify all caches are not nil
 	assert.NotNil(t, cacheString, "String cache should not be nil")
@@ -190,7 +190,7 @@ func (suite *CacheManagerTestSuite) TestGetCacheMultipleTypes() {
 	assert.NotSame(t, cacheTestString, cacheTestInt, "Different types should create different caches")
 
 	// Verify same type returns same instance
-	cacheStringSame := GetCache[string](cacheName)
+	cacheStringSame := GetCache[string](GetCacheManager(), cacheName)
 	assert.Same(t, cacheString, cacheStringSame, "Same type and name should return the same cache")
 }
 
@@ -199,7 +199,7 @@ func (suite *CacheManagerTestSuite) TestResetCacheManager() {
 
 	// Create a cache
 	cacheName := "testResetCache"
-	cm := GetCache[string](cacheName)
+	cm := GetCache[string](GetCacheManager(), cacheName)
 	assert.NotNil(t, cm, "Cache should not be nil")
 
 	// Verify cache manager has an entry
@@ -213,7 +213,7 @@ func (suite *CacheManagerTestSuite) TestResetCacheManager() {
 	assert.Empty(t, manager.caches, "Cache map should be empty after reset")
 
 	// Create a new cache and verify it's different
-	cmNew := GetCache[string](cacheName)
+	cmNew := GetCache[string](GetCacheManager(), cacheName)
 	assert.NotNil(t, cmNew, "New cache should not be nil")
 	assert.NotSame(t, cm, cmNew, "After reset, should get a new cache instance")
 }
@@ -277,7 +277,7 @@ func (suite *CacheManagerTestSuite) TestConcurrentAccess() {
 			defer wg.Done()
 			// Use different cache names to avoid collisions
 			cacheName := "concurrentCache" + string(rune('A'+index))
-			cache := GetCache[string](cacheName)
+			cache := GetCache[string](GetCacheManager(), cacheName)
 			assert.NotNil(t, cache, "Cache should not be nil even with concurrent access")
 			done <- true
 		}(i)
@@ -319,7 +319,7 @@ func (suite *CacheManagerTestSuite) TestTypeMismatch() {
 	manager.mu.Unlock()
 
 	// Try to get a string cache
-	cache := GetCache[string](cacheName)
+	cache := GetCache[string](GetCacheManager(), cacheName)
 	assert.Nil(t, cache, "Should return nil when there's a type mismatch")
 }
 
@@ -345,7 +345,7 @@ func (suite *CacheManagerTestSuite) TestNewCache() {
 	err := config.InitializeThunderRuntime("/test/thunder/home", &disabledConfig)
 	assert.NoError(t, err)
 
-	cache1 := newCache[string]("testDisabledCache")
+	cache1 := newCache[string](GetCacheManager(), "testDisabledCache")
 	assert.NotNil(t, cache1)
 	assert.False(t, cache1.IsEnabled())
 
@@ -365,7 +365,7 @@ func (suite *CacheManagerTestSuite) TestNewCache() {
 	err = config.InitializeThunderRuntime("/test/thunder/home", &enabledConfig)
 	assert.NoError(t, err)
 
-	cache2 := newCache[string]("testSpecificDisabledCache")
+	cache2 := newCache[string](GetCacheManager(), "testSpecificDisabledCache")
 	assert.NotNil(t, cache2)
 	assert.False(t, cache2.IsEnabled())
 
@@ -387,7 +387,7 @@ func (suite *CacheManagerTestSuite) TestNewCache() {
 	err = config.InitializeThunderRuntime("/test/thunder/home", &inMemConfig)
 	assert.NoError(t, err)
 
-	cache3 := newCache[string]("testInMemCache")
+	cache3 := newCache[string](GetCacheManager(), "testInMemCache")
 	assert.NotNil(t, cache3)
 	assert.True(t, cache3.IsEnabled())
 
@@ -402,7 +402,7 @@ func (suite *CacheManagerTestSuite) TestNewCache() {
 	err = config.InitializeThunderRuntime("/test/thunder/home", &unknownTypeConfig)
 	assert.NoError(t, err)
 
-	cache4 := newCache[string]("testUnknownTypeCache")
+	cache4 := newCache[string](GetCacheManager(), "testUnknownTypeCache")
 	assert.NotNil(t, cache4)
 	assert.True(t, cache4.IsEnabled())
 }

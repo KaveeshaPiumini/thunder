@@ -227,7 +227,7 @@ func buildRedisKeyPrefix(basePrefix string) string {
 }
 
 // newCache creates a new cache instance.
-func newCache[T any](cacheName string) CacheInterface[T] {
+func newCache[T any](cm CacheManagerInterface, cacheName string) CacheInterface[T] {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CacheManager"),
 		log.String("cacheName", cacheName))
 
@@ -264,7 +264,7 @@ func newCache[T any](cacheName string) CacheInterface[T] {
 			cacheProperty,
 		)
 	case cacheTypeRedis:
-		redisClient := GetCacheManager().getRedisClient()
+		redisClient := cm.getRedisClient()
 		if redisClient == nil {
 			logger.Warn("Redis client not available, disabling cache")
 			return &Cache[T]{
@@ -293,20 +293,18 @@ func newCache[T any](cacheName string) CacheInterface[T] {
 		)
 	}
 
-	cache := &Cache[T]{
+	cacheInst := &Cache[T]{
 		enabled:   true,
 		cacheName: cacheName,
 		cacheImpl: internalCache,
 	}
 
-	return cache
+	return cacheInst
 }
 
-// GetInMemoryCache returns a singleton in-memory cache instance for the given type and cache name,
-func GetInMemoryCache[T any](cacheName string) CacheInterface[T] {
+// GetInMemoryCache returns a singleton in-memory cache instance for the given type and cache name.
+func GetInMemoryCache[T any](cm CacheManagerInterface, cacheName string) CacheInterface[T] {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CacheManager"))
-
-	cm := GetCacheManager()
 
 	var t T
 	typeName := reflect.TypeOf(t).String()
@@ -343,20 +341,18 @@ func GetInMemoryCache[T any](cacheName string) CacheInterface[T] {
 		internalCache = newInMemoryCache[T](cacheName, true, cacheConfig, cacheProperty)
 	}
 
-	newCache := &Cache[T]{
+	newCacheInst := &Cache[T]{
 		enabled:   !cacheConfig.Disabled && !cacheProperty.Disabled,
 		cacheName: cacheName,
 		cacheImpl: internalCache,
 	}
-	cm.addCache(cacheKey, newCache)
-	return newCache
+	cm.addCache(cacheKey, newCacheInst)
+	return newCacheInst
 }
 
 // GetCache returns a singleton cache instance for the given type and cache name.
-func GetCache[T any](cacheName string) CacheInterface[T] {
+func GetCache[T any](cm CacheManagerInterface, cacheName string) CacheInterface[T] {
 	logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "CacheManager"))
-
-	cm := GetCacheManager()
 
 	// Create unique key for the cache
 	var t T
@@ -393,10 +389,10 @@ func GetCache[T any](cacheName string) CacheInterface[T] {
 
 	// Create a new cache
 	logger.Debug("Creating new cache", log.String("cacheName", cacheName), log.String("type", typeName))
-	newCache := newCache[T](cacheName)
-	cm.addCache(cacheKey, newCache)
+	newCacheInst := newCache[T](cm, cacheName)
+	cm.addCache(cacheKey, newCacheInst)
 
-	return newCache
+	return newCacheInst
 }
 
 // getCacheType retrieves the cache type from the configuration.
