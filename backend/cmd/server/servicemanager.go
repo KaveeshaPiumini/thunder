@@ -59,6 +59,7 @@ import (
 	"github.com/asgardeo/thunder/internal/system/cache"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/crypto/pki"
+	cryptoruntime "github.com/asgardeo/thunder/internal/system/crypto/runtime"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	declarativeresource "github.com/asgardeo/thunder/internal/system/declarative_resource"
 	"github.com/asgardeo/thunder/internal/system/email"
@@ -91,6 +92,8 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 	if err != nil {
 		logger.Fatal("Failed to initialize certificate service", log.Error(err))
 	}
+
+	runtimeCryptoSvc := cryptoruntime.NewRuntimeCryptoService(pkiService)
 
 	jwtService, jweService, err := jose.Initialize(pkiService)
 	if err != nil {
@@ -316,7 +319,7 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 	)
 
 	flowExecService, err := flowexec.Initialize(mux, flowMgtService, applicationService, execRegistry,
-		observabilitySvc)
+		observabilitySvc, runtimeCryptoSvc)
 	if err != nil {
 		logger.Fatal("Failed to initialize flow execution service", log.Error(err))
 	}

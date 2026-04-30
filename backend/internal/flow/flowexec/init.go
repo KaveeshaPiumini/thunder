@@ -25,6 +25,7 @@ import (
 	"github.com/asgardeo/thunder/internal/flow/executor"
 	flowmgt "github.com/asgardeo/thunder/internal/flow/mgt"
 	"github.com/asgardeo/thunder/internal/system/config"
+	"github.com/asgardeo/thunder/internal/system/crypto"
 	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/internal/system/middleware"
 	"github.com/asgardeo/thunder/internal/system/observability"
@@ -39,6 +40,7 @@ func Initialize(
 	applicationService application.ApplicationServiceInterface,
 	executorRegistry executor.ExecutorRegistryInterface,
 	observabilitySvc observability.ObservabilityServiceInterface,
+	cryptoSvc crypto.RuntimeCryptoProvider,
 ) (FlowExecServiceInterface, error) {
 	var flowStore flowStoreInterface
 	var transactioner transaction.Transactioner
@@ -57,7 +59,7 @@ func Initialize(
 	}
 	flowEngine := newFlowEngine(executorRegistry, observabilitySvc)
 	flowExecService := newFlowExecService(flowMgtService, flowStore, flowEngine, applicationService,
-		observabilitySvc, transactioner)
+		observabilitySvc, transactioner, cryptoSvc)
 
 	handler := newFlowExecutionHandler(flowExecService)
 	registerRoutes(mux, handler)

@@ -21,6 +21,7 @@ package flowexec
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/asgardeo/thunder/internal/application"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/system/config"
 	sysContext "github.com/asgardeo/thunder/internal/system/context"
+	"github.com/asgardeo/thunder/internal/system/crypto"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/i18n/core"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -60,13 +62,15 @@ type flowExecService struct {
 	appService       application.ApplicationServiceInterface
 	observabilitySvc observability.ObservabilityServiceInterface
 	transactioner    transaction.Transactioner
+	cryptoSvc        crypto.RuntimeCryptoProvider
 }
 
 func newFlowExecService(flowMgtService flowmgt.FlowMgtServiceInterface,
 	flowStore flowStoreInterface, flowEngine flowEngineInterface,
 	applicationService application.ApplicationServiceInterface,
 	observabilitySvc observability.ObservabilityServiceInterface,
-	transactioner transaction.Transactioner) FlowExecServiceInterface {
+	transactioner transaction.Transactioner,
+	cryptoSvc crypto.RuntimeCryptoProvider) FlowExecServiceInterface {
 	return &flowExecService{
 		flowMgtService:   flowMgtService,
 		flowStore:        flowStore,
@@ -74,6 +78,7 @@ func newFlowExecService(flowMgtService flowmgt.FlowMgtServiceInterface,
 		appService:       applicationService,
 		observabilitySvc: observabilitySvc,
 		transactioner:    transactioner,
+		cryptoSvc:        cryptoSvc,
 	}
 }
 
@@ -360,8 +365,13 @@ func (s *flowExecService) updateContext(ctx context.Context, engineCtx *EngineCo
 			return fmt.Errorf("flow ID cannot be empty")
 		}
 
+		encryptedEngineCtx, err := s.encryptEngineContext(ctx, engineCtx)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt flow context: %w", err)
+		}
+
 		txErr := s.transactioner.Transact(ctx, func(txCtx context.Context) error {
-			return s.flowStore.UpdateFlowContext(txCtx, *engineCtx)
+			return s.flowStore.UpdateFlowContext(txCtx, *encryptedEngineCtx)
 		})
 		if txErr != nil {
 			return fmt.Errorf("failed to update flow context in database: %w", txErr)
@@ -382,8 +392,13 @@ func (s *flowExecService) storeContext(ctx context.Context, engineCtx *EngineCon
 
 	expirySeconds := s.getFlowExpirySeconds(engineCtx.FlowType)
 
+	encryptedEngineCtx, err := s.encryptEngineContext(ctx, engineCtx)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt flow context: %w", err)
+	}
+
 	txErr := s.transactioner.Transact(ctx, func(txCtx context.Context) error {
-		return s.flowStore.StoreFlowContext(txCtx, *engineCtx, expirySeconds)
+		return s.flowStore.StoreFlowContext(txCtx, *encryptedEngineCtx, expirySeconds)
 	})
 	if txErr != nil {
 		return fmt.Errorf("failed to store flow context in database: %w", txErr)
@@ -392,6 +407,22 @@ func (s *flowExecService) storeContext(ctx context.Context, engineCtx *EngineCon
 	logger.Debug("Flow context stored successfully in database",
 		log.String(log.LoggerKeyExecutionID, engineCtx.ExecutionID))
 	return nil
+}
+
+// encryptEngineContext serializes an EngineContext and encrypts the context field, returning
+// an EncryptedEngineContext ready to be handed to the store.
+func (s *flowExecService) encryptEngineContext(ctx context.Context, engineCtx *EngineContext) (*FlowContextDB, error) {
+	serialized, err := FromEngineContext(*engineCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize engine context: %w", err)
+	}
+	params := crypto.AlgorithmParams{Algorithm: crypto.AlgorithmAESGCM}
+	ciphertext, _, err := s.cryptoSvc.Encrypt(ctx, crypto.KeyRef{}, params, []byte(serialized.Context))
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt context: %w", err)
+	}
+	serialized.Context = string(ciphertext)
+	return serialized, nil
 }
 
 // getFlowGraph checks if the provided application ID is valid and returns the associated flow ID.
@@ -551,8 +582,7 @@ func (s *flowExecService) InitiateFlow(ctx context.Context,
 	return engineCtx.ExecutionID, nil
 }
 
-// getFlowContext retrieves the flow context from the store based on the given execution ID.
-// It also ensures that the retrieved context is decrypted before returning.
+// getFlowContext retrieves the flow context from the store and decrypts it if needed.
 func (s *flowExecService) getFlowContext(ctx context.Context, executionID string, logger *log.Logger) (
 	*FlowContextDB, *serviceerror.ServiceError) {
 	if executionID == "" {
@@ -571,11 +601,24 @@ func (s *flowExecService) getFlowContext(ctx context.Context, executionID string
 		return nil, &ErrorInvalidExecutionID
 	}
 
-	if decryptErr := dbModel.decrypt(ctx); decryptErr != nil {
-		logger.Error("Failed to decrypt flow context",
-			log.String(log.LoggerKeyExecutionID, executionID), log.Error(decryptErr))
-		return nil, &serviceerror.InternalServerError
+	if isContextEncrypted(dbModel.Context) {
+		decryptParams := crypto.AlgorithmParams{Algorithm: crypto.AlgorithmAESGCM}
+		decrypted, decryptErr := s.cryptoSvc.Decrypt(ctx, crypto.KeyRef{}, decryptParams, []byte(dbModel.Context))
+		if decryptErr != nil {
+			logger.Error("Failed to decrypt flow context",
+				log.String(log.LoggerKeyExecutionID, executionID), log.Error(decryptErr))
+			return nil, &serviceerror.InternalServerError
+		}
+		dbModel.Context = string(decrypted)
 	}
 
 	return dbModel, nil
+}
+
+// isContextEncrypted reports whether a context string is in encrypted form by checking for an alg field.
+func isContextEncrypted(context string) bool {
+	var encCheck struct {
+		Algorithm string `json:"alg"`
+	}
+	return json.Unmarshal([]byte(context), &encCheck) == nil && encCheck.Algorithm != ""
 }

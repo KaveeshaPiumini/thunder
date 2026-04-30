@@ -28,7 +28,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/asgardeo/thunder/internal/system/crypto"
 	"github.com/asgardeo/thunder/internal/system/crypto/config"
@@ -42,25 +41,12 @@ type runtimeCryptoService struct {
 	logger     *log.Logger
 }
 
-var (
-	runtimeInstance *runtimeCryptoService
-	runtimeOnce     sync.Once
-)
-
-// GetRuntimeCryptoService returns the singleton RuntimeCryptoProvider instance.
-func GetRuntimeCryptoService() crypto.RuntimeCryptoProvider {
-	runtimeOnce.Do(func() {
-		logger := log.GetLogger().With(log.String(log.LoggerKeyComponentName, "RuntimeCryptoService"))
-		pkiSvc, err := pki.Initialize()
-		if err != nil {
-			logger.Warn("PKI service unavailable; RSA operations will fail", log.String("reason", err.Error()))
-		}
-		runtimeInstance = &runtimeCryptoService{
-			pkiService: pkiSvc,
-			logger:     logger,
-		}
-	})
-	return runtimeInstance
+// NewRuntimeCryptoService constructs a RuntimeCryptoProvider backed by the given PKI service.
+func NewRuntimeCryptoService(pkiSvc pki.PKIServiceInterface) crypto.RuntimeCryptoProvider {
+	return &runtimeCryptoService{
+		pkiService: pkiSvc,
+		logger:     log.GetLogger().With(log.String(log.LoggerKeyComponentName, "RuntimeCryptoService")),
+	}
 }
 
 // Encrypt performs key establishment for the algorithm in params. Per-algorithm behavior:

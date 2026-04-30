@@ -26,7 +26,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"math/big"
-	"sync"
 	"testing"
 	"time"
 
@@ -40,12 +39,6 @@ import (
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/tests/mocks/crypto/pki/pkimock"
 )
-
-// resetSingleton resets the singleton state for testing purposes.
-func resetSingleton() {
-	runtimeInstance = nil
-	runtimeOnce = sync.Once{}
-}
 
 type RuntimeCryptoServiceTestSuite struct {
 	suite.Suite
@@ -69,7 +62,6 @@ func (suite *RuntimeCryptoServiceTestSuite) SetupSuite() {
 }
 
 func (suite *RuntimeCryptoServiceTestSuite) SetupTest() {
-	resetSingleton()
 	config.ResetThunderRuntime()
 	suite.pkiMock = pkimock.NewPKIServiceInterfaceMock(suite.T())
 	testConfig := &config.Config{
