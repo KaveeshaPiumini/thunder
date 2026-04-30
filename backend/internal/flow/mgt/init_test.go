@@ -25,9 +25,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	yaml "gopkg.in/yaml.v3"
 
 	"github.com/asgardeo/thunder/internal/system/config"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
+	"github.com/asgardeo/thunder/internal/system/cors"
 	"github.com/asgardeo/thunder/internal/system/database/provider"
 	"github.com/asgardeo/thunder/tests/mocks/database/providermock"
 )
@@ -60,6 +62,11 @@ type InitTestSuite struct {
 func (s *InitTestSuite) SetupTest() {
 	s.mockService = NewFlowMgtServiceInterfaceMock(s.T())
 
+	var allowedOrigins cors.OriginEntries
+	s.Require().NoError(yaml.Unmarshal([]byte(`
+- https://example.com
+- https://localhost:3000
+`), &allowedOrigins))
 	testConfig := &config.Config{
 		Database: config.DatabaseConfig{
 			Config: config.DataSource{
@@ -74,10 +81,9 @@ func (s *InitTestSuite) SetupTest() {
 		Server: config.ServerConfig{
 			Identifier: "test-deployment",
 		},
-		CORS: config.CORSConfig{
-			AllowedOrigins: []string{"https://example.com", "https://localhost:3000"},
-		},
+		CORS: config.CORSConfig{AllowedOrigins: allowedOrigins},
 	}
+	s.Require().NoError(cors.InitializeMatcher(testConfig.CORS.AllowedOrigins))
 	_ = config.InitializeThunderRuntime("test", testConfig)
 }
 
@@ -162,8 +168,12 @@ func (s *InitTestSuite) TestRegisterRoutes_CORSHeadersConfigured() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
+			// Allow-Methods/Allow-Headers are preflight-only response headers
+			// per the Fetch spec; the request must carry
+			// Access-Control-Request-Method to elicit them.
 			req := httptest.NewRequest(tc.method, tc.path, nil)
 			req.Header.Set("Origin", "https://example.com")
+			req.Header.Set("Access-Control-Request-Method", "GET")
 			w := httptest.NewRecorder()
 
 			mux.ServeHTTP(w, req)

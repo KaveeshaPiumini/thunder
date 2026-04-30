@@ -17,6 +17,7 @@
  */
 
 import {screen, cleanup} from '@testing-library/react';
+import {TEST_CN_PREFIX} from '@thunder/test-utils';
 import {describe, it, expect, afterEach} from 'vitest';
 import renderWithProviders from '../../../test/renderWithProviders';
 import AuthCardLayout from '../AuthCardLayout';
@@ -36,31 +37,31 @@ describe('AuthCardLayout', () => {
   });
 
   describe('variant prop', () => {
-    it('applies Thunder CSS root class when variant is provided', () => {
+    it('applies product prefix CSS root class when variant is provided', () => {
       const {container} = renderWithProviders(
         <AuthCardLayout variant="SignInBox">
           <span>Content</span>
         </AuthCardLayout>,
       );
-      expect(container.querySelector('.ThunderSignInBox--root')).toBeTruthy();
+      expect(container.querySelector(`.${TEST_CN_PREFIX}SignInBox--root`)).toBeTruthy();
     });
 
-    it('applies Thunder CSS paper class when variant is provided', () => {
+    it('applies product prefix CSS paper class when variant is provided', () => {
       const {container} = renderWithProviders(
         <AuthCardLayout variant="SignInBox">
           <span>Content</span>
         </AuthCardLayout>,
       );
-      expect(container.querySelector('.ThunderSignInBox--paper')).toBeTruthy();
+      expect(container.querySelector(`.${TEST_CN_PREFIX}SignInBox--paper`)).toBeTruthy();
     });
 
-    it('does not apply Thunder CSS classes when variant is not provided', () => {
+    it('does not apply product prefix CSS classes when variant is not provided', () => {
       const {container} = renderWithProviders(
         <AuthCardLayout>
           <span>Content</span>
         </AuthCardLayout>,
       );
-      const allElements = container.querySelectorAll('[class*="Thunder"]');
+      const allElements = container.querySelectorAll(`[class*="${TEST_CN_PREFIX}"]`);
       expect(allElements.length).toBe(0);
     });
   });
@@ -79,7 +80,7 @@ describe('AuthCardLayout', () => {
       expect(img).toBeTruthy();
     });
 
-    it('applies Thunder CSS logo class when variant and logo are provided', () => {
+    it('applies product prefix CSS logo class when variant and logo are provided', () => {
       const logo = {
         src: {light: '/logo-light.svg', dark: '/logo-dark.svg'},
       };
@@ -88,7 +89,7 @@ describe('AuthCardLayout', () => {
           <span>Content</span>
         </AuthCardLayout>,
       );
-      expect(container.querySelector('.ThunderSignInBox--logo')).toBeTruthy();
+      expect(container.querySelector(`.${TEST_CN_PREFIX}SignInBox--logo`)).toBeTruthy();
     });
 
     it('uses custom alt text when provided in logo', () => {
@@ -181,7 +182,7 @@ describe('AuthCardLayout', () => {
           <span>Content</span>
         </AuthCardLayout>,
       );
-      const thunderElements = container.querySelectorAll('[class*="Thunder"]');
+      const thunderElements = container.querySelectorAll(`[class*="${TEST_CN_PREFIX}"]`);
       expect(thunderElements.length).toBe(0);
     });
   });

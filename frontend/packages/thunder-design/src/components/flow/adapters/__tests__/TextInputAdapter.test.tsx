@@ -18,6 +18,7 @@
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {screen} from '@testing-library/react';
+import {TEST_CN_PREFIX} from '@thunder/test-utils';
 import {describe, it, expect, vi} from 'vitest';
 import type {FlowFieldProps} from '../../../../models/flow';
 import renderWithProviders from '../../../../test/renderWithProviders';
@@ -54,11 +55,11 @@ describe('TextInputAdapter', () => {
     expect(input?.getAttribute('type')).toBe('email');
   });
 
-  it('applies Thunder CSS class names', () => {
+  it('applies product prefix CSS class names', () => {
     renderWithProviders(<TextInputAdapter {...baseProps} />);
-    const formControl = document.querySelector('.ThunderFlow--textInput');
+    const formControl = document.querySelector(`.${TEST_CN_PREFIX}Flow--textInput`);
     expect(formControl).toBeTruthy();
-    expect(formControl?.classList.contains('ThunderFormControl--root')).toBe(true);
+    expect(formControl?.classList.contains(`${TEST_CN_PREFIX}FormControl--root`)).toBe(true);
   });
 
   it('returns null when ref is missing', () => {

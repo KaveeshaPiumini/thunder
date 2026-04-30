@@ -28,8 +28,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	appmodel "github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/attributecache"
+	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/tokenservice"
@@ -59,7 +59,7 @@ type RefreshTokenGrantHandlerTestSuite struct {
 	mockTokenValidator   *tokenservicemock.TokenValidatorInterfaceMock
 	mockAttrCacheService *attributecachemock.AttributeCacheServiceInterfaceMock
 	mockResourceService  *resourcemock.ResourceServiceInterfaceMock
-	oauthApp             *appmodel.OAuthAppConfigProcessedDTO
+	oauthApp             *inboundmodel.OAuthClient
 	validRefreshToken    string
 	validClaims          map[string]interface{}
 	testTokenReq         *model.TokenRequest
@@ -73,7 +73,7 @@ func (suite *RefreshTokenGrantHandlerTestSuite) SetupTest() {
 	// Reset ThunderRuntime before initializing with test config
 	config.ResetThunderRuntime()
 
-	// Initialize Thunder Runtime config with basic test config
+	// Initialize Runtime config with basic test config
 	testConfig := &config.Config{
 		JWT: config.JWTConfig{
 			ValidityPeriod: 3600,
@@ -110,12 +110,12 @@ func (suite *RefreshTokenGrantHandlerTestSuite) SetupTest() {
 		resourceService:  suite.mockResourceService,
 	}
 
-	suite.oauthApp = &appmodel.OAuthAppConfigProcessedDTO{
+	suite.oauthApp = &inboundmodel.OAuthClient{
 		ClientID:                testRefreshTokenClientID,
 		GrantTypes:              []constants.GrantType{constants.GrantTypeRefreshToken},
 		TokenEndpointAuthMethod: constants.TokenEndpointAuthMethodClientSecretPost,
-		Token: &appmodel.OAuthTokenConfig{
-			AccessToken: &appmodel.AccessTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
+			AccessToken: &inboundmodel.AccessTokenConfig{
 				UserAttributes: []string{"email", "username"},
 			},
 		},

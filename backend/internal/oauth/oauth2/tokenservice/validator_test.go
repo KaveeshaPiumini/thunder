@@ -30,7 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	appmodel "github.com/asgardeo/thunder/internal/application/model"
+	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/tests/mocks/jose/jwtmock"
@@ -46,7 +46,7 @@ type TokenValidatorTestSuite struct {
 	suite.Suite
 	mockJWTService *jwtmock.JWTServiceInterfaceMock
 	validator      *tokenValidator
-	oauthApp       *appmodel.OAuthAppConfigProcessedDTO
+	oauthApp       *inboundmodel.OAuthClient
 }
 
 func TestTokenValidatorTestSuite(t *testing.T) {
@@ -71,7 +71,7 @@ func (suite *TokenValidatorTestSuite) SetupTest() {
 		jwtService: suite.mockJWTService,
 	}
 
-	suite.oauthApp = &appmodel.OAuthAppConfigProcessedDTO{
+	suite.oauthApp = &inboundmodel.OAuthClient{
 		ClientID: "test-client",
 	}
 }
@@ -119,7 +119,7 @@ func (suite *TokenValidatorTestSuite) TestValidateSubjectToken_Success_BasicToke
 	claims := map[string]interface{}{
 		"sub":   "user123",
 		"iss":   "https://thunder.io",
-		"aud":   defaultAudience, // Use default audience for Thunder issuer
+		"aud":   defaultAudience, // Use default audience for the issuer
 		"exp":   float64(now + 3600),
 		"nbf":   float64(now - 60),
 		"scope": "read write",
@@ -139,10 +139,10 @@ func (suite *TokenValidatorTestSuite) TestValidateSubjectToken_Success_BasicToke
 }
 
 func (suite *TokenValidatorTestSuite) TestValidateSubjectToken_Success_WithTokenConfig() {
-	// App with token config should still validate using Thunder-level issuer from config
-	customOAuthApp := &appmodel.OAuthAppConfigProcessedDTO{
+	// App with token config should still validate using server-level issuer from config
+	customOAuthApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token:    &appmodel.OAuthTokenConfig{},
+		Token:    &inboundmodel.OAuthTokenConfig{},
 	}
 
 	now := time.Now().Unix()
@@ -171,7 +171,7 @@ func (suite *TokenValidatorTestSuite) TestValidateSubjectToken_Success_WithoutNb
 	claims := map[string]interface{}{
 		"sub": "user123",
 		"iss": "https://thunder.io",
-		"aud": defaultAudience, // Use default audience for Thunder issuer
+		"aud": defaultAudience, // Use default audience for the issuer
 		"exp": float64(now + 3600),
 	}
 	token := suite.createTestJWT(claims)
@@ -192,7 +192,7 @@ func (suite *TokenValidatorTestSuite) TestValidateSubjectToken_Success_WithEmpty
 	claims := map[string]interface{}{
 		"sub": "user123",
 		"iss": "https://thunder.io",
-		"aud": defaultAudience, // Use default audience for Thunder issuer
+		"aud": defaultAudience, // Use default audience for the issuer
 		"exp": float64(now + 3600),
 		// No scope claim
 	}
@@ -400,11 +400,11 @@ func (suite *TokenValidatorTestSuite) TestVerifyTokenSignatureByIssuer_Success_T
 }
 
 func (suite *TokenValidatorTestSuite) TestVerifyTokenSignatureByIssuer_Success_WithTokenConfig() {
-	// App with token config should still use Thunder-level issuer for signature verification
-	customApp := &appmodel.OAuthAppConfigProcessedDTO{
+	// App with token config should still use server-level issuer for signature verification
+	customApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			AccessToken: &appmodel.AccessTokenConfig{},
+		Token: &inboundmodel.OAuthTokenConfig{
+			AccessToken: &inboundmodel.AccessTokenConfig{},
 		},
 	}
 	token := testJWTTokenString
@@ -440,7 +440,7 @@ func (suite *TokenValidatorTestSuite) TestVerifyTokenSignatureByIssuer_Error_Sig
 }
 
 func (suite *TokenValidatorTestSuite) TestVerifyTokenSignatureByIssuer_Error_ExternalIssuerNotSupported() {
-	// External issuer (not in trusted Thunder issuers)
+	// External issuer (not in trusted server issuers)
 	token := testJWTTokenString
 
 	err := suite.validator.verifyTokenSignatureByIssuer(token, "https://external-idp.com", suite.oauthApp)
@@ -459,7 +459,7 @@ func (suite *TokenValidatorTestSuite) TestFederationScenario_DecodeBeforeVerify(
 	claims := map[string]interface{}{
 		"sub": "user123",
 		"iss": "https://thunder.io",
-		"aud": defaultAudience, // Use default audience for Thunder issuer
+		"aud": defaultAudience, // Use default audience for the issuer
 		"exp": float64(now + 3600),
 	}
 	token := suite.createTestJWT(claims)
@@ -495,17 +495,17 @@ func (suite *TokenValidatorTestSuite) TestFederationScenario_FailFastOnUntrusted
 }
 
 func (suite *TokenValidatorTestSuite) TestFederationScenario_OnlyThunderIssuerIsValid() {
-	// Only the Thunder-level issuer from config is accepted; app-level issuers are no longer supported
-	appWithTokenConfig := &appmodel.OAuthAppConfigProcessedDTO{
+	// Only the server-level issuer from config is accepted; app-level issuers are no longer supported
+	appWithTokenConfig := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			AccessToken: &appmodel.AccessTokenConfig{},
+		Token: &inboundmodel.OAuthTokenConfig{
+			AccessToken: &inboundmodel.AccessTokenConfig{},
 		},
 	}
 
 	now := time.Now().Unix()
 
-	// Test token from Thunder issuer (matches config-level issuer)
+	// Test token from server issuer (matches config-level issuer)
 	claimsValid := map[string]interface{}{
 		"sub": "user123",
 		"iss": "https://thunder.io",
@@ -593,7 +593,7 @@ func (suite *TokenValidatorTestSuite) TestValidateSubjectToken_EdgeCase_VeryLong
 	largeClaims := map[string]interface{}{
 		"sub":   "user123",
 		"iss":   "https://thunder.io",
-		"aud":   defaultAudience, // Use default audience for Thunder issuer
+		"aud":   defaultAudience, // Use default audience for the issuer
 		"exp":   float64(now + 3600),
 		"large": string(make([]byte, 10000)), // 10KB of data
 	}
@@ -651,7 +651,7 @@ func (suite *TokenValidatorTestSuite) TestValidateSubjectToken_NonAssertion_Acce
 	}
 	token := suite.createTestJWT(claims)
 
-	oauthAppWithID := &appmodel.OAuthAppConfigProcessedDTO{
+	oauthAppWithID := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
 		AppID:    "x", // Matches one element of the aud array.
 	}

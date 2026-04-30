@@ -45,7 +45,7 @@ import (
 
 // JWTServiceInterface defines the interface for JWT operations.
 type JWTServiceInterface interface {
-	GenerateJWT(sub, iss string, validityPeriod int64, claims map[string]interface{}, typ string) (
+	GenerateJWT(sub, iss string, validityPeriod int64, claims map[string]interface{}, typ, alg string) (
 		string, int64, *serviceerror.ServiceError)
 	VerifyJWT(jwtToken string, expectedAud, expectedIss string) *serviceerror.ServiceError
 	VerifyJWTWithPublicKey(jwtToken string, jwtPublicKey crypto.PublicKey, expectedAud,
@@ -70,10 +70,12 @@ type jwtService struct {
 	kid        string
 	logger     *log.Logger
 	jwksCache  sync.Map
+	httpClient httpservice.HTTPClientInterface
 }
 
 // newJWTService creates a new JWT service instance.
-func newJWTService(pkiService pki.PKIServiceInterface) (JWTServiceInterface, error) {
+func newJWTService(pkiService pki.PKIServiceInterface,
+	httpClient httpservice.HTTPClientInterface) (JWTServiceInterface, error) {
 	preferredKid := config.GetThunderRuntime().Config.JWT.PreferredKeyID
 
 	privateKey, err := pkiService.GetPrivateKey(preferredKid)
@@ -93,6 +95,7 @@ func newJWTService(pkiService pki.PKIServiceInterface) (JWTServiceInterface, err
 			jwsAlg:     jws.RS256,
 			kid:        kid,
 			logger:     logger,
+			httpClient: httpClient,
 		}, nil
 	case *ecdsa.PrivateKey:
 		// Determine ECDSA algorithm based on curve
@@ -105,6 +108,7 @@ func newJWTService(pkiService pki.PKIServiceInterface) (JWTServiceInterface, err
 				jwsAlg:     jws.ES256,
 				kid:        kid,
 				logger:     logger,
+				httpClient: httpClient,
 			}, nil
 		case jws.P384:
 			return &jwtService{
@@ -113,6 +117,7 @@ func newJWTService(pkiService pki.PKIServiceInterface) (JWTServiceInterface, err
 				jwsAlg:     jws.ES384,
 				kid:        kid,
 				logger:     logger,
+				httpClient: httpClient,
 			}, nil
 		case jws.P521:
 			return &jwtService{
@@ -121,6 +126,7 @@ func newJWTService(pkiService pki.PKIServiceInterface) (JWTServiceInterface, err
 				jwsAlg:     jws.ES512,
 				kid:        kid,
 				logger:     logger,
+				httpClient: httpClient,
 			}, nil
 		default:
 			return nil, errors.New("unsupported EC curve: " + crvName + " only P-256, P-384 and P-521 are supported")
@@ -132,19 +138,31 @@ func newJWTService(pkiService pki.PKIServiceInterface) (JWTServiceInterface, err
 			jwsAlg:     jws.EdDSA,
 			kid:        kid,
 			logger:     logger,
+			httpClient: httpClient,
 		}, nil
 	default:
 		return nil, errors.New("unsupported private key type")
 	}
 }
 
-// GenerateJWT generates a standard JWT signed with the server's private key.
+// GenerateJWT generates a JWT signed with the server's private key.
 // The typ parameter sets the JWT header "typ" field. If empty, defaults to "JWT".
+// The alg parameter overrides the signing algorithm (e.g. "RS256"). When empty, the server's
+// default algorithm is used. When set but incompatible with the server's private key,
+// ErrorUnsupportedJWSAlgorithm is returned.
 // claims["aud"] must be set by the caller as either a string or []string; omitting it
 // or providing another type is a programmer error and returns InternalServerError.
 func (js *jwtService) GenerateJWT(
-	sub, iss string, validityPeriod int64, claims map[string]interface{}, typ string,
+	sub, iss string, validityPeriod int64, claims map[string]interface{}, typ, alg string,
 ) (string, int64, *serviceerror.ServiceError) {
+	jwsAlg := js.jwsAlg
+	if alg != "" {
+		mapped, err := jws.MapAlgorithmToSignAlg(jws.Algorithm(alg))
+		if err != nil || mapped != js.signAlg {
+			return "", 0, &ErrorUnsupportedJWSAlgorithm
+		}
+		jwsAlg = jws.Algorithm(alg)
+	}
 	if js.privateKey == nil {
 		js.logger.Error("Private key not found for JWT generation")
 		return "", 0, &serviceerror.InternalServerError
@@ -171,7 +189,7 @@ func (js *jwtService) GenerateJWT(
 		typ = TokenTypeJWT
 	}
 	header := map[string]string{
-		"alg": string(js.jwsAlg),
+		"alg": string(jwsAlg),
 		"typ": typ,
 		"kid": js.kid,
 	}
@@ -415,8 +433,7 @@ func (js *jwtService) getJWKSKeys(jwksURL string) ([]map[string]interface{}, *se
 		}
 	}
 
-	client := httpservice.NewHTTPClientWithTimeout(10 * time.Second)
-	resp, err := client.Get(jwksURL)
+	resp, err := js.httpClient.Get(jwksURL)
 	if err != nil {
 		js.logger.Debug("Failed to fetch JWKS from URL: " + err.Error())
 		return nil, &ErrorFailedToGetJWKS

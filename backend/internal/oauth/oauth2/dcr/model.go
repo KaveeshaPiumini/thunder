@@ -43,6 +43,12 @@ type DCRRegistrationRequest struct {
 	Contacts                []string                            `json:"contacts,omitempty"`
 	TosURI                  string                              `json:"tos_uri,omitempty"`
 	PolicyURI               string                              `json:"policy_uri,omitempty"`
+
+	RequirePushedAuthorizationRequests bool `json:"require_pushed_authorization_requests,omitempty"`
+
+	UserInfoSignedResponseAlg    string `json:"userinfo_signed_response_alg,omitempty"`
+	UserInfoEncryptedResponseAlg string `json:"userinfo_encrypted_response_alg,omitempty"`
+	UserInfoEncryptedResponseEnc string `json:"userinfo_encrypted_response_enc,omitempty"`
 }
 
 // DCRRegistrationResponse represents the RFC 7591 Dynamic Client Registration response.
@@ -64,6 +70,12 @@ type DCRRegistrationResponse struct {
 	TosURI                  string                              `json:"tos_uri,omitempty"`
 	PolicyURI               string                              `json:"policy_uri,omitempty"`
 	AppID                   string                              `json:"app_id,omitempty"`
+
+	RequirePushedAuthorizationRequests bool `json:"require_pushed_authorization_requests,omitempty"`
+
+	UserInfoSignedResponseAlg    string `json:"userinfo_signed_response_alg,omitempty"`
+	UserInfoEncryptedResponseAlg string `json:"userinfo_encrypted_response_alg,omitempty"`
+	UserInfoEncryptedResponseEnc string `json:"userinfo_encrypted_response_enc,omitempty"`
 }
 
 // DCRErrorResponse represents the RFC 7591 Dynamic Client Registration error response.

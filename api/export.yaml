@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Export API
   version: "1.0"
-  description: This API exports Thunder resources as combined YAML in JSON responses or as ZIP archives.
+  description: This API exports Resources as combined YAML in JSON responses or as ZIP archives.
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -55,7 +55,7 @@ paths:
                 with-env-file:
                   summary: Export that includes template variables
                   value:
-                    resources: "# File: google-idp.yaml\napiVersion: thunder/v1\nkind: IdentityProvider\n..."
+                    resources: "# File: google-idp.yaml\napiVersion: v1\nkind: IdentityProvider\n..."
                     environment_variables: "GOOGLE_CLIENT_ID=\nGOOGLE_CLIENT_SECRET=\n"
         "400":
           description: Bad request
@@ -68,14 +68,22 @@ paths:
                   summary: Malformed request body
                   value:
                     code: "EXP-1001"
-                    message: "Invalid export request"
-                    description: "The provided export request is invalid or malformed"
+                    message:
+                      key: "error.exportservice.invalid_request"
+                      defaultValue: "Invalid export request"
+                    description:
+                      key: "error.exportservice.invalid_request_description"
+                      defaultValue: "The provided export request is invalid or malformed"
                 no-resources:
                   summary: No matching resources found
                   value:
                     code: "EXP-1002"
-                    message: "No resources found"
-                    description: "No valid resources found for the provided identifiers"
+                    message:
+                      key: "error.exportservice.no_resources_found"
+                      defaultValue: "No resources found"
+                    description:
+                      key: "error.exportservice.no_resources_found_description"
+                      defaultValue: "No valid resources found for the provided identifiers"
         "500":
           description: Internal server error
           content:
@@ -84,8 +92,12 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 code: "SSE-5000"
-                message: "Internal server error"
-                description: "An unexpected error occurred while processing the export request"
+                message:
+                  key: "error.internal_server_error"
+                  defaultValue: "Internal server error"
+                description:
+                  key: "error.internal_server_error_description"
+                  defaultValue: "An unexpected error occurred while processing the export request"
 
   /export/zip:
     post:
@@ -144,14 +156,22 @@ paths:
                   summary: Malformed request body
                   value:
                     code: "EXP-1001"
-                    message: "Invalid export request"
-                    description: "The provided export request is invalid or malformed"
+                    message:
+                      key: "error.exportservice.invalid_request"
+                      defaultValue: "Invalid export request"
+                    description:
+                      key: "error.exportservice.invalid_request_description"
+                      defaultValue: "The provided export request is invalid or malformed"
                 no-resources:
                   summary: No matching resources found
                   value:
                     code: "EXP-1002"
-                    message: "No resources found"
-                    description: "No valid resources found for the provided identifiers"
+                    message:
+                      key: "error.exportservice.no_resources_found"
+                      defaultValue: "No resources found"
+                    description:
+                      key: "error.exportservice.no_resources_found_description"
+                      defaultValue: "No valid resources found for the provided identifiers"
         "500":
           description: Internal server error
           content:
@@ -160,8 +180,12 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 code: "SSE-5000"
-                message: "Internal server error"
-                description: "An unexpected error occurred while processing the export request"
+                message:
+                  key: "error.internal_server_error"
+                  defaultValue: "Internal server error"
+                description:
+                  key: "error.internal_server_error_description"
+                  defaultValue: "An unexpected error occurred while processing the export request"
 
 components:
   securitySchemes:
@@ -323,7 +347,7 @@ components:
       example:
         files:
           - fileName: "google-idp.yaml"
-            content: "apiVersion: thunder/v1\nkind: IdentityProvider\n..."
+            content: "apiVersion: v1\nkind: IdentityProvider\n..."
             size: 128
         envFile:
           fileName: ".env"
@@ -508,10 +532,20 @@ components:
           description: Machine-readable error code.
           example: "EXP-1001"
         message:
-          type: string
-          description: Short human-readable summary.
-          example: "Invalid export request"
+          $ref: '#/components/schemas/I18nMessage'
         description:
+          $ref: '#/components/schemas/I18nMessage'
+
+    I18nMessage:
+      type: object
+      description: Internationalized message with translation key and default value.
+      required:
+        - key
+        - defaultValue
+      properties:
+        key:
           type: string
-          description: Detailed description of the error.
-          example: "The provided export request is invalid or malformed"
+          description: Translation key for fetching localized message.
+        defaultValue:
+          type: string
+          description: Default message in English (fallback).

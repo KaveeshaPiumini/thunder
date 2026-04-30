@@ -21,7 +21,7 @@ package tokenservice
 import (
 	"fmt"
 
-	appmodel "github.com/asgardeo/thunder/internal/application/model"
+	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	oauth2model "github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	oauth2utils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
@@ -80,6 +80,7 @@ func (tb *tokenBuilder) BuildAccessToken(ctx *AccessTokenBuildContext) (*oauth2m
 		tokenConfig.ValidityPeriod,
 		jwtClaims,
 		jwt.TokenTypeAccessToken,
+		"",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %v", err.Error)
@@ -162,7 +163,7 @@ func (tb *tokenBuilder) buildAccessTokenClaims(
 // buildAccessTokenUserAttributes builds user attributes for the access token based on app configuration.
 func (tb *tokenBuilder) buildAccessTokenUserAttributes(
 	attrs map[string]interface{},
-	oauthApp *appmodel.OAuthAppConfigProcessedDTO,
+	oauthApp *inboundmodel.OAuthClient,
 ) map[string]interface{} {
 	accessTokenAttributes := make(map[string]interface{})
 
@@ -240,6 +241,7 @@ func (tb *tokenBuilder) BuildRefreshToken(ctx *RefreshTokenBuildContext) (*oauth
 		tokenConfig.ValidityPeriod,
 		claims,
 		jwt.TokenTypeJWT,
+		"",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate refresh token: %v", err.Error)
@@ -313,6 +315,7 @@ func (tb *tokenBuilder) BuildIDToken(ctx *IDTokenBuildContext) (*oauth2model.Tok
 		tokenConfig.ValidityPeriod,
 		jwtClaims,
 		jwt.TokenTypeJWT,
+		"",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate ID token: %v", err.Error)

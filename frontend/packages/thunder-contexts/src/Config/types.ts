@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
+ * Copyright (c) 2025-2026, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -16,9 +16,11 @@
  * under the License.
  */
 
+import {OxygenThemeType} from '@wso2/oxygen-ui/styles/index';
+
 /**
  * Server configuration interface that defines connection parameters
- * for the Thunder backend server.
+ * for the backend server.
  *
  * @public
  */
@@ -44,7 +46,7 @@ export interface ServerConfig {
   /**
    * Optional public URL for the server. If provided, this will be used instead of
    * constructing the URL from hostname, port, and http_only.
-   * @example "https://thunder.example.com", "https://api.thunder.local:8080"
+   * @example "https://example.com", "https://api.local:8080"
    */
   public_url?: string;
 }
@@ -64,7 +66,7 @@ export interface ClientConfig {
   /**
    * Unique identifier for the client application, used for authentication
    * and authorization with identity providers like Asgardeo.
-   * @example "CONSOLE", "thunder-admin", "my-app-client-id"
+   * @example "CONSOLE", "my-app-client-id"
    */
   client_id: string;
 
@@ -101,6 +103,30 @@ export interface ClientConfig {
 }
 
 /**
+ * Theme configuration interface that defines theming options for Thunder applications.
+ */
+export interface ThemeConfig {
+  /** Unique key for the theme */
+  key: string;
+
+  /** Display name for the theme */
+  label: string;
+
+  /** Theme object compatible with Oxygen UI theming system or relative path to a theme config file */
+  theme: string | Partial<OxygenThemeType>;
+}
+
+/**
+ * Design configuration interface that defines theming and UI customization settings.
+ *
+ * @public
+ */
+export interface DesignConfig {
+  initialTheme?: string;
+  themes?: ThemeConfig[];
+}
+
+/**
  * Branding configuration interface that defines product name and other branding-related settings.
  *
  * @public
@@ -108,9 +134,14 @@ export interface ClientConfig {
 export interface BrandConfig {
   /**
    * Product name for branding purposes.
-   * @example "Thunder", "Awesome Product"
+   * @example "My Product", "Awesome Product"
    */
   product_name: string;
+
+  /**
+   * Design configuration for theming and UI customization.
+   */
+  design?: DesignConfig;
 }
 
 /**
@@ -160,22 +191,22 @@ export interface TrustedIssuerConfig {
 
   /**
    * Type of external authorization server. Set to `generic` when the trusted
-   * issuer is a generic OIDC provider rather than another Thunder instance.
-   * When `generic`, the console skips Thunder-specific bootstrap calls
+   * issuer is a generic OIDC provider rather than another instance of the same type.
+   * When `generic`, the console skips specific bootstrap calls
    * (flow metadata, branding preferences) that would otherwise fail against a generic OIDC provider.
    *
-   * Defaults to `thunder` for backward compatibility with existing
-   * Thunder-to-Thunder federation deployments.
+   * Defaults to self for backward compatibility with existing
+   * federation deployments.
    */
   type?: 'thunder' | 'generic';
 }
 
 /**
- * Thunder runtime configuration interface that contains all configuration
- * settings for Thunder applications.
+ * Runtime configuration interface that contains all configuration
+ * settings for applications.
  *
  * This interface defines the complete structure of the runtime configuration
- * that can be loaded from `window.__THUNDER_RUNTIME_CONFIG__` or provided
+ * that can be loaded from window object or provided
  * as default values.
  *
  * @public
@@ -192,13 +223,16 @@ export interface ThunderConfig {
 
   /** Optional trusted issuer configuration for external token validation */
   trusted_issuer?: TrustedIssuerConfig;
+
+  /** Optional design configuration for theming and UI customization */
+  design?: DesignConfig;
 }
 
 /**
- * Global window interface extension for Thunder runtime configuration.
+ * Global window interface extension for runtime configuration.
  *
  * This declaration extends the global Window interface to include the
- * Thunder runtime configuration object. The configuration is typically
+ * runtime configuration object. The configuration is typically
  * loaded from a config.js file in the public directory and made available
  * globally on the window object.
  *
@@ -221,7 +255,7 @@ export interface ThunderConfig {
  */
 declare global {
   interface Window {
-    /** Thunder runtime configuration loaded from config.js */
+    /** Runtime configuration loaded from config.js */
     __THUNDER_RUNTIME_CONFIG__?: ThunderConfig;
   }
 }

@@ -39,20 +39,20 @@ func Initialize(
 	ouService oupkg.OrganizationUnitServiceInterface,
 	userSchemaService userschema.UserSchemaServiceInterface,
 	authzService sysauthz.SystemAuthorizationServiceInterface,
-) (oupkg.OUUserResolver, declarativeresource.ResourceExporter, error) {
+) (UserServiceInterface, oupkg.OUUserResolver, declarativeresource.ResourceExporter, error) {
 	// Step 1: Create service with entity service
 	userService := newUserService(authzService, entityService, ouService, userSchemaService)
 
 	// Step 2: Load user-specific indexed attributes into the entity store.
 	if err := entityService.LoadIndexedAttributes(getUserIndexedAttributes()); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Step 3: Load declarative resources if user store mode requires it.
 	storeMode := getUserStoreMode()
 	if storeMode == serverconst.StoreModeDeclarative || storeMode == serverconst.StoreModeComposite {
 		if err := entityService.LoadDeclarativeResources(makeUserDeclarativeConfig()); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -64,7 +64,7 @@ func Initialize(
 
 	// Create and return exporter
 	exporter := newUserExporter(userService, entityService)
-	return ouUserResolver, exporter, nil
+	return userService, ouUserResolver, exporter, nil
 }
 
 // getUserStoreMode determines the store mode for users from config.
@@ -88,9 +88,10 @@ func getUserIndexedAttributes() []string {
 // registerRoutes registers the routes for user management operations.
 func registerRoutes(mux *http.ServeMux, userHandler *userHandler) {
 	opts1 := middleware.CORSOptions{
-		AllowedMethods:   "GET, POST",
-		AllowedHeaders:   "Content-Type, Authorization",
+		AllowedMethods:   []string{"GET", "POST"},
+		AllowedHeaders:   middleware.DefaultAllowedHeaders,
 		AllowCredentials: true,
+		MaxAge:           600,
 	}
 	mux.HandleFunc(middleware.WithCORS("POST /users", userHandler.HandleUserPostRequest, opts1))
 	mux.HandleFunc(middleware.WithCORS("GET /users", userHandler.HandleUserListRequest, opts1))
@@ -99,9 +100,10 @@ func registerRoutes(mux *http.ServeMux, userHandler *userHandler) {
 	}, opts1))
 
 	opts2 := middleware.CORSOptions{
-		AllowedMethods:   "GET, PUT, DELETE",
-		AllowedHeaders:   "Content-Type, Authorization",
+		AllowedMethods:   []string{"GET", "PUT", "DELETE"},
+		AllowedHeaders:   middleware.DefaultAllowedHeaders,
 		AllowCredentials: true,
+		MaxAge:           600,
 	}
 	mux.HandleFunc(middleware.WithCORS("GET /users/",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -124,9 +126,10 @@ func registerRoutes(mux *http.ServeMux, userHandler *userHandler) {
 	}, opts2))
 
 	optsSelf := middleware.CORSOptions{
-		AllowedMethods:   "GET, PUT",
-		AllowedHeaders:   "Content-Type, Authorization",
+		AllowedMethods:   []string{"GET", "PUT"},
+		AllowedHeaders:   middleware.DefaultAllowedHeaders,
 		AllowCredentials: true,
+		MaxAge:           600,
 	}
 	mux.HandleFunc(middleware.WithCORS("GET /users/me", userHandler.HandleSelfUserGetRequest, optsSelf))
 	mux.HandleFunc(middleware.WithCORS("PUT /users/me", userHandler.HandleSelfUserPutRequest, optsSelf))
@@ -135,9 +138,10 @@ func registerRoutes(mux *http.ServeMux, userHandler *userHandler) {
 	}, optsSelf))
 
 	optsSelfCredentials := middleware.CORSOptions{
-		AllowedMethods:   "POST",
-		AllowedHeaders:   "Content-Type, Authorization",
+		AllowedMethods:   []string{"POST"},
+		AllowedHeaders:   middleware.DefaultAllowedHeaders,
 		AllowCredentials: true,
+		MaxAge:           600,
 	}
 	mux.HandleFunc(middleware.WithCORS("POST /users/me/update-credentials",
 		userHandler.HandleSelfUserCredentialUpdateRequest, optsSelfCredentials))
@@ -147,9 +151,10 @@ func registerRoutes(mux *http.ServeMux, userHandler *userHandler) {
 		}, optsSelfCredentials))
 
 	opts3 := middleware.CORSOptions{
-		AllowedMethods:   "GET, POST",
-		AllowedHeaders:   "Content-Type, Authorization",
+		AllowedMethods:   []string{"GET", "POST"},
+		AllowedHeaders:   middleware.DefaultAllowedHeaders,
 		AllowCredentials: true,
+		MaxAge:           600,
 	}
 	mux.HandleFunc(middleware.WithCORS("GET /users/tree/{path...}",
 		userHandler.HandleUserListByPathRequest, opts3))

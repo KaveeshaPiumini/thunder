@@ -66,7 +66,7 @@ describe('AuthPageLayout', () => {
   });
 
   describe('variant prop', () => {
-    it('applies Thunder CSS root class when variant is provided', () => {
+    it('applies product name prefixed CSS root class when variant is provided', () => {
       renderWithProviders(
         <AuthPageLayout isLoading={false} variant="SignIn">
           <span>Content</span>
@@ -76,7 +76,7 @@ describe('AuthPageLayout', () => {
       expect(main.classList.contains('ThunderSignIn--root')).toBe(true);
     });
 
-    it('does not apply Thunder CSS class when variant is not provided', () => {
+    it('does not apply product prefix CSS class when variant is not provided', () => {
       renderWithProviders(
         <AuthPageLayout isLoading={false}>
           <span>Content</span>

@@ -22,8 +22,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/flow/flowexec"
+	"github.com/asgardeo/thunder/internal/inboundclient"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/par"
 	"github.com/asgardeo/thunder/internal/resource"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/constants"
@@ -36,10 +37,11 @@ import (
 // Initialize initializes the authorization handler and registers its routes.
 func Initialize(
 	mux *http.ServeMux,
-	applicationService application.ApplicationServiceInterface,
+	inboundClient inboundclient.InboundClientServiceInterface,
 	resourceService resource.ResourceServiceInterface,
 	jwtService jwt.JWTServiceInterface,
 	flowExecService flowexec.FlowExecServiceInterface,
+	parService par.PARServiceInterface,
 ) (AuthorizeServiceInterface, error) {
 	authzCodeStore, authzReqStore, transactioner, err := initializeAuthorizationStores()
 	if err != nil {
@@ -47,8 +49,8 @@ func Initialize(
 	}
 
 	authzService := newAuthorizeService(
-		applicationService, resourceService, jwtService, flowExecService,
-		authzCodeStore, authzReqStore, transactioner,
+		inboundClient, resourceService, jwtService, flowExecService,
+		authzCodeStore, authzReqStore, parService, transactioner,
 	)
 	authzHandler := newAuthorizeHandler(authzService)
 	registerRoutes(mux, authzHandler)
@@ -81,9 +83,10 @@ func registerRoutes(mux *http.ServeMux, authzHandler AuthorizeHandlerInterface) 
 		withFrameProtection(authzHandler.HandleAuthorizeGetRequest))
 
 	callbackOpts := middleware.CORSOptions{
-		AllowedMethods:   "POST",
-		AllowedHeaders:   "Content-Type, Authorization",
+		AllowedMethods:   []string{"POST"},
+		AllowedHeaders:   middleware.DefaultAllowedHeaders,
 		AllowCredentials: true,
+		MaxAge:           600,
 	}
 
 	mux.HandleFunc(middleware.WithCORS("POST /oauth2/auth/callback",

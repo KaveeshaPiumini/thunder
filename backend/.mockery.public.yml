@@ -279,6 +279,15 @@ packages:
       filename: "{{.InterfaceName}}_mock.go"
     interfaces:
       ApplicationServiceInterface:
+
+  github.com/asgardeo/thunder/internal/inboundclient:
+    config:
+      dir: tests/mocks/inboundclientmock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: inboundclientmock
+      filename: "{{.InterfaceName}}_mock.go"
+    interfaces:
+      InboundClientServiceInterface:
   
   github.com/asgardeo/thunder/internal/ou:
     config:
@@ -422,6 +431,14 @@ packages:
       dir: tests/mocks/crypto/pki/pkimock
       structname: '{{.InterfaceName}}Mock'
       pkgname: pkimock
+      filename: "{{.InterfaceName}}_mock.go"
+
+  github.com/asgardeo/thunder/internal/system/crypto:
+    config:
+      all: true
+      dir: tests/mocks/crypto/cryptomock
+      structname: '{{.InterfaceName}}Mock'
+      pkgname: cryptomock
       filename: "{{.InterfaceName}}_mock.go"
 
   github.com/asgardeo/thunder/internal/resource:

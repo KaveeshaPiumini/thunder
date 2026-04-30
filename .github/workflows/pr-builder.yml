@@ -7,17 +7,19 @@ name: 👷🛠️ PR Builder
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
   merge_group:
   workflow_dispatch:
 
 # Avoid running multiple PR builders for the same PR on subsequent pushes.
 concurrency:
   group: pr-builder-${{ github.ref }}
-  cancel-in-progress: ${{ github.event.action != 'labeled' }}
+  cancel-in-progress: true
 
 env:
   GOFLAGS: "-mod=readonly"
+  PRODUCT_NAME: "Thunder"
+  PRODUCT_NAME_LOWER: "thunder"
 
 jobs:
   dependency-guard:
@@ -29,7 +31,7 @@ jobs:
 
   security-audit:
     name: 🔒 Security Audit
-    if: ${{ (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
@@ -113,7 +115,7 @@ jobs:
 
   dependency-review:
     name: 🔎 Dependency Review
-    if: ${{ (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -133,7 +135,7 @@ jobs:
 
   verify-mocks:
     name: 🔍 Verify Mock Files
-    if: ${{ (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
@@ -169,7 +171,7 @@ jobs:
   lint:
     name: 🧹 Lint Code
     needs: dependency-guard
-    if: ${{ always() && (needs.dependency-guard.result == 'success' || needs.dependency-guard.result == 'skipped') && ((github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group') }}
+    if: ${{ always() && (needs.dependency-guard.result == 'success' || needs.dependency-guard.result == 'skipped') && (github.event_name == 'pull_request' || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
@@ -227,7 +229,7 @@ jobs:
   build:
     name: 🛠️ Build Product
     needs: dependency-guard
-    if: ${{ always() && (needs.dependency-guard.result == 'success' || needs.dependency-guard.result == 'skipped') && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group') }}
+    if: ${{ always() && (needs.dependency-guard.result == 'success' || needs.dependency-guard.result == 'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
@@ -288,13 +290,13 @@ jobs:
           make build_with_coverage_only OS=$(go env GOOS) ARCH=$(go env GOARCH)
 
           # Find the built distribution
-          DIST_PATH=$(find target/dist -name "thunder-*.zip" | head -1)
+          DIST_PATH=$(find target/dist -name "$PRODUCT_NAME_LOWER-*.zip" | head -1)
           echo "Built distribution: $DIST_PATH"
 
       - name: 📦 Upload Built Distribution
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: thunder-distribution
+          name: product-distribution
           path: target/dist/*.zip
           if-no-files-found: error
 
@@ -318,7 +320,7 @@ jobs:
   test-frontend:
     name: 🧪 Frontend Tests (shard ${{ matrix.shard }}/4)
     needs: dependency-guard
-    if: ${{ always() && (needs.dependency-guard.result == 'success' || needs.dependency-guard.result == 'skipped') && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group') }}
+    if: ${{ always() && (needs.dependency-guard.result == 'success' || needs.dependency-guard.result == 'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -437,7 +439,7 @@ jobs:
   build_samples:
     name: 🛠️ Build Sample Apps
     needs: dependency-guard
-    if: ${{ always() && (needs.dependency-guard.result == 'success' || needs.dependency-guard.result == 'skipped') && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group') }}
+    if: ${{ always() && (needs.dependency-guard.result == 'success' || needs.dependency-guard.result == 'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
@@ -482,8 +484,8 @@ jobs:
       postgres:
         image: postgres:latest
         env:
-          POSTGRES_USER: asgthunder
-          POSTGRES_PASSWORD: asgthunder
+          POSTGRES_USER: dbuser
+          POSTGRES_PASSWORD: dbpassword
           POSTGRES_DB: thunderdb
         ports:
           - 5432:5432
@@ -585,7 +587,7 @@ jobs:
       - name: 📥 Download Built Distribution
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: thunder-distribution
+          name: product-distribution
           path: target/dist/
 
       - name: 📥 Download Built Sample App
@@ -596,24 +598,24 @@ jobs:
 
       - name: 📂 Extract Server to E2E
         run: |
-          mkdir -p tests/e2e/thunder-server
-          unzip target/dist/thunder-*.zip -d tests/e2e/thunder-server
-          cd tests/e2e/thunder-server
-          # Find the extracted folder (name includes version and arch) and move its contents to the root of tests/e2e/thunder-server
-          EXTRACTED_DIR=$(find . -maxdepth 1 -type d -name "thunder-*" | head -n 1)
+          mkdir -p tests/e2e/server
+          unzip target/dist/$PRODUCT_NAME_LOWER-*.zip -d tests/e2e/server
+          cd tests/e2e/server
+          # Find the extracted folder (name includes version and arch) and move its contents to the root of tests/e2e/server
+          EXTRACTED_DIR=$(find . -maxdepth 1 -type d -name "$PRODUCT_NAME_LOWER-*" | head -n 1)
           if [ -n "$EXTRACTED_DIR" ]; then
             mv "$EXTRACTED_DIR"/* .
             rmdir "$EXTRACTED_DIR"
           fi
           chmod +x setup.sh start.sh
 
-      - name: 🚀 Start Thunder Server
+      - name: 🚀 Start the Server
         run: |
-          cd tests/e2e/thunder-server
+          cd tests/e2e/server
           ./setup.sh
-          THUNDER_SKIP_SECURITY=true ./start.sh &
-          THUNDER_PID=$!
-          echo "THUNDER_PID=$THUNDER_PID" >> $GITHUB_ENV
+          SKIP_SECURITY=true ./start.sh &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
           # Wait for server to be ready
           echo "Waiting for server to be ready on https://localhost:8090..."
           for i in {1..60}; do
@@ -636,7 +638,7 @@ jobs:
       - name: 🔍 Extract Sample App ID
         id: extract-app-id
         run: |
-          echo "Fetching applications from Thunder..."
+          echo "Fetching applications from the server..."
           
           # Get applications list
           APPS_RESPONSE=$(curl -s -k https://localhost:8090/applications)
@@ -654,17 +656,17 @@ jobs:
             echo "sample_app_id=$SAMPLE_APP_ID" >> $GITHUB_OUTPUT
           fi
       
-      - name: 🔄 Restart Thunder Server with Security Enabled
+      - name: 🔄 Restart the Server with Security Enabled
         run: |
-          cd tests/e2e/thunder-server
+          cd tests/e2e/server
 
-          echo "Stopping Thunder server..."
+          echo "Stopping the server..."
           # Kill the start.sh wrapper process
-          kill $THUNDER_PID 2>/dev/null || true
+          kill $SERVER_PID 2>/dev/null || true
 
           # Also kill any process still listening on port 8090
-          # (start.sh backgrounds the thunder binary, so killing start.sh
-          # may leave the thunder process running as an orphan)
+          # (start.sh backgrounds the server binary, so killing start.sh
+          # may leave the server process running as an orphan)
           sleep 2
           if lsof -ti tcp:8090 >/dev/null 2>&1; then
             echo "Port 8090 still in use, killing remaining processes..."
@@ -674,10 +676,10 @@ jobs:
           # Wait for port to be fully released
           sleep 3
 
-          echo "Starting Thunder server with security enabled..."
+          echo "Starting the server with security enabled..."
           ./start.sh &
-          THUNDER_PID=$!
-          echo "THUNDER_PID=$THUNDER_PID" >> $GITHUB_ENV
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
           
           # Wait for server to be ready
           echo "Waiting for server to be ready on https://localhost:8090..."
@@ -773,7 +775,7 @@ jobs:
           # MFA Test Configuration
           SAMPLE_APP_ID: ${{ steps.extract-app-id.outputs.sample_app_id }}
           SAMPLE_APP_URL: 'https://localhost:3000'
-          THUNDER_URL: 'https://localhost:8090'
+          SERVER_URL: 'https://localhost:8090'
           AUTO_SETUP_MFA: ${{ vars.AUTO_SETUP_MFA || 'true' }}
           MOCK_SMS_SERVER_PORT: ${{ vars.MOCK_SMS_SERVER_PORT || 8098 }}
           SAMPLE_APP_USERNAME: ${{ secrets.SAMPLE_APP_USERNAME || 'e2e-test-user' }}
@@ -789,7 +791,7 @@ jobs:
 
   detect-powershell-changes:
     name: 🔍 Detect PowerShell Changes
-    if: (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       should-run: ${{ steps.filter.outputs.powershell }}
@@ -813,7 +815,7 @@ jobs:
 
   detect-docs-changes:
     name: 🔍 Detect Documentation Changes
-    if: (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'dependencies-approved')) || github.event_name == 'merge_group'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       should-run: ${{ steps.filter.outputs.docs }}
@@ -827,6 +829,9 @@ jobs:
           filters: |
             docs:
               - 'docs/**'
+              - 'frontend/package.json'
+              - 'frontend/pnpm-lock.yaml'
+              - 'frontend/pnpm-workspace.yaml'
       - name: ✅ Documentation changes detected
         if: steps.filter.outputs.docs == 'true'
         run: echo "Documentation files changed - docs build will run"

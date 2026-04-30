@@ -21,12 +21,13 @@ package granthandlers
 import (
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/attributecache"
 	"github.com/asgardeo/thunder/internal/authz"
 	"github.com/asgardeo/thunder/internal/entityprovider"
 	"github.com/asgardeo/thunder/internal/flow/flowexec"
+	"github.com/asgardeo/thunder/internal/inboundclient"
 	oauth2authz "github.com/asgardeo/thunder/internal/oauth/oauth2/authz"
+	"github.com/asgardeo/thunder/internal/oauth/oauth2/par"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/tokenservice"
 	"github.com/asgardeo/thunder/internal/ou"
 	"github.com/asgardeo/thunder/internal/resource"
@@ -37,7 +38,7 @@ import (
 func Initialize(
 	mux *http.ServeMux,
 	jwtService jwt.JWTServiceInterface,
-	applicationService application.ApplicationServiceInterface,
+	inboundClient inboundclient.InboundClientServiceInterface,
 	flowExecService flowexec.FlowExecServiceInterface,
 	tokenBuilder tokenservice.TokenBuilderInterface,
 	tokenValidator tokenservice.TokenValidatorInterface,
@@ -46,9 +47,10 @@ func Initialize(
 	authzService authz.AuthorizationServiceInterface,
 	entityProv entityprovider.EntityProviderInterface,
 	resourceService resource.ResourceServiceInterface,
+	parService par.PARServiceInterface,
 ) (GrantHandlerProviderInterface, error) {
 	oauthAuthzService, err := oauth2authz.Initialize(
-		mux, applicationService, resourceService, jwtService, flowExecService,
+		mux, inboundClient, resourceService, jwtService, flowExecService, parService,
 	)
 	if err != nil {
 		return nil, err

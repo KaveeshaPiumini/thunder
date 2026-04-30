@@ -25,6 +25,13 @@ import (
 	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/attributecache"
 	"github.com/asgardeo/thunder/internal/authn"
+	authnAssert "github.com/asgardeo/thunder/internal/authn/assert"
+	authncm "github.com/asgardeo/thunder/internal/authn/common"
+	authnConsent "github.com/asgardeo/thunder/internal/authn/consent"
+	"github.com/asgardeo/thunder/internal/authn/github"
+	"github.com/asgardeo/thunder/internal/authn/google"
+	authnOAuth "github.com/asgardeo/thunder/internal/authn/oauth"
+	authnOIDC "github.com/asgardeo/thunder/internal/authn/oidc"
 	"github.com/asgardeo/thunder/internal/authn/otp"
 	"github.com/asgardeo/thunder/internal/authn/passkey"
 	authnprovidermgr "github.com/asgardeo/thunder/internal/authnprovider/manager"
@@ -43,6 +50,7 @@ import (
 	flowmgt "github.com/asgardeo/thunder/internal/flow/mgt"
 	"github.com/asgardeo/thunder/internal/group"
 	"github.com/asgardeo/thunder/internal/idp"
+	"github.com/asgardeo/thunder/internal/inboundclient"
 	"github.com/asgardeo/thunder/internal/notification"
 	"github.com/asgardeo/thunder/internal/oauth"
 	"github.com/asgardeo/thunder/internal/ou"
@@ -50,10 +58,13 @@ import (
 	"github.com/asgardeo/thunder/internal/role"
 	"github.com/asgardeo/thunder/internal/system/crypto/hash"
 	"github.com/asgardeo/thunder/internal/system/crypto/pki"
+	dbprovider "github.com/asgardeo/thunder/internal/system/database/provider"
 	declarativeresource "github.com/asgardeo/thunder/internal/system/declarative_resource"
 	"github.com/asgardeo/thunder/internal/system/email"
 	"github.com/asgardeo/thunder/internal/system/export"
+	healthcheckservice "github.com/asgardeo/thunder/internal/system/healthcheck/service"
 	i18nmgt "github.com/asgardeo/thunder/internal/system/i18n/mgt"
+	"github.com/asgardeo/thunder/internal/system/importer"
 	"github.com/asgardeo/thunder/internal/system/jose"
 	"github.com/asgardeo/thunder/internal/system/jose/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -79,7 +90,7 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 		logger.Fatal("Failed to initialize certificate service", log.Error(err))
 	}
 
-	jwtService, _, err := jose.Initialize(pkiService)
+	jwtService, jweService, err := jose.Initialize(pkiService)
 	if err != nil {
 		logger.Fatal("Failed to initialize JOSE services", log.Error(err))
 	}
@@ -138,7 +149,7 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 	// Initialize entity provider
 	entityProvider := entityprovider.InitializeEntityProvider(entityService)
 
-	ouUserResolver, userExporter, err := user.Initialize(
+	userService, ouUserResolver, userExporter, err := user.Initialize(
 		mux, entityService, ouService, userSchemaService, ouAuthzService,
 	)
 	if err != nil {
@@ -147,7 +158,7 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 	exporters = append(exporters, userExporter)
 
 	groupService, ouGroupResolver, err := group.Initialize(
-		mux, ouService, entityService, userSchemaService, ouAuthzService,
+		mux, dbprovider.GetDBProvider(), ouService, entityService, userSchemaService, ouAuthzService,
 	)
 	if err != nil {
 		logger.Fatal("Failed to initialize GroupService", log.Error(err))
@@ -198,15 +209,29 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 	// Initialize otp core service
 	otpCoreService := otp.Initialize(otpService, entityProvider)
 
+	// Initialize federated authentication services.
+	oauthAuthnService := authnOAuth.Initialize(idpService, entityProvider)
+	oidcAuthnService := authnOIDC.Initialize(oauthAuthnService, jwtService)
+	googleAuthnService := google.Initialize(oidcAuthnService, jwtService)
+	githubAuthnService := github.Initialize(oauthAuthnService)
+
+	federatedAuths := map[idp.IDPType]authncm.FederatedAuthenticator{
+		idp.IDPTypeOAuth:  oauthAuthnService,
+		idp.IDPTypeOIDC:   oidcAuthnService,
+		idp.IDPTypeGoogle: googleAuthnService,
+		idp.IDPTypeGitHub: githubAuthnService,
+	}
+
 	// Initialize authn provider
-	authnProvider := authnprovidermgr.InitializeAuthnProviderManager(entityService, passkeyService, otpCoreService)
+	authnProvider := authnprovidermgr.InitializeAuthnProviderManager(entityService, passkeyService, otpCoreService,
+		federatedAuths)
 
 	// Initialize authentication services.
-	_, authSvcRegistry := authn.Initialize(
-		mux, mcpServer, idpService, jwtService,
-		entityProvider, authnProvider, consentService,
-		passkeyService, otpCoreService,
-	)
+	authAssertGen := authnAssert.Initialize()
+	consentEnforcer := authnConsent.Initialize(consentService, jwtService)
+
+	authn.Initialize(mux, mcpServer, idpService, jwtService, authnProvider, authAssertGen, passkeyService,
+		otpCoreService, oauthAuthnService, oidcAuthnService, googleAuthnService, githubAuthnService)
 
 	attributeCacheService := attributecache.Initialize()
 
@@ -219,18 +244,17 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 			"EmailExecutor will be registered but will not send emails.", log.Error(err))
 		emailClient = nil
 	}
-	execRegistry := executor.Initialize(flowFactory, ouService,
-		idpService, notifSenderSvc, jwtService, authSvcRegistry, authnProvider, otpCoreService,
-		passkeyService, authZService,
-		userSchemaService, observabilitySvc, groupService, roleService, entityProvider, attributeCacheService,
-		emailClient, templateService)
+	execRegistry := executor.Initialize(flowFactory, ouService, idpService, notifSenderSvc, jwtService, authAssertGen,
+		consentEnforcer, authnProvider, otpCoreService, passkeyService, authZService, userSchemaService,
+		observabilitySvc, groupService, roleService, entityProvider, attributeCacheService, emailClient,
+		templateService, oauthAuthnService, oidcAuthnService, githubAuthnService, googleAuthnService)
 
 	flowMgtService, flowMgtExporter, err := flowmgt.Initialize(mux, mcpServer, flowFactory, execRegistry, graphCache)
 	if err != nil {
 		logger.Fatal("Failed to initialize FlowMgtService", log.Error(err))
 	}
 	exporters = append(exporters, flowMgtExporter)
-	certservice, err := cert.Initialize()
+	certservice, err := cert.Initialize(dbprovider.GetDBProvider())
 	if err != nil {
 		logger.Fatal("Failed to initialize CertificateService", log.Error(err))
 	}
@@ -248,10 +272,16 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 	}
 	exporters = append(exporters, layoutExporter)
 
+	inboundClientService, err := inboundclient.Initialize(
+		certservice, entityProvider,
+		themeMgtService, layoutMgtService, flowMgtService, userSchemaService, consentService)
+	if err != nil {
+		logger.Fatal("Failed to initialize InboundClientService", log.Error(err))
+	}
+
 	// TODO: Remove entityService dependency after finalizing declarative resource loading pattern
 	applicationService, applicationExporter, err := application.Initialize(
-		mux, mcpServer, entityProvider, entityService, ouService, certservice, flowMgtService, themeMgtService,
-		layoutMgtService, userSchemaService, consentService)
+		mux, mcpServer, entityProvider, entityService, inboundClientService, ouService)
 	if err != nil {
 		logger.Fatal("Failed to initialize ApplicationService", log.Error(err))
 	}
@@ -266,6 +296,22 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 	// Initialize export service with collected exporters
 	_ = export.Initialize(mux, exporters)
 
+	// Initialize import service
+	_ = importer.Initialize(
+		mux,
+		applicationService,
+		idpService,
+		flowMgtService,
+		ouService,
+		userSchemaService,
+		roleService,
+		resourceService,
+		themeMgtService,
+		layoutMgtService,
+		userService,
+		i18nService,
+	)
+
 	flowExecService, err := flowexec.Initialize(mux, flowMgtService, applicationService, execRegistry,
 		observabilitySvc)
 	if err != nil {
@@ -273,17 +319,16 @@ func registerServices(mux *http.ServeMux) jwt.JWTServiceInterface {
 	}
 
 	// Initialize OAuth services.
-	err = oauth.Initialize(mux, applicationService, authnProvider, jwtService, flowExecService, observabilitySvc,
-		pkiService, ouService, attributeCacheService, authZService, entityProvider, resourceService)
+	err = oauth.Initialize(mux, applicationService, inboundClientService, authnProvider, jwtService, jweService,
+		flowExecService, observabilitySvc, pkiService, ouService, attributeCacheService, authZService, entityProvider,
+		resourceService)
 	if err != nil {
 		logger.Fatal("Failed to initialize OAuth services", log.Error(err))
 	}
 
-	// TODO: Legacy way of initializing services. These need to be refactored in the future aligning to the
-	// dependency injection pattern used above.
-
 	// Register the health service.
-	services.NewHealthCheckService(mux)
+	healthSvc := healthcheckservice.Initialize(dbprovider.GetDBProvider(), dbprovider.GetRedisProvider())
+	services.NewHealthCheckService(mux, healthSvc)
 
 	return jwtService
 }

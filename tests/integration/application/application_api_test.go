@@ -1206,7 +1206,7 @@ func (ts *ApplicationAPITestSuite) TestCreateApplicationCertLifecycle() {
 //     after the first has committed and never enters the transaction – no cert written.
 //   - Mid-transaction DB failure: if the second request passes the pre-check (read
 //     before the first transaction commits) and enters the transaction, its cert INSERT
-//     succeeds but the APP_OAUTH_INBOUND_CONFIG INSERT fails on the PRIMARY KEY
+//     succeeds but the OAUTH_INBOUND_PROFILE INSERT fails on the PRIMARY KEY
 //     constraint; the transaction is rolled back, removing the cert row.
 //
 // In either path the end-state invariant is the same: the CERTIFICATE table must
@@ -4904,6 +4904,7 @@ func (ts *ApplicationAPITestSuite) TestApplicationUserInfoResponseTypeJWS() {
 					TokenEndpointAuthMethod: "client_secret_basic",
 					UserInfo: &UserInfoConfig{
 						ResponseType:   "JWS",
+						SigningAlg:     "RS256",
 						UserAttributes: []string{"email"},
 					},
 				},
@@ -4923,26 +4924,26 @@ func (ts *ApplicationAPITestSuite) TestApplicationUserInfoResponseTypeJWS() {
 
 	oauth := retrievedApp.InboundAuthConfig[0].OAuthAppConfig
 	ts.Require().NotNil(oauth.UserInfo)
-	ts.Assert().Equal("JWS", oauth.UserInfo.ResponseType)
+	ts.Assert().Equal("RS256", oauth.UserInfo.SigningAlg)
 }
 
-func (ts *ApplicationAPITestSuite) TestApplicationUserInfoResponseTypeInvalidFallback() {
+func (ts *ApplicationAPITestSuite) TestApplicationUserInfoInvalidSigningAlgRejected() {
 	app := Application{
 		OUID:        testOUID,
-		Name:        "App UserInfo Invalid Fallback",
-		Description: "Testing invalid response type fallback",
+		Name:        "App UserInfo Invalid SigningAlg",
+		Description: "Testing that an unsupported signingAlg is rejected",
 		InboundAuthConfig: []InboundAuthConfig{
 			{
 				Type: "oauth2",
 				OAuthAppConfig: &OAuthAppConfig{
-					ClientID:                "userinfo_invalid_test_client",
-					ClientSecret:            "userinfo_invalid_test_secret",
+					ClientID:                "userinfo_invalid_alg_client",
+					ClientSecret:            "userinfo_invalid_alg_secret",
 					RedirectURIs:            []string{"http://localhost/callback"},
 					GrantTypes:              []string{"authorization_code"},
 					ResponseTypes:           []string{"code"},
 					TokenEndpointAuthMethod: "client_secret_basic",
 					UserInfo: &UserInfoConfig{
-						ResponseType:   "INVALID",
+						SigningAlg:     "INVALID_ALG",
 						UserAttributes: []string{"email"},
 					},
 				},
@@ -4953,14 +4954,7 @@ func (ts *ApplicationAPITestSuite) TestApplicationUserInfoResponseTypeInvalidFal
 	app.AuthFlowID = defaultAuthFlowID
 	app.RegistrationFlowID = defaultRegistrationFlowID
 
-	appID, err := createApplication(app)
-	ts.Require().NoError(err)
-	defer deleteApplication(appID)
-
-	retrievedApp, err := getApplicationByID(appID)
-	ts.Require().NoError(err)
-
-	oauth := retrievedApp.InboundAuthConfig[0].OAuthAppConfig
-	ts.Require().NotNil(oauth.UserInfo)
-	ts.Assert().Equal("JSON", oauth.UserInfo.ResponseType)
+	_, err := createApplication(app)
+	ts.Require().Error(err, "Creating an app with an unsupported signingAlg should fail")
+	ts.Assert().Contains(err.Error(), "400", "Expected HTTP 400 for unsupported signingAlg")
 }

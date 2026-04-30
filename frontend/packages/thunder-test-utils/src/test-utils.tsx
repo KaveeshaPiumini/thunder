@@ -33,7 +33,7 @@ import {useMemo, type ReactElement, type ReactNode} from 'react';
 import {MemoryRouter} from 'react-router';
 
 /**
- * Configuration options for Thunder test utilities
+ * Configuration options for test utilities
  */
 export interface ThunderTestConfig {
   /**
@@ -73,6 +73,12 @@ const defaultConfig: ThunderTestConfig = {
   clientId: 'CONSOLE',
 };
 
+/**
+ * The CSS class name prefix used by cn() during tests.
+ * Import this instead of hardcoding the product name in test assertions.
+ */
+export const TEST_CN_PREFIX = 'Thunder';
+
 // Store the current config
 let currentConfig: ThunderTestConfig = defaultConfig;
 
@@ -94,7 +100,7 @@ function createTestQueryClient() {
 function Providers({children, queryClient = undefined, config = undefined}: ProvidersProps) {
   const testConfig = config ?? currentConfig;
 
-  // Setup window.__THUNDER_RUNTIME_CONFIG__ for tests
+  // Setup window runtime configuration for tests
   if (typeof window !== 'undefined' && !window.__THUNDER_RUNTIME_CONFIG__) {
     // eslint-disable-next-line react-hooks/immutability
     window.__THUNDER_RUNTIME_CONFIG__ = {

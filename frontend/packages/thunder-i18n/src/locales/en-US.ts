@@ -17,12 +17,12 @@
  */
 
 /**
- * English (US) translations for Thunder applications
+ * English (US) translations for applications
  * All namespaces organized in a single file for better maintainability
  */
 const translations = {
   // ============================================================================
-  // Common namespace - Shared translations across all Thunder applications
+  // Common namespace - Shared translations across all applications
   // ============================================================================
   common: {
     // Actions
@@ -144,7 +144,54 @@ const translations = {
     'userMenu.myAccount': 'My account',
     'userMenu.addAnotherAccount': 'Add another account',
     'userMenu.settings': 'Settings',
+    'userMenu.welcome': 'Welcome',
     'userMenu.signOut': 'Sign Out',
+
+    // Welcome screen
+    'welcome.header': 'Welcome',
+    'welcome.sections.start': 'Start',
+    'welcome.sections.recent': 'Recent',
+    'welcome.sections.walkthrough': 'Walkthrough',
+    'welcome.start.newProject': 'New / Continue',
+    'welcome.start.newProjectDesc': 'Configure a new project or edit existing',
+    'welcome.start.openImport': 'Open',
+    'welcome.start.openImportDesc': 'Import an existing {{productName}} configuration',
+    'welcome.start.startSamples': 'Start with samples',
+    'welcome.start.connectTo': 'Connect to \u2026',
+    'welcome.noRecentItems': 'No recent projects found',
+    'welcome.hero.titlePrefix': 'Welcome to',
+    'welcome.hero.subtitle': 'Design and configure your identity & access management project',
+    'welcome.walkthrough.getStartedDesigner': 'Get started',
+    'welcome.walkthrough.getStartedDesignerDesc': 'Learn how to design and customize your identity experience',
+    'welcome.walkthrough.learnFundamentals': 'Learn the Fundamentals',
+    'welcome.walkthrough.learnFundamentalsDesc': 'Understand core concepts and architecture',
+    'welcome.createProject.breadcrumb': 'New',
+    'welcome.createProject.title': "Let's Create Your Identity Project",
+    'welcome.createProject.subtitle':
+      'This wizard will guide you through minimal configuration for your project and generate the necessary configs to run {{productName}}.',
+    'welcome.createProject.cards.configure.title': 'Configure Project',
+    'welcome.createProject.cards.configure.description':
+      "Set up your project's authentication flows, choose sign-in methods, and customize the user experience.",
+    'welcome.createProject.cards.verify.title': 'Verify',
+    'welcome.createProject.cards.verify.description':
+      'Test your project configuration to ensure everything works as expected.',
+    'welcome.createProject.cards.runServer.title': 'Run Server',
+    'welcome.createProject.cards.runServer.description':
+      '{{productName}} will generate the necessary configurations and start your identity server.',
+    'welcome.createProject.actions.getStarted': 'Get Started',
+    'welcome.setupComplete.breadcrumb': 'Complete',
+    'welcome.setupComplete.title': "You're all set!",
+    'welcome.setupComplete.subtitle':
+      'The essential configuration is done. Start exploring the designer, build your project, onboard applications, and export the config when ready to run {{productName}}.',
+    'welcome.setupComplete.exploreDashboard': 'Start Exploring',
+    'welcome.setupComplete.nextSteps.onboardApp.title': 'Onboard an Application',
+    'welcome.setupComplete.nextSteps.onboardApp.description':
+      'Register your first application to start integrating sign-in and identity flows.',
+    'welcome.setupComplete.nextSteps.onboardApp.action': 'Add Application',
+    'welcome.setupComplete.nextSteps.exportConfig.title': 'Export Configuration',
+    'welcome.setupComplete.nextSteps.exportConfig.description':
+      'Export your {{productName}} configuration to deploy and run {{productName}}.',
+    'welcome.setupComplete.nextSteps.exportConfig.action': 'Export Config',
 
     // Header
     'header.notifications': 'Coming soon',
@@ -887,18 +934,6 @@ const translations = {
   },
 
   // ============================================================================
-  // Dashboard namespace - Dashboard feature translations
-  // ============================================================================
-  dashboard: {
-    welcomeMessage: 'Welcome to Thunder Console',
-    totalUsers: 'Total Users',
-    activeUsers: 'Active Users',
-    totalApplications: 'Total Applications',
-    recentActivity: 'Recent Activity',
-    quickActions: 'Quick Actions',
-  },
-
-  // ============================================================================
   // Authentication namespace - Authentication feature translations
   // ============================================================================
   auth: {
@@ -1039,6 +1074,8 @@ const translations = {
     'onboarding.steps.experience': 'Sign-In Experience',
     'onboarding.steps.stack': 'Technology Stack',
     'onboarding.steps.configure': 'Configuration',
+    'onboarding.steps.quickTest': 'Quick Test',
+    'onboarding.steps.export': 'Integration Setup',
     'onboarding.steps.complete': 'Setup Complete',
     'onboarding.steps.summary': 'Summary',
     'onboarding.organizationUnit.title': 'Select an organization unit',
@@ -1223,6 +1260,70 @@ const translations = {
     'onboarding.creating': 'Creating...',
     'onboarding.skipAndCreate': 'Skip & Create',
     'onboarding.createApplication': 'Create Application',
+    'quickTest.title': 'Test Your Application',
+    'quickTest.subtitle': 'Verify that your sign-in configuration works with a test user before going live.',
+    'quickTest.summary.text': '{{appName}} is configured with {{methods}} sign-in.',
+    'quickTest.summary.method.usernamePassword': 'username & password',
+    'quickTest.summary.method.passkey': 'passkeys',
+    'quickTest.summary.method.social': '{{count}} social provider',
+    'quickTest.summary.method.social_plural': '{{count}} social providers',
+    'quickTest.summary.and': 'and',
+    'quickTest.createUser.title': 'Test User',
+    'quickTest.createUser.subtitle': 'Create a test user with generated credentials to test your sign-in flow.',
+    'quickTest.createUser.usernameLabel': 'Username',
+    'quickTest.createUser.passwordLabel': 'Password',
+    'quickTest.createUser.creating': 'Creating test user...',
+    'quickTest.createUser.success': 'Test user created successfully.',
+    'quickTest.createUser.error': 'Failed to create test user. You can still proceed.',
+    'quickTest.createUser.regenerate': 'Regenerate',
+    'quickTest.createUser.button': 'Create Test User',
+    'quickTest.createUser.details.title': 'Created User',
+    'quickTest.createUser.details.userId': 'User ID',
+    'quickTest.createUser.details.type': 'Type',
+    'quickTest.testLogin.title': 'Test Sign-In',
+    'quickTest.testLogin.subtitle': 'Sign in with the test user credentials to verify your authentication setup.',
+    'quickTest.testLogin.button': 'Test Sign In',
+    'quickTest.testLogin.testing': 'Testing...',
+    'quickTest.testLogin.error': 'Sign-in test failed.',
+    'quickTest.testLogin.successTitle': 'Sign-in successful!',
+    'quickTest.testLogin.tokenType': 'Type',
+    'quickTest.testLogin.expiresIn': 'Expires in',
+    'quickTest.testLogin.scope': 'Scope',
+    'quickTest.testLogin.idTokenReceived': 'ID token received.',
+    'quickTest.openSampleApp': 'Open Sample App',
+    'quickTest.copied': 'Copied!',
+    'export.title': 'Organization Export Summary',
+    'export.subtitle': 'Review the items to be exported and verify the pre-flight checks before proceeding.',
+    'export.table.item': 'Item',
+    'export.table.status': 'Status',
+    'export.table.dependencies': 'Dependencies',
+    'export.table.applications': 'Applications',
+    'export.table.integrations': 'Integrations',
+    'export.table.flows': 'Flows',
+    'export.table.branding': 'Branding',
+    'export.table.dependencyCount': '{{count}} items',
+    'export.table.noDependencies': 'None',
+    'export.table.noItems': 'No items configured',
+    'export.status.ready': 'Ready',
+    'export.status.warning': 'Warning',
+    'export.app.clientId': 'Client ID',
+    'export.app.connections': 'Connections',
+    'export.app.flows': 'Flows',
+    'export.app.branding': 'Branding',
+    'export.preflight.title': 'Pre-flight Check',
+    'export.preflight.samlWarning': '"Admin Console" SAML Certificate is missing',
+    'export.preflight.secretNote': '2 Client Secrets will be encrypted using the target environment key',
+    'export.actions.saveAndExit': 'Save and Exit',
+    'export.actions.exportConfig': 'Export Config',
+    'setupComplete.title': 'All Done!',
+    'setupComplete.subtitle': '{{appName}} is ready. Start integrating sign-in into your application.',
+    'setupComplete.appNameLabel': 'Application Name',
+    'setupComplete.clientIdLabel': 'Client ID',
+    'setupComplete.copied': 'Copied!',
+    'setupComplete.securityNote':
+      'Your client secret was shown on the previous screen. Store it securely — it cannot be retrieved again.',
+    'setupComplete.goToDashboard': 'Go to Dashboard',
+    'setupComplete.viewApplication': 'View Application',
     'onboarding.summary.title': 'Application Created Successfully!',
     'onboarding.summary.subtitle': 'Your application is ready to use',
     'onboarding.summary.viewAppAriaLabel': 'Click to view application details',
@@ -1309,7 +1410,6 @@ const translations = {
     'edit.page.notFound': 'Application not found',
     'edit.page.back': 'Back to Applications',
     'edit.page.logoUpdate.label': 'Update Logo',
-    'edit.page.copyApplicationId': 'Copy Application ID',
     'edit.page.description.empty': 'No description',
     'edit.page.description.placeholder': 'Add a description',
     'edit.page.tabs.overview': 'Guide',
@@ -1505,6 +1605,159 @@ const translations = {
   },
 
   // ============================================================================
+  // Import / Export - Project import-export feature translations
+  // ============================================================================
+  importExport: {
+    'export.page.title': 'Export Configuration',
+    'export.page.loading': 'Loading export configuration...',
+    'export.page.loadError': 'Failed to load export configuration: {{message}}',
+
+    'upload.breadcrumb.openProject': 'Open Project',
+    'upload.title': 'Open Project',
+    'upload.subtitle': 'Upload your thunder.yml configuration file or provide a URL to import',
+    'upload.tabs.uploadFile': 'Upload File',
+    'upload.tabs.fromUrl': 'From URL',
+    'upload.actions.changeFile': 'Change File',
+    'upload.dropConfig': 'Drop your configuration file here',
+    'upload.orClickBrowse': 'or click to browse',
+    'upload.supportsYaml': 'Supports YAML files only (thunder.yml)',
+    'upload.url.label': 'Configuration URL',
+    'upload.url.placeholder': 'https://example.com/thunder.yml',
+    'upload.url.helperText': 'Enter a URL pointing to your thunder.yml configuration file',
+    'upload.env.title': 'Environment Variables',
+    'upload.env.subtitle': 'Upload your .env file to import environment-specific configuration',
+    'upload.env.dropFile': 'Drop your .env file here',
+    'upload.errors.uploadYaml': 'Please upload a YAML file (thunder.yml)',
+    'upload.errors.uploadEnv': 'Please upload an .env file',
+    'upload.errors.selectFile': 'Please select a file to upload',
+    'upload.errors.selectEnvFile': 'Please select an environment variables file to upload',
+    'upload.errors.invalidUrl': 'Please enter a valid URL',
+    'upload.errors.unknownResourceType':
+      'Unknown resource type: "{{resourceType}}". Allowed types are: {{allowedTypes}}',
+    'upload.errors.parseFailed': 'Failed to parse configuration file: {{message}}',
+
+    'validate.steps.readingFile': 'Reading configuration file',
+    'validate.steps.validatingYaml': 'Validating YAML syntax',
+    'validate.steps.checkingCompatibility': 'Checking compatibility',
+    'validate.steps.validatingResources': 'Validating resources',
+    'validate.title': 'Validating Configuration',
+    'validate.subtitle': 'Please wait while we validate your configuration',
+    'validate.progress': 'Progress',
+    'validate.parseErrors.invalidSections': 'Configuration file contains {{count}} invalid section(s)',
+    'validate.parseErrors.summary': 'Successfully parsed {{successCount}} sections, {{failCount}} sections failed',
+    'validate.parseErrors.title': 'Parse Errors:',
+    'validate.parseErrors.unknownFile': 'Unknown File',
+    'validate.actions.uploadDifferentFile': 'Upload Different File',
+
+    'envViewer.title': 'Environment Variables',
+    'envViewer.variableCount': '{{count}} variables detected',
+    'envViewer.modified': '• Modified',
+    'envViewer.download': 'Download .env',
+    'envViewer.placeholderWarning':
+      'Some environment variables contain placeholder values. Edit them below before importing.',
+
+    'fileViewer.download': 'Download {{fileName}}',
+
+    'table.item': 'Item',
+    'table.resourceType': 'Resource Type',
+    'table.status': 'Status',
+    'table.dependencies': 'Dependencies',
+    'table.count': 'Count',
+    'table.noResources': 'No resources found',
+    'table.noDetails': 'No details available',
+    'export.table.applications': 'Applications',
+    'export.table.flows': 'Flows',
+    'export.app.clientId': 'Client ID',
+
+    'templateVariable.valueMissing': 'value is missing',
+
+    'configureExport.nextSteps.startWithConfig': '{{productName}} will start with your exported configuration',
+    'configureExport.nextSteps.resourcesAvailable': 'All applications, flows, and identity providers will be available',
+    'configureExport.nextSteps.testFlows': 'You can test your authentication flows immediately',
+    'configureExport.actions.showLess': 'Show less',
+    'configureExport.actions.more': '+ {{count}} more',
+    'configureExport.labels.themes': 'Themes',
+    'configureExport.labels.users': 'Users',
+    'configureExport.labels.organizationUnits': 'Organization Units',
+    'configureExport.labels.notificationSenders': 'Notification Senders',
+    'configureExport.labels.userSchemas': 'User Schemas',
+    'configureExport.labels.translations': 'Translations',
+    'configureExport.labels.layouts': 'Layouts',
+    'configureExport.labels.selfRegistration': 'Self Registration',
+    'configureExport.fallback.unnamedApplication': 'Unnamed Application',
+    'configureExport.fallback.unnamedProvider': 'Unnamed Provider',
+    'configureExport.fallback.unnamedFlow': 'Unnamed Flow',
+    'configureExport.fallback.unnamedTheme': 'Unnamed Theme',
+    'configureExport.fallback.unnamedOrganization': 'Unnamed Organization',
+    'configureExport.fallback.unnamedSender': 'Unnamed Sender',
+    'configureExport.fallback.unnamedSchema': 'Unnamed Schema',
+    'configureExport.fallback.unnamedTranslation': 'Unnamed Translation',
+    'configureExport.fallback.unnamedLayout': 'Unnamed Layout',
+    'configureExport.fallback.unnamedUser': 'User {{index}}',
+    'configureExport.labels.projectDetails': 'Project Details',
+    'configureExport.labels.totalResources': 'Total Resources',
+    'configureExport.labels.clientId': 'Client ID',
+    'configureExport.labels.configurationResources': 'Configuration Resources',
+    'configureExport.labels.downloadConfig': 'Download your {{fileName}} configuration file',
+    'configureExport.actions.exportConfiguration': 'Export Configuration',
+    'configureExport.runThunder.title': 'Run {{productName}}',
+    'configureExport.runThunder.subtitle':
+      'Use the following command to start {{productName}} with your configuration:',
+    'configureExport.runThunder.nextStepsTitle': 'What happens next:',
+
+    'summary.breadcrumb': 'Summary',
+    'summary.title': 'Configuration Summary',
+    'summary.valid': 'Valid',
+    'summary.subtitle': 'Review the imported configuration before proceeding',
+    'summary.projectDetails': 'Project Details',
+    'summary.totalResources': 'Total Resources',
+    'summary.preImportValidation': 'Pre-Import Validation',
+    'summary.labels.identityProviders': 'Identity Providers',
+    'summary.actions.reuploadEnv': 'Re-upload .env file',
+    'summary.env.editInfo':
+      'You can edit the environment variables below to fix missing or placeholder values. The validation will update automatically.',
+    'summary.fallback.flow': 'Flow {{index}}',
+    'summary.fallback.theme': 'Theme {{index}}',
+    'summary.fallback.user': 'User {{index}}',
+    'summary.fallback.schema': 'Schema {{index}}',
+    'summary.precheck.readyNoEnvRequired': 'Ready to proceed. No environment values are required for this import.',
+    'summary.precheck.readyAllEnvAvailable':
+      'Ready to proceed. All {{count}} referenced environment values are available.',
+    'summary.precheck.missingEnvValues': '{{count}} environment value(s) are missing. Add them before importing.',
+    'summary.precheck.availableEnvValues':
+      '{{resolved}} of {{total}} referenced environment values are already available.',
+    'summary.precheck.missingVariables': 'Missing variables',
+    'summary.importTest.status': 'Import Test Status',
+    'summary.importTest.runToValidate': 'Run import test to validate behavior.',
+    'summary.importTest.configUnavailable': 'Configuration content is unavailable. Re-upload the configuration file.',
+    'summary.importTest.fixMissingThenRun': 'Fix missing environment values, then run test.',
+    'summary.importTest.running': 'Running pre-flight dry-run...',
+    'summary.importTest.runningShort': 'Running...',
+    'summary.importTest.test': 'Test',
+    'summary.importTest.retry': 'Retry Import Test',
+    'summary.importTest.passed': 'Import test passed. {{imported}} of {{totalDocuments}} resources validated.',
+    'summary.importTest.failedCount': 'Import test failed for {{count}} resource',
+    'summary.importTest.failedCount_plural': 'Import test failed for {{count}} resources',
+    'summary.importTest.failedWithMessage': 'Import test failed: {{message}}',
+    'summary.importTest.failures': 'Import Test failures',
+    'summary.importTest.failed': 'failed',
+    'summary.import.tooltip.missingVariables':
+      'Cannot import: {{count}} environment variable is missing. Edit the environment variables above to fix.',
+    'summary.import.tooltip.missingVariables_plural':
+      'Cannot import: {{count}} environment variables are missing. Edit the environment variables above to fix.',
+    'summary.import.tooltip.configUnavailable':
+      'Cannot import: configuration content is unavailable. Re-upload the configuration file.',
+    'summary.import.tooltip.runTestFirst': 'Cannot import: run pre-flight dry-run and ensure it passes.',
+    'summary.import.action': 'Import Configuration',
+    'summary.import.importing': 'Importing...',
+    'summary.import.completedWithFailures': 'Import completed with {{count}} failed resource.',
+    'summary.import.completedWithFailures_plural': 'Import completed with {{count}} failed resources.',
+    'summary.import.completedSuccessfully': 'Import completed successfully. {{count}} resource imported.',
+    'summary.import.completedSuccessfully_plural': 'Import completed successfully. {{count}} resources imported.',
+    'summary.import.failedRetry': 'Import failed. Please try again.',
+  },
+
+  // ============================================================================
   // Sign In - Sign In page translations
   // ============================================================================
   signin: {
@@ -1623,6 +1876,30 @@ const translations = {
     'delete.disclaimer': 'Warning: All associated configurations will be permanently removed.',
     'delete.error': 'Failed to delete flow. Please try again.',
 
+    // Create flow wizard
+    'create.steps.type': 'Flow Type',
+    'create.steps.template': 'Template',
+    'create.steps.configure': 'Configure',
+    'create.configure.title': 'Name your flow',
+    'create.configure.name.label': 'Flow name',
+    'create.configure.name.placeholder': 'e.g. Customer Sign-in',
+    'create.configure.suggestions.label': 'Need inspiration? Try one of these:',
+    'create.configure.handle.label': 'Handle',
+    'create.configure.handle.placeholder': 'e.g. customer-sign-in',
+    'create.configure.handle.hint': 'Lowercase letters, numbers, and hyphens only',
+    'create.type.title': 'What kind of flow do you want to create?',
+    'create.type.signin.label': 'Sign-in',
+    'create.type.signin.description': 'Authenticate users with passwords, passkeys, or social providers',
+    'create.type.signup.label': 'Self Sign-up',
+    'create.type.signup.description': 'Let users register themselves with your application',
+    'create.type.onboarding.label': 'Onboarding',
+    'create.type.onboarding.description': 'Onboard invited users to your organization',
+    'create.template.title': 'Choose a starting template',
+    'create.template.recommended': 'Recommended',
+    'create.template.search': 'Search templates...',
+    'create.template.noResults': 'No templates match your search.',
+    'create.error.createFailed': 'Failed to create flow. Please try again.',
+
     // Flow labels and navigation
     label: 'Flows',
     'core.breadcrumb': '{{flowType}}',
@@ -1644,18 +1921,25 @@ const translations = {
 
     // Execution steps - names
     'core.executions.names.google': 'Google',
-    'core.executions.names.apple': 'Apple',
     'core.executions.names.github': 'GitHub',
-    'core.executions.names.facebook': 'Facebook',
-    'core.executions.names.microsoft': 'Microsoft',
+    'core.executions.names.oauth': 'OAuth',
+    'core.executions.names.oidc': 'OIDC Auth',
     'core.executions.names.PasskeyAuthentication': 'Passkey Authentication',
-    'core.executions.names.confirmationCode': 'Confirmation Code',
     'core.executions.names.magicLink': 'Magic Link',
-    'core.executions.names.sendEmailOTP': 'Send Email OTP',
-    'core.executions.names.verifyEmailOTP': 'Verify Email OTP',
     'core.executions.names.sendSMS': 'Send SMS',
     'core.executions.names.verifySMSOTP': 'Verify SMS OTP',
     'core.executions.names.default': 'Execution',
+    'core.executions.names.ouResolver': 'Resolve OU',
+    'core.executions.names.invite': 'Invite',
+    'core.executions.names.email': 'Send Email',
+    'core.executions.names.sms': 'Send SMS',
+    'core.executions.names.credentialSetter': 'Set Credentials',
+    'core.executions.names.attributeUniqueness': 'Validate Attribute Uniqueness',
+    'core.executions.names.permissionValidator': 'Validate Permission',
+    'core.executions.names.provisioning': 'Provisioning',
+    'core.executions.names.httpRequest': 'HTTP Request',
+    'core.executions.names.ouCreation': 'OU Creation',
+    'core.executions.names.userTypeResolver': 'User Type Resolver',
 
     // SMS OTP executor modes
     'core.executions.smsOtp.mode.send': 'Send OTP',
@@ -1703,7 +1987,110 @@ const translations = {
     'core.executions.passkey.relyingPartyName.placeholder': 'e.g., My Application',
     'core.executions.passkey.relyingPartyName.hint': 'A human-readable name shown to users during passkey registration',
 
+    // OU Resolver executor
+    'core.executions.ouResolver.description': 'Configure the OU resolution strategy.',
+    'core.executions.ouResolver.resolveFrom.label': 'Resolve From',
+    'core.executions.ouResolver.resolveFrom.placeholder': 'Select a resolution strategy',
+    'core.executions.ouResolver.resolveFrom.caller': 'Caller',
+    'core.executions.ouResolver.resolveFrom.prompt': 'Prompt',
+    'core.executions.ouResolver.resolveFrom.promptAll': 'Prompt All',
+
+    // Invite executor
+    'core.executions.invite.description': 'Configure the invite executor mode.',
+    'core.executions.invite.mode.label': 'Mode',
+    'core.executions.invite.mode.placeholder': 'Select a mode',
+    'core.executions.invite.mode.generate': 'Generate',
+    'core.executions.invite.mode.verify': 'Verify',
+
+    // Email executor
+    'core.executions.email.description': 'Configure the email executor settings.',
+    'core.executions.email.emailTemplate.label': 'Email Template',
+    'core.executions.email.emailTemplate.placeholder': 'e.g., UserInvite',
+    'core.executions.email.emailTemplate.hint': 'The email template scenario to use when sending the email.',
+
+    // SMS executor
+    'core.executions.sms.description': 'Configure the SMS executor settings.',
+    'core.executions.sms.smsTemplate.label': 'SMS Template',
+    'core.executions.sms.smsTemplate.placeholder': 'e.g., OTPVerification',
+    'core.executions.sms.smsTemplate.hint': 'The SMS template scenario to use when sending the message.',
+
+    // Permission validator executor
+    'core.executions.permissionValidator.description': 'Configure required permission scopes.',
+    'core.executions.permissionValidator.requiredScopes.label': 'Required Scopes',
+    'core.executions.permissionValidator.requiredScopes.placeholder': 'e.g., system',
+    'core.executions.permissionValidator.requiredScopes.hint':
+      'Comma-separated list of scopes. The user must have at least one of these scopes.',
+
+    // Federated auth connection
+    'core.executions.federation.connection.description':
+      'Select a connection from the following list to link it with the login flow.',
+    'core.executions.federation.connection.label': 'Connection',
+    'core.executions.federation.connection.placeholder': 'Select a connection',
+    'core.executions.federation.connection.required': 'Connection is required and must be selected.',
+    'core.executions.federation.connection.noConnections':
+      'No connections available. Please create a connection to link with the login flow.',
+
+    // Federated auth properties
+    'core.executions.federation.allowAuthenticationWithoutLocalUser.label': 'Allow Authentication Without Local User',
+    'core.executions.federation.allowAuthenticationWithoutLocalUser.hint':
+      'Allow users to authenticate even when no matching local user exists.',
+    'core.executions.federation.allowRegistrationWithExistingUser.label': 'Allow Registration With Existing User',
+    'core.executions.federation.allowRegistrationWithExistingUser.hint':
+      'Allow existing users to proceed through registration flows.',
+    'core.executions.federation.allowCrossOUProvisioning.label': 'Allow Cross-OU Provisioning',
+    'core.executions.federation.allowCrossOUProvisioning.hint':
+      'Allow creating a user in a different organizational unit.',
+
+    // Provisioning executor
+    'core.executions.provisioning.description': 'Configure the provisioning executor settings.',
+    'core.executions.provisioning.assignGroup.label': 'Assign Group',
+    'core.executions.provisioning.assignGroup.placeholder': 'Group ID to assign',
+    'core.executions.provisioning.assignRole.label': 'Assign Role',
+    'core.executions.provisioning.assignRole.placeholder': 'Role ID to assign',
+
+    // OU executor
+    'core.executions.ouExecutor.description': 'Configure the OU creation executor settings.',
+    'core.executions.ouExecutor.parentOuId.label': 'Parent OU ID',
+    'core.executions.ouExecutor.parentOuId.placeholder': 'Override the default parent OU',
+    'core.executions.ouExecutor.parentOuId.hint': 'Overrides the default OU for new OU creation.',
+
+    // User Type Resolver executor
+    'core.executions.userTypeResolver.description': 'Configure the user type resolver settings.',
+    'core.executions.userTypeResolver.allowedUserTypes.label': 'Allowed User Types',
+    'core.executions.userTypeResolver.allowedUserTypes.placeholder': 'e.g., employee, customer',
+    'core.executions.userTypeResolver.allowedUserTypes.hint':
+      'Comma-separated list of allowed user type names to filter available types.',
+
+    // HTTP Request executor
+    'core.executions.httpRequest.description': 'Configure the HTTP request executor settings.',
+    'core.executions.httpRequest.url.label': 'URL',
+    'core.executions.httpRequest.url.placeholder': 'https://api.example.com/endpoint',
+    'core.executions.httpRequest.method.label': 'Method',
+    'core.executions.httpRequest.method.placeholder': 'Select HTTP method',
+    'core.executions.httpRequest.headers.label': 'Headers',
+    'core.executions.httpRequest.headers.keyPlaceholder': 'Header name',
+    'core.executions.httpRequest.headers.valuePlaceholder': 'Header value',
+    'core.executions.httpRequest.body.label': 'Request Body',
+    'core.executions.httpRequest.body.placeholder': 'Enter JSON request body',
+    'core.executions.httpRequest.timeout.label': 'Timeout (seconds)',
+    'core.executions.httpRequest.timeout.placeholder': '10',
+    'core.executions.httpRequest.timeout.hint': 'Request timeout in seconds (max 20).',
+    'core.executions.httpRequest.responseMapping.label': 'Response Mapping',
+    'core.executions.httpRequest.responseMapping.keyPlaceholder': 'Runtime data key',
+    'core.executions.httpRequest.responseMapping.valuePlaceholder': 'Response path (e.g., data.userId)',
+    'core.executions.httpRequest.errorHandling.label': 'Error Handling',
+    'core.executions.httpRequest.errorHandling.failOnError.label': 'Fail on Error',
+    'core.executions.httpRequest.errorHandling.retryCount.label': 'Retry Count',
+    'core.executions.httpRequest.errorHandling.retryCount.placeholder': '0',
+    'core.executions.httpRequest.errorHandling.retryCount.hint': 'Max retry attempts (max 5).',
+    'core.executions.httpRequest.errorHandling.retryDelay.label': 'Retry Delay (ms)',
+    'core.executions.httpRequest.errorHandling.retryDelay.placeholder': '0',
+    'core.executions.httpRequest.errorHandling.retryDelay.hint': 'Delay between retries in milliseconds (max 5000).',
+
     // Execution steps - tooltips and messages
+    // No-config executors
+    'core.executions.noConfig.description': 'This executor has no configurable properties.',
+
     'core.executions.tooltip.configurationHint': 'Click to configure this step',
     'core.executions.landing.message': 'This {{executor}} step will redirect users to a landing page.',
 

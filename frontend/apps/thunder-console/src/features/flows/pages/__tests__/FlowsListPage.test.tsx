@@ -21,7 +21,7 @@ import {MemoryRouter} from 'react-router';
 import {describe, it, expect, vi, beforeEach} from 'vitest';
 import FlowsListPage from '../FlowsListPage';
 
-// Mock @thunder/logger/react
+// Mock logger
 const mockLoggerError = vi.fn();
 
 vi.mock('@thunder/logger/react', () => ({
@@ -121,7 +121,7 @@ describe('FlowsListPage', () => {
       fireEvent.click(addButton);
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/flows/signin');
+        expect(mockNavigate).toHaveBeenCalledWith('/flows/create');
       });
     });
 
@@ -176,7 +176,7 @@ describe('FlowsListPage', () => {
       fireEvent.click(addButton);
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/flows/signin');
+        expect(mockNavigate).toHaveBeenCalledWith('/flows/create');
       });
 
       // Verify that the error was caught and logged

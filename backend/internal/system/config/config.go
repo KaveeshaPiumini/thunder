@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/asgardeo/thunder/internal/system/cors"
 	"github.com/asgardeo/thunder/internal/system/utils"
 
 	yaml "gopkg.in/yaml.v3"
@@ -205,11 +206,21 @@ type DCRConfig struct {
 	Insecure bool `yaml:"insecure" json:"insecure"`
 }
 
+// PARConfig holds the Pushed Authorization Request (RFC 9126) configuration.
+type PARConfig struct {
+	RequirePAR bool  `yaml:"require_par" json:"require_par"`
+	ExpiresIn  int64 `yaml:"expires_in" json:"expires_in"`
+}
+
 // OAuthConfig holds the OAuth configuration details.
 type OAuthConfig struct {
 	RefreshToken      RefreshTokenConfig      `yaml:"refresh_token" json:"refresh_token"`
 	AuthorizationCode AuthorizationCodeConfig `yaml:"authorization_code" json:"authorization_code"`
 	DCR               DCRConfig               `yaml:"dcr" json:"dcr"`
+	PAR               PARConfig               `yaml:"par" json:"par"`
+	// AllowWildcardRedirectURI enables wildcard pattern matching for redirect URIs.
+	// When false (default), only exact redirect URI matching is performed.
+	AllowWildcardRedirectURI bool `yaml:"allow_wildcard_redirect_uri" json:"allow_wildcard_redirect_uri"`
 }
 
 // FlowConfig holds the configuration details for the flow service.
@@ -269,9 +280,26 @@ type SHA256Config struct {
 	SaltSize int `yaml:"salt_size" json:"salt_size"`
 }
 
-// CORSConfig holds the configuration details for the CORS.
+// CORSConfig holds the configuration details for the CORS middleware.
+//
+// AllowedOrigins is heterogeneous: each entry is either a bare string (a
+// literal origin matched after RFC-6454 canonicalization, with the special
+// value "null" denoting the CORS null origin) or an object of the shape
+// { regex: "..." } (an RE2 pattern matched against the raw request Origin
+// header byte for byte). See the CORS section of
+// docs/content/guides/getting-started/configuration.mdx.
 type CORSConfig struct {
-	AllowedOrigins []string `yaml:"allowed_origins" json:"allowed_origins"`
+	AllowedOrigins cors.OriginEntries `yaml:"allowed_origins" json:"allowed_origins"`
+}
+
+// Validate checks every allowed-origins entry so configuration errors —
+// invalid literals, malformed regexes, the unsupported "*" wildcard — are
+// surfaced at server start rather than on the first cross-origin request.
+// Installation of the runtime matcher is the server bootstrap's
+// responsibility (see cors.InitializeMatcher); this config layer only owns
+// YAML validation.
+func (c *CORSConfig) Validate() error {
+	return cors.Validate(c.AllowedOrigins)
 }
 
 // DeclarativeResources holds the configuration details for the declarative resources.
@@ -610,6 +638,9 @@ func LoadConfig(configPath string, defaultPath string, thunderHome string) (*Con
 	}
 
 	if err := cfg.Server.SecurityConfig.Validate(); err != nil {
+		return nil, err
+	}
+	if err := cfg.CORS.Validate(); err != nil {
 		return nil, err
 	}
 

@@ -82,6 +82,9 @@ type OAuthTokenConfig struct {
 // UserInfoConfig represents the UserInfo endpoint configuration.
 type UserInfoConfig struct {
 	ResponseType   string   `json:"responseType,omitempty"`
+	SigningAlg     string   `json:"signingAlg,omitempty"`
+	EncryptionAlg  string   `json:"encryptionAlg,omitempty"`
+	EncryptionEnc  string   `json:"encryptionEnc,omitempty"`
 	UserAttributes []string `json:"userAttributes,omitempty"`
 }
 
@@ -283,6 +286,15 @@ func (app *Application) equals(expectedApp Application) bool {
 						return false
 					}
 					if oauth.UserInfo.ResponseType != expectedOAuth.UserInfo.ResponseType {
+						return false
+					}
+					if oauth.UserInfo.SigningAlg != expectedOAuth.UserInfo.SigningAlg {
+						return false
+					}
+					if oauth.UserInfo.EncryptionAlg != expectedOAuth.UserInfo.EncryptionAlg {
+						return false
+					}
+					if oauth.UserInfo.EncryptionEnc != expectedOAuth.UserInfo.EncryptionEnc {
 						return false
 					}
 					if !compareStringSlices(oauth.UserInfo.UserAttributes, expectedOAuth.UserInfo.UserAttributes) {

@@ -27,6 +27,7 @@ import (
 
 	"github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/cert"
+	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	i18ncore "github.com/asgardeo/thunder/internal/system/i18n/core"
@@ -150,7 +151,7 @@ func (s *DCRServiceTestSuite) TestRegisterClient_JWKSUriProvided() {
 				},
 			},
 		},
-		Certificate: &model.ApplicationCertificate{
+		Certificate: &inboundmodel.Certificate{
 			Type:  cert.CertificateTypeJWKSURI,
 			Value: "https://client.example.com/.well-known/jwks.json",
 		},
@@ -177,8 +178,8 @@ func (s *DCRServiceTestSuite) TestRegisterClient_ApplicationServiceError() {
 
 	appServiceErr := &serviceerror.ServiceError{
 		Type:             serviceerror.ClientErrorType,
-		Code:             "APP-1014",
-		Error:            i18ncore.I18nMessage{DefaultValue: "Invalid URI"},
+		Code:             "APP-1012",
+		Error:            i18ncore.I18nMessage{DefaultValue: "Invalid redirect URI"},
 		ErrorDescription: i18ncore.I18nMessage{DefaultValue: "The redirect URI is invalid"},
 	}
 
@@ -205,14 +206,19 @@ func (s *DCRServiceTestSuite) TestMapApplicationErrorToDCRError() {
 			expectedDCRCode: ErrorInvalidClientMetadata.Code,
 		},
 		{
-			name:            "Redirect URI Error APP-1014",
-			appErrCode:      "APP-1014",
+			name:            "Redirect URI Error APP-1012",
+			appErrCode:      "APP-1012",
 			expectedDCRCode: ErrorInvalidRedirectURI.Code,
 		},
 		{
-			name:            "Redirect URI Error APP-1015",
+			name:            "Certificate Type Error APP-1014",
+			appErrCode:      "APP-1014",
+			expectedDCRCode: ErrorInvalidClientMetadata.Code,
+		},
+		{
+			name:            "Certificate Value Error APP-1015",
 			appErrCode:      "APP-1015",
-			expectedDCRCode: ErrorInvalidRedirectURI.Code,
+			expectedDCRCode: ErrorInvalidClientMetadata.Code,
 		},
 		{
 			name:            "Server Error APP-5001",
@@ -246,19 +252,14 @@ func (s *DCRServiceTestSuite) TestMapApplicationErrorToDCRError() {
 }
 
 func (s *DCRServiceTestSuite) TestRegisterClient_ConvertDCRToApplicationError() {
+	// A channel value cannot be JSON-marshaled, so JWKS serialization fails and
+	// the request is rejected before reaching the application service.
 	request := &DCRRegistrationRequest{
 		OUID:         "test-ou-1",
 		RedirectURIs: []string{"https://client.example.com/callback"},
 		GrantTypes:   []oauth2const.GrantType{oauth2const.GrantTypeAuthorizationCode},
 		JWKS:         map[string]interface{}{"keys": make(chan int)},
 	}
-
-	s.mockAppService.On(
-		"CreateApplication", mock.Anything, mock.AnythingOfType("*model.ApplicationDTO"),
-	).Return(nil, &serviceerror.ServiceError{
-		Type: serviceerror.ServerErrorType,
-		Code: "APP-5001",
-	})
 
 	response, err := s.service.RegisterClient(context.Background(), request)
 
@@ -288,7 +289,7 @@ func (s *DCRServiceTestSuite) TestRegisterClient_ConvertApplicationToDCRResponse
 				},
 			},
 		},
-		Certificate: &model.ApplicationCertificate{
+		Certificate: &inboundmodel.Certificate{
 			Type:  cert.CertificateTypeJWKS,
 			Value: "invalid json",
 		},
@@ -327,7 +328,7 @@ func (s *DCRServiceTestSuite) TestRegisterClient_WithJWKS() {
 				},
 			},
 		},
-		Certificate: &model.ApplicationCertificate{
+		Certificate: &inboundmodel.Certificate{
 			Type:  cert.CertificateTypeJWKS,
 			Value: `{"keys":[]}`,
 		},
@@ -377,6 +378,48 @@ func (s *DCRServiceTestSuite) TestRegisterClient_WithScope() {
 	s.NotNil(response)
 	s.Nil(err)
 	s.Equal("read write admin", response.Scope)
+}
+
+func (s *DCRServiceTestSuite) TestRegisterClient_RequirePushedAuthorizationRequests() {
+	request := &DCRRegistrationRequest{
+		OUID:                               "test-ou-1",
+		RedirectURIs:                       []string{"https://client.example.com/callback"},
+		GrantTypes:                         []oauth2const.GrantType{oauth2const.GrantTypeAuthorizationCode},
+		ClientName:                         "Test Client",
+		RequirePushedAuthorizationRequests: true,
+	}
+
+	appDTO := &model.ApplicationDTO{
+		ID:   "app-id",
+		Name: "Test Client",
+		InboundAuthConfig: []model.InboundAuthConfigDTO{
+			{
+				Type: model.OAuthInboundAuthType,
+				OAuthAppConfig: &model.OAuthAppConfigDTO{
+					ClientID:                           "client-id",
+					ClientSecret:                       "client-secret",
+					Scopes:                             []string{},
+					RequirePushedAuthorizationRequests: true,
+				},
+			},
+		},
+	}
+
+	s.mockAppService.On(
+		"CreateApplication", mock.Anything,
+		mock.MatchedBy(func(dto *model.ApplicationDTO) bool {
+			if len(dto.InboundAuthConfig) == 0 || dto.InboundAuthConfig[0].OAuthAppConfig == nil {
+				return false
+			}
+			return dto.InboundAuthConfig[0].OAuthAppConfig.RequirePushedAuthorizationRequests
+		}),
+	).Return(appDTO, (*serviceerror.ServiceError)(nil))
+
+	response, err := s.service.RegisterClient(context.Background(), request)
+
+	s.NotNil(response)
+	s.Nil(err)
+	s.True(response.RequirePushedAuthorizationRequests)
 }
 
 func (s *DCRServiceTestSuite) TestRegisterClient_EmptyInboundAuthConfig() {

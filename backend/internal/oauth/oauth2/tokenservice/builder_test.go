@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	appmodel "github.com/asgardeo/thunder/internal/application/model"
+	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
@@ -49,7 +49,7 @@ type TokenBuilderTestSuite struct {
 	suite.Suite
 	mockJWTService *jwtmock.JWTServiceInterfaceMock
 	builder        *tokenBuilder
-	oauthApp       *appmodel.OAuthAppConfigProcessedDTO
+	oauthApp       *inboundmodel.OAuthClient
 }
 
 func TestTokenBuilderTestSuite(t *testing.T) {
@@ -57,7 +57,7 @@ func TestTokenBuilderTestSuite(t *testing.T) {
 }
 
 func (suite *TokenBuilderTestSuite) SetupTest() {
-	// Initialize Thunder Runtime for tests
+	// Initialize Runtime for tests
 	testConfig := &config.Config{
 		JWT: config.JWTConfig{
 			Issuer:         "https://thunder.io",
@@ -71,10 +71,10 @@ func (suite *TokenBuilderTestSuite) SetupTest() {
 		jwtService: suite.mockJWTService,
 	}
 
-	suite.oauthApp = &appmodel.OAuthAppConfigProcessedDTO{
+	suite.oauthApp = &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			AccessToken: &appmodel.AccessTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
+			AccessToken: &inboundmodel.AccessTokenConfig{
 				ValidityPeriod: 3600,
 				UserAttributes: []string{"name"}, // Configure user attributes for tests
 			},
@@ -113,7 +113,7 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_Basic() {
 				claims["client_id"] == "test-client" &&
 				claims["grant_type"] == string(constants.GrantTypeAuthorizationCode) &&
 				claims["name"] == testUserName
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildAccessToken(ctx)
@@ -160,7 +160,7 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_WithActorClaim(
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			act, ok := claims["act"].(map[string]interface{})
 			return ok && act["sub"] == "actor123" && act["iss"] == "https://actor-issuer.com"
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildAccessToken(ctx)
@@ -202,7 +202,7 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_WithNestedActor
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			act, ok := claims["act"].(map[string]interface{})
 			return ok && act["sub"] == "nested-actor" && act["act"] != nil
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildAccessToken(ctx)
@@ -233,7 +233,7 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_EmptyScopes() {
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			_, hasScope := claims["scope"]
 			return !hasScope
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildAccessToken(ctx)
@@ -264,7 +264,7 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_EmptyClientID()
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			_, hasClientID := claims["client_id"]
 			return !hasClientID
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildAccessToken(ctx)
@@ -295,7 +295,7 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_EmptyGrantType(
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			_, hasGrantType := claims["grant_type"]
 			return !hasGrantType
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildAccessToken(ctx)
@@ -306,10 +306,10 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_EmptyGrantType(
 }
 
 func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_CustomValidityPeriod() {
-	customOAuthApp := &appmodel.OAuthAppConfigProcessedDTO{
+	customOAuthApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			AccessToken: &appmodel.AccessTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
+			AccessToken: &inboundmodel.AccessTokenConfig{
 				ValidityPeriod: 7200,
 			},
 		},
@@ -330,9 +330,9 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_CustomValidityP
 
 	suite.mockJWTService.On("GenerateJWT",
 		"user123",
-		"https://thunder.io", // Thunder-level issuer always used
+		"https://thunder.io", // Server-level issuer always used
 		int64(7200),
-		mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildAccessToken(ctx)
@@ -366,7 +366,7 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Error_JWTGenerationFail
 		"user123",
 		"https://thunder.io",
 		int64(3600),
-		mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything,
 	).Return("", int64(0), &serviceerror.ServiceError{
 		Type: serviceerror.ServerErrorType,
 		Code: "JWT_GENERATION_FAILED",
@@ -411,7 +411,7 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_WithClaimsLocal
 				claims["grant_type"] == string(constants.GrantTypeAuthorizationCode) &&
 				claims["name"] == testUserName &&
 				claims["claims_locales"] == "en-US fr-CA ja"
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildAccessToken(ctx)
@@ -425,10 +425,10 @@ func (suite *TokenBuilderTestSuite) TestBuildAccessToken_Success_WithClaimsLocal
 
 func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_Basic() {
 	// Create OAuth app with user attributes configured
-	oauthAppWithUserAttrs := &appmodel.OAuthAppConfigProcessedDTO{
+	oauthAppWithUserAttrs := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			AccessToken: &appmodel.AccessTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
+			AccessToken: &inboundmodel.AccessTokenConfig{
 				ValidityPeriod: 3600,
 				UserAttributes: []string{"name"}, // Configure user attributes
 			},
@@ -458,7 +458,7 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_Basic() {
 				reflect.DeepEqual(claims["access_token_aud"], []string{testAppID}) &&
 				claims["grant_type"] == string(constants.GrantTypeAuthorizationCode) &&
 				claims["aci"] == testCacheID
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildRefreshToken(ctx)
@@ -495,7 +495,7 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_WithoutUserAtt
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			_, hasAttrCacheID := claims["aci"]
 			return !hasAttrCacheID
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildRefreshToken(ctx)
@@ -525,7 +525,7 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_WithNilOAuthAp
 		int64(3600),
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			return claims["aci"] == testCacheID
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildRefreshToken(ctx)
@@ -556,7 +556,7 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_EmptyScopes() 
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			_, hasScope := claims["scope"]
 			return !hasScope
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildRefreshToken(ctx)
@@ -567,10 +567,10 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_EmptyScopes() 
 }
 
 func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_WithTokenConfig() {
-	customOAuthApp := &appmodel.OAuthAppConfigProcessedDTO{
+	customOAuthApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			AccessToken: &appmodel.AccessTokenConfig{},
+		Token: &inboundmodel.OAuthTokenConfig{
+			AccessToken: &inboundmodel.AccessTokenConfig{},
 		},
 	}
 
@@ -591,7 +591,7 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_WithTokenConfi
 		"test-client",
 		"https://thunder.io",
 		int64(3600),
-		mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildRefreshToken(ctx)
@@ -602,9 +602,9 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_WithTokenConfi
 }
 
 func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_WithNilAccessToken() {
-	oauthAppWithNilAccessToken := &appmodel.OAuthAppConfigProcessedDTO{
+	oauthAppWithNilAccessToken := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
 			// Token exists but AccessToken is nil
 			AccessToken: nil,
 		},
@@ -629,7 +629,7 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_WithNilAccessT
 		int64(3600),
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			return claims["aci"] == testCacheID
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildRefreshToken(ctx)
@@ -662,7 +662,7 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Error_JWTGenerationFai
 		"test-client",
 		"https://thunder.io",
 		int64(3600),
-		mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything,
 	).Return("", int64(0), &serviceerror.ServiceError{
 		Type: serviceerror.ServerErrorType,
 		Code: "JWT_GENERATION_FAILED",
@@ -707,7 +707,7 @@ func (suite *TokenBuilderTestSuite) TestBuildRefreshToken_Success_WithClaimsLoca
 				reflect.DeepEqual(claims["access_token_aud"], []string{testAppID}) &&
 				claims["grant_type"] == string(constants.GrantTypeAuthorizationCode) &&
 				claims["access_token_claims_locales"] == "en-US fr-CA ja"
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildRefreshToken(ctx)
@@ -743,7 +743,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_Basic() {
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			// sub is passed as first arg to GenerateJWT, not in claims map
 			return claims["auth_time"] == ctx.AuthTime
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -779,7 +779,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_WithNonce() {
 		int64(3600),
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			return claims["nonce"] == "test-nonce-123"
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -810,7 +810,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_WithoutNonce() {
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			_, exists := claims["nonce"]
 			return !exists
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -840,7 +840,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_NoAuthTime() {
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			_, hasAuthTime := claims["auth_time"]
 			return !hasAuthTime
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -851,10 +851,10 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_NoAuthTime() {
 }
 
 func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_WithScopeClaims() {
-	oauthAppWithScopeClaims := &appmodel.OAuthAppConfigProcessedDTO{
+	oauthAppWithScopeClaims := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			IDToken: &appmodel.IDTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
+			IDToken: &inboundmodel.IDTokenConfig{
 				ValidityPeriod: 3600,
 				UserAttributes: []string{"name", "email"},
 			},
@@ -882,7 +882,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_WithScopeClaims() {
 		int64(3600),
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			return claims["name"] == testUserName && claims["email"] == "john@example.com"
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -893,10 +893,10 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_WithScopeClaims() {
 }
 
 func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_WithStandardOIDCScopes() {
-	oauthAppWithUserAttrs := &appmodel.OAuthAppConfigProcessedDTO{
+	oauthAppWithUserAttrs := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			IDToken: &appmodel.IDTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
+			IDToken: &inboundmodel.IDTokenConfig{
 				ValidityPeriod: 3600,
 				UserAttributes: []string{"name", "email"},
 			},
@@ -922,7 +922,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_WithStandardOIDCSco
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			// Check that both name (from profile scope) and email (from email scope) are present
 			return claims["name"] == testUserName && claims["email"] == "john@example.com"
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -951,7 +951,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_NoUserAttributes() 
 		int64(3600),
 		mock.MatchedBy(func(claims map[string]interface{}) bool {
 			return claims["auth_time"] == ctx.AuthTime
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -962,10 +962,10 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_NoUserAttributes() 
 }
 
 func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_EmptyUserAttributes() {
-	oauthAppWithEmptyUserAttrs := &appmodel.OAuthAppConfigProcessedDTO{
+	oauthAppWithEmptyUserAttrs := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			IDToken: &appmodel.IDTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
+			IDToken: &inboundmodel.IDTokenConfig{
 				UserAttributes: []string{},
 			},
 		},
@@ -991,7 +991,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_EmptyUserAttributes
 			_, hasName := claims["name"]
 			return claims["auth_time"] == ctx.AuthTime &&
 				!hasName // Should not include name if not in UserAttributes config
-		}), mock.Anything,
+		}), mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -1002,10 +1002,10 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_EmptyUserAttributes
 }
 
 func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_CustomValidityPeriod() {
-	oauthAppWithCustomValidity := &appmodel.OAuthAppConfigProcessedDTO{
+	oauthAppWithCustomValidity := &inboundmodel.OAuthClient{
 		ClientID: "test-client",
-		Token: &appmodel.OAuthTokenConfig{
-			IDToken: &appmodel.IDTokenConfig{
+		Token: &inboundmodel.OAuthTokenConfig{
+			IDToken: &inboundmodel.IDTokenConfig{
 				ValidityPeriod: 7200,
 			},
 		},
@@ -1027,7 +1027,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Success_CustomValidityPerio
 		"user123",
 		"https://thunder.io",
 		int64(7200),
-		mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything,
 	).Return(expectedToken, expectedIat, nil)
 
 	result, err := suite.builder.BuildIDToken(ctx)
@@ -1060,7 +1060,7 @@ func (suite *TokenBuilderTestSuite) TestBuildIDToken_Error_JWTGenerationFailed()
 		"user123",
 		"https://thunder.io",
 		int64(3600),
-		mock.Anything, mock.Anything,
+		mock.Anything, mock.Anything, mock.Anything,
 	).Return("", int64(0), &serviceerror.ServiceError{
 		Type: serviceerror.ServerErrorType,
 		Code: "JWT_GENERATION_FAILED",

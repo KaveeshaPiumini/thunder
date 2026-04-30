@@ -20,9 +20,9 @@ import {useContext} from 'react';
 import ConfigContext, {ConfigContextType} from './ConfigContext';
 
 /**
- * React hook for accessing Thunder runtime configuration throughout the application.
+ * React hook for accessing runtime configuration throughout the application.
  *
- * This hook provides access to the configuration loaded from `window.__THUNDER_RUNTIME_CONFIG__`
+ * This hook provides access to the configuration loaded from window object
  * or falls back to default values. It must be used within a component tree wrapped by
  * `ConfigProvider`, otherwise it will throw an error.
  *

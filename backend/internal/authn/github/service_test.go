@@ -33,17 +33,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	authncm "github.com/asgardeo/thunder/internal/authn/common"
 	"github.com/asgardeo/thunder/internal/authn/oauth"
 	"github.com/asgardeo/thunder/internal/entityprovider"
-	"github.com/asgardeo/thunder/internal/idp"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/tests/mocks/authn/oauthmock"
-	"github.com/asgardeo/thunder/tests/mocks/entityprovidermock"
 	"github.com/asgardeo/thunder/tests/mocks/httpmock"
-	"github.com/asgardeo/thunder/tests/mocks/idp/idpmock"
 )
 
 const (
@@ -384,11 +380,6 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestShouldFetchEmailAndGetMetadat
 
 	// shouldFetchEmail false
 	suite.False(gsvc.shouldFetchEmail([]string{"openid", "profile"}))
-
-	// getMetadata
-	meta := gsvc.getMetadata()
-	suite.Equal(authncm.AuthenticatorGithub, meta.Name)
-	suite.Equal(idp.IDPTypeGitHub, meta.AssociatedIDP)
 }
 
 func (suite *GithubOAuthAuthnServiceTestSuite) TestGetOAuthClientConfig() {
@@ -445,18 +436,9 @@ func (suite *GithubOAuthAuthnServiceTestSuite) TestFetchPrimaryEmailEdgeCases() 
 }
 
 func (suite *GithubOAuthAuthnServiceTestSuite) TestConstructorAndInjectInternal() {
-	// create mocks for idp and user to pass into constructor (avoid global init)
-	mockIdp := idpmock.NewIDPServiceInterfaceMock(suite.T())
-	mockUser := entityprovidermock.NewEntityProviderInterfaceMock(suite.T())
-
-	// call constructor which builds default http client and internal service
-	svcInterface := newGithubOAuthAuthnService(mockIdp, mockUser)
+	svcInterface := newGithubOAuthAuthnService(suite.mockOAuthService, suite.mockHTTPClient)
 	gsvc, ok := svcInterface.(*githubOAuthAuthnService)
 	suite.True(ok)
-
-	// inject our mocked internal and http client so calls go to mocks
-	gsvc.internal = suite.mockOAuthService
-	gsvc.httpClient = suite.mockHTTPClient
 
 	// test BuildAuthorizeURL delegation
 	expectedURL := "https://github.com/login/oauth/authorize?client_id=test"

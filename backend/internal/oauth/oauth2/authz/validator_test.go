@@ -24,15 +24,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	appmodel "github.com/asgardeo/thunder/internal/application/model"
+	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
 
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
+	sysconfig "github.com/asgardeo/thunder/internal/system/config"
 )
 
 type AuthorizationValidatorTestSuite struct {
 	suite.Suite
 	validator AuthorizationValidatorInterface
-	oauthApp  *appmodel.OAuthAppConfigProcessedDTO
+	oauthApp  *inboundmodel.OAuthClient
 }
 
 func TestAuthorizationValidatorTestSuite(t *testing.T) {
@@ -40,15 +41,25 @@ func TestAuthorizationValidatorTestSuite(t *testing.T) {
 }
 
 func (suite *AuthorizationValidatorTestSuite) SetupTest() {
+	sysconfig.ResetThunderRuntime()
+	err := sysconfig.InitializeThunderRuntime("/tmp/test", &sysconfig.Config{
+		OAuth: sysconfig.OAuthConfig{AllowWildcardRedirectURI: true},
+	})
+	suite.Require().NoError(err)
+
 	suite.validator = newAuthorizationValidator()
 
-	suite.oauthApp = &appmodel.OAuthAppConfigProcessedDTO{
+	suite.oauthApp = &inboundmodel.OAuthClient{
 		ClientID:                "test-client-id",
 		RedirectURIs:            []string{"https://client.example.com/callback"},
 		GrantTypes:              []constants.GrantType{constants.GrantTypeAuthorizationCode},
 		ResponseTypes:           []constants.ResponseType{constants.ResponseTypeCode},
 		TokenEndpointAuthMethod: constants.TokenEndpointAuthMethodClientSecretPost,
 	}
+}
+
+func (suite *AuthorizationValidatorTestSuite) TearDownTest() {
+	sysconfig.ResetThunderRuntime()
 }
 
 func (suite *AuthorizationValidatorTestSuite) TestnewAuthorizationValidator() {
@@ -109,7 +120,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRe
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzRequest_CodeGrantNotAllowed() {
 	// Create an app that doesn't allow authorization code grant type
-	restrictedApp := &appmodel.OAuthAppConfigProcessedDTO{
+	restrictedApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client-id",
 
 		RedirectURIs:            []string{"https://client.example.com/callback"},
@@ -152,7 +163,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRe
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRequest_UnsupportedResponseType() {
 	// Create an app that doesn't support "code" response type
-	restrictedApp := &appmodel.OAuthAppConfigProcessedDTO{
+	restrictedApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client-id",
 
 		RedirectURIs:            []string{"https://client.example.com/callback"},
@@ -369,7 +380,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRe
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzReq_PKCERequired_MissingCodeChallenge() {
 	// Create an app that requires PKCE
-	pkceApp := &appmodel.OAuthAppConfigProcessedDTO{
+	pkceApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client-id",
 
 		RedirectURIs:            []string{"https://client.example.com/callback"},
@@ -398,7 +409,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzReq_PKCERequired_
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzReq_PKCERequired_InvalidCodeChallenge() {
 	// Create an app that requires PKCE
-	pkceApp := &appmodel.OAuthAppConfigProcessedDTO{
+	pkceApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client-id",
 
 		RedirectURIs:            []string{"https://client.example.com/callback"},
@@ -428,7 +439,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzReq_PKCERequired_
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRequest_PKCERequired_ValidPKCE() {
 	// Create an app that requires PKCE
-	pkceApp := &appmodel.OAuthAppConfigProcessedDTO{
+	pkceApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client-id",
 
 		RedirectURIs:            []string{"https://client.example.com/callback"},
@@ -460,7 +471,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRe
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzReq_PKCERequired_MissingCodeChallengeMethod() {
 	// Create an app that requires PKCE
-	pkceApp := &appmodel.OAuthAppConfigProcessedDTO{
+	pkceApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client-id",
 
 		RedirectURIs:            []string{"https://client.example.com/callback"},
@@ -490,7 +501,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzReq_PKCERequired_
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRequest_PKCENotRequired() {
 	// Create an app that doesn't require PKCE
-	nonPKCEApp := &appmodel.OAuthAppConfigProcessedDTO{
+	nonPKCEApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client-id",
 
 		RedirectURIs:            []string{"https://client.example.com/callback"},
@@ -519,7 +530,7 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRe
 
 func (suite *AuthorizationValidatorTestSuite) TestValidateAuthzReq_PKCENotRequired_InvalidPKCEParams() {
 	// Create an app that doesn't require PKCE
-	nonPKCEApp := &appmodel.OAuthAppConfigProcessedDTO{
+	nonPKCEApp := &inboundmodel.OAuthClient{
 		ClientID: "test-client-id",
 
 		RedirectURIs:            []string{"https://client.example.com/callback"},
@@ -691,4 +702,124 @@ func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthzRequest_Pr
 	assert.True(suite.T(), sendErrorToApp)
 	assert.Equal(suite.T(), constants.ErrorInvalidRequest, errorCode)
 	assert.Equal(suite.T(), "The prompt parameter cannot be empty", errorMessage)
+}
+
+// Wildcard Redirect URI Tests (AC-06 through AC-12)
+
+func (suite *AuthorizationValidatorTestSuite) TestValidateInitialAuthorizationRequest_WildcardRedirectURI() {
+	tests := []struct {
+		name             string
+		registeredURIs   []string
+		incomingURI      string
+		wantError        bool
+		wantErrorCode    string
+		wantErrorMessage string
+	}{
+		{
+			// AC-06: * matches exactly one path segment.
+			name:           "SingleStarMatchesOneSegment",
+			registeredURIs: []string{"https://client.example.com/cb/*"},
+			incomingURI:    "https://client.example.com/cb/v1",
+		},
+		{
+			// AC-06: * must not match two segments.
+			name:             "SingleStarRejectsMultiSegment",
+			registeredURIs:   []string{"https://client.example.com/cb/*"},
+			incomingURI:      "https://client.example.com/cb/v1/extra",
+			wantError:        true,
+			wantErrorCode:    constants.ErrorInvalidRequest,
+			wantErrorMessage: "Invalid redirect URI",
+		},
+		{
+			// AC-07: ** matches multiple path segments.
+			name:           "DoubleStarMatchesMultipleSegments",
+			registeredURIs: []string{"https://client.example.com/app/**/cb"},
+			incomingURI:    "https://client.example.com/app/tenant/region/cb",
+		},
+		{
+			// AC-07: ** matches zero segments.
+			name:           "DoubleStarMatchesZeroSegments",
+			registeredURIs: []string{"https://client.example.com/app/**/cb"},
+			incomingURI:    "https://client.example.com/app/cb",
+		},
+		{
+			// AC-08: Exact match succeeds when no wildcard is registered.
+			name:           "ExactMatchNoWildcard",
+			registeredURIs: []string{"https://client.example.com/callback"},
+			incomingURI:    "https://client.example.com/callback",
+		},
+		{
+			// AC-09: No match returns invalid_request.
+			name:             "NoMatchReturnsError",
+			registeredURIs:   []string{"https://client.example.com/cb/*"},
+			incomingURI:      "https://client.example.com/other",
+			wantError:        true,
+			wantErrorCode:    constants.ErrorInvalidRequest,
+			wantErrorMessage: "Invalid redirect URI",
+		},
+		{
+			// AC-10: Query param mismatch is rejected.
+			name:             "QueryMismatchRejected",
+			registeredURIs:   []string{"https://client.example.com/cb?foo=bar"},
+			incomingURI:      "https://client.example.com/cb?foo=baz",
+			wantError:        true,
+			wantErrorCode:    constants.ErrorInvalidRequest,
+			wantErrorMessage: "Invalid redirect URI",
+		},
+		{
+			// AC-11: Multiple registered URIs — first match wins.
+			name:           "MultipleURIsFirstMatchWins",
+			registeredURIs: []string{"https://client.example.com/a/*", "https://client.example.com/b/*"},
+			incomingURI:    "https://client.example.com/b/x",
+		},
+		{
+			// AC-11: Multiple registered URIs — no match across any of them.
+			name:             "MultipleURIsNoMatch",
+			registeredURIs:   []string{"https://client.example.com/a/*", "https://client.example.com/b/*"},
+			incomingURI:      "https://client.example.com/c/x",
+			wantError:        true,
+			wantErrorCode:    constants.ErrorInvalidRequest,
+			wantErrorMessage: "Invalid redirect URI",
+		},
+		{
+			// AC-12: Wildcard registered, redirect_uri omitted — must be rejected.
+			name:             "OmittedRedirectURIWithWildcardRegistered",
+			registeredURIs:   []string{"https://client.example.com/cb/*"},
+			incomingURI:      "",
+			wantError:        true,
+			wantErrorCode:    constants.ErrorInvalidRequest,
+			wantErrorMessage: "Invalid redirect URI",
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			app := &inboundmodel.OAuthClient{
+				ClientID:                "test-client-id",
+				RedirectURIs:            tt.registeredURIs,
+				GrantTypes:              []constants.GrantType{constants.GrantTypeAuthorizationCode},
+				ResponseTypes:           []constants.ResponseType{constants.ResponseTypeCode},
+				TokenEndpointAuthMethod: constants.TokenEndpointAuthMethodClientSecretPost,
+			}
+			msg := &OAuthMessage{
+				RequestQueryParams: map[string]string{
+					constants.RequestParamClientID:     "test-client-id",
+					constants.RequestParamRedirectURI:  tt.incomingURI,
+					constants.RequestParamResponseType: string(constants.ResponseTypeCode),
+				},
+			}
+
+			sendErrorToApp, errorCode, errorMessage := suite.validator.validateInitialAuthorizationRequest(msg, app)
+
+			if tt.wantError {
+				assert.False(suite.T(), sendErrorToApp)
+				assert.Equal(suite.T(), tt.wantErrorCode, errorCode)
+				assert.Equal(suite.T(), tt.wantErrorMessage, errorMessage)
+			} else {
+				assert.False(suite.T(), sendErrorToApp)
+				assert.Empty(suite.T(), errorCode)
+				assert.Empty(suite.T(), errorMessage)
+			}
+		})
+	}
 }

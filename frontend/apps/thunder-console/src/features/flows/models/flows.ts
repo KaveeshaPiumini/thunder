@@ -20,7 +20,7 @@ import type {BaseConfig} from './base';
 import type {FlowTypes} from './metadata';
 
 /**
- * Enumeration of available flow types in the Thunder identity management system.
+ * Enumeration of available flow types in the platform.
  *
  * @public
  * @remarks
@@ -45,6 +45,11 @@ export const FlowType = {
    * Registration flows handle user signup and account creation processes
    */
   REGISTRATION: 'REGISTRATION',
+
+  /**
+   * User onboarding flows handle invited user provisioning within an organization
+   */
+  USER_ONBOARDING: 'USER_ONBOARDING',
 } as const;
 
 /**

@@ -27,6 +27,7 @@ import (
 	"github.com/asgardeo/thunder/internal/application"
 	"github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/cert"
+	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
 	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	oauthutils "github.com/asgardeo/thunder/internal/oauth/oauth2/utils"
 	"github.com/asgardeo/thunder/internal/ou"
@@ -142,19 +143,20 @@ func (ds *dcrService) convertDCRToApplication(request *DCRRegistrationRequest) (
 	isPublicClient := request.TokenEndpointAuthMethod == oauth2const.TokenEndpointAuthMethodNone
 
 	// Map JWKS/JWKS_URI to application-level certificate
-	var appCertificate *model.ApplicationCertificate
+	var appCertificate *inboundmodel.Certificate
 	if request.JWKSUri != "" {
-		appCertificate = &model.ApplicationCertificate{
+		appCertificate = &inboundmodel.Certificate{
 			Type:  cert.CertificateTypeJWKSURI,
 			Value: request.JWKSUri,
 		}
 	} else if len(request.JWKS) > 0 {
 		jwksBytes, err := json.Marshal(request.JWKS)
-		if err == nil {
-			appCertificate = &model.ApplicationCertificate{
-				Type:  cert.CertificateTypeJWKS,
-				Value: string(jwksBytes),
-			}
+		if err != nil {
+			return nil, &ErrorServerError
+		}
+		appCertificate = &inboundmodel.Certificate{
+			Type:  cert.CertificateTypeJWKS,
+			Value: string(jwksBytes),
 		}
 	}
 
@@ -176,14 +178,16 @@ func (ds *dcrService) convertDCRToApplication(request *DCRRegistrationRequest) (
 	}
 
 	oauthAppConfig := &model.OAuthAppConfigDTO{
-		ClientID:                clientID,
-		RedirectURIs:            request.RedirectURIs,
-		GrantTypes:              request.GrantTypes,
-		ResponseTypes:           request.ResponseTypes,
-		TokenEndpointAuthMethod: request.TokenEndpointAuthMethod,
-		PublicClient:            isPublicClient,
-		PKCERequired:            isPublicClient,
-		Scopes:                  scopes,
+		ClientID:                           clientID,
+		RedirectURIs:                       request.RedirectURIs,
+		GrantTypes:                         request.GrantTypes,
+		ResponseTypes:                      request.ResponseTypes,
+		TokenEndpointAuthMethod:            request.TokenEndpointAuthMethod,
+		PublicClient:                       isPublicClient,
+		PKCERequired:                       isPublicClient,
+		RequirePushedAuthorizationRequests: request.RequirePushedAuthorizationRequests,
+		Scopes:                             scopes,
+		UserInfo:                           buildUserInfoConfig(request),
 	}
 
 	inboundAuthConfig := []model.InboundAuthConfigDTO{
@@ -206,6 +210,34 @@ func (ds *dcrService) convertDCRToApplication(request *DCRRegistrationRequest) (
 	}
 
 	return appDTO, nil
+}
+
+// buildUserInfoConfig maps UserInfo alg fields from a DCR request to a UserInfoConfig.
+// ResponseType is derived from the algorithm fields per OIDC DCR conventions.
+func buildUserInfoConfig(request *DCRRegistrationRequest) *inboundmodel.UserInfoConfig {
+	if request.UserInfoSignedResponseAlg == "" && request.UserInfoEncryptedResponseAlg == "" &&
+		request.UserInfoEncryptedResponseEnc == "" {
+		return nil
+	}
+	hasSign := request.UserInfoSignedResponseAlg != ""
+	hasEnc := request.UserInfoEncryptedResponseAlg != ""
+	var responseType inboundmodel.UserInfoResponseType
+	switch {
+	case hasSign && hasEnc:
+		responseType = inboundmodel.UserInfoResponseTypeNESTEDJWT
+	case hasEnc:
+		responseType = inboundmodel.UserInfoResponseTypeJWE
+	case hasSign:
+		responseType = inboundmodel.UserInfoResponseTypeJWS
+	default:
+		responseType = inboundmodel.UserInfoResponseTypeJSON
+	}
+	return &inboundmodel.UserInfoConfig{
+		ResponseType:  responseType,
+		SigningAlg:    request.UserInfoSignedResponseAlg,
+		EncryptionAlg: request.UserInfoEncryptedResponseAlg,
+		EncryptionEnc: request.UserInfoEncryptedResponseEnc,
+	}
 }
 
 // convertApplicationToDCRResponse converts Application DTO to DCR registration response.
@@ -237,24 +269,35 @@ func (ds *dcrService) convertApplicationToDCRResponse(appDTO *model.ApplicationD
 
 	scopeString := strings.Join(oauthConfig.Scopes, " ")
 
+	var userInfoSignedAlg, userInfoEncryptedAlg, userInfoEncryptedEnc string
+	if oauthConfig.UserInfo != nil {
+		userInfoSignedAlg = oauthConfig.UserInfo.SigningAlg
+		userInfoEncryptedAlg = oauthConfig.UserInfo.EncryptionAlg
+		userInfoEncryptedEnc = oauthConfig.UserInfo.EncryptionEnc
+	}
+
 	response := &DCRRegistrationResponse{
-		ClientID:                oauthConfig.ClientID,
-		ClientSecret:            oauthConfig.ClientSecret,
-		ClientSecretExpiresAt:   ClientSecretExpiresAtNever,
-		RedirectURIs:            oauthConfig.RedirectURIs,
-		GrantTypes:              oauthConfig.GrantTypes,
-		ResponseTypes:           oauthConfig.ResponseTypes,
-		ClientName:              clientName,
-		ClientURI:               appDTO.URL,
-		LogoURI:                 appDTO.LogoURL,
-		TokenEndpointAuthMethod: oauthConfig.TokenEndpointAuthMethod,
-		JWKSUri:                 jwksURI,
-		JWKS:                    jwks,
-		Scope:                   scopeString,
-		TosURI:                  appDTO.TosURI,
-		PolicyURI:               appDTO.PolicyURI,
-		Contacts:                appDTO.Contacts,
-		AppID:                   oauthConfig.AppID,
+		ClientID:                           oauthConfig.ClientID,
+		ClientSecret:                       oauthConfig.ClientSecret,
+		ClientSecretExpiresAt:              ClientSecretExpiresAtNever,
+		RedirectURIs:                       oauthConfig.RedirectURIs,
+		GrantTypes:                         oauthConfig.GrantTypes,
+		ResponseTypes:                      oauthConfig.ResponseTypes,
+		ClientName:                         clientName,
+		ClientURI:                          appDTO.URL,
+		LogoURI:                            appDTO.LogoURL,
+		TokenEndpointAuthMethod:            oauthConfig.TokenEndpointAuthMethod,
+		JWKSUri:                            jwksURI,
+		JWKS:                               jwks,
+		Scope:                              scopeString,
+		TosURI:                             appDTO.TosURI,
+		PolicyURI:                          appDTO.PolicyURI,
+		Contacts:                           appDTO.Contacts,
+		AppID:                              oauthConfig.AppID,
+		RequirePushedAuthorizationRequests: oauthConfig.RequirePushedAuthorizationRequests,
+		UserInfoSignedResponseAlg:          userInfoSignedAlg,
+		UserInfoEncryptedResponseAlg:       userInfoEncryptedAlg,
+		UserInfoEncryptedResponseEnc:       userInfoEncryptedEnc,
 	}
 
 	return response, nil
@@ -270,8 +313,8 @@ func (ds *dcrService) mapApplicationErrorToDCRError(
 	}
 
 	switch appErr.Code {
-	// Redirect URI related errors
-	case "APP-1014", "APP-1015":
+	// Redirect URI validation errors
+	case "APP-1012":
 		dcrErr.Code = ErrorInvalidRedirectURI.Code
 	// Server errors
 	case "APP-5001", "APP-5002":

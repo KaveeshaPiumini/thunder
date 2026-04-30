@@ -18,7 +18,9 @@
 
 package model
 
-import "errors"
+import (
+	"errors"
+)
 
 // InboundAuthType represents the type of inbound authentication.
 type InboundAuthType string
@@ -26,17 +28,6 @@ type InboundAuthType string
 const (
 	// OAuthInboundAuthType represents the OAuth 2.0 inbound authentication type.
 	OAuthInboundAuthType InboundAuthType = "oauth2"
-)
-
-// UserInfoResponseType represents the response format of the UserInfo endpoint.
-type UserInfoResponseType string
-
-const (
-	// UserInfoResponseTypeJSON represents the JSON userinfo response type.
-	UserInfoResponseTypeJSON UserInfoResponseType = "JSON"
-
-	// UserInfoResponseTypeJWS represents the JWS userinfo response type.
-	UserInfoResponseTypeJWS UserInfoResponseType = "JWS"
 )
 
 // ApplicationNotFoundError is the error returned when an application is not found.

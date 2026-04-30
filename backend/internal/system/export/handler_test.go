@@ -36,6 +36,7 @@ import (
 	"github.com/asgardeo/thunder/internal/notification"
 	"github.com/asgardeo/thunder/internal/system/config"
 	serverconst "github.com/asgardeo/thunder/internal/system/constants"
+	"github.com/asgardeo/thunder/internal/system/cors"
 	declarativeresource "github.com/asgardeo/thunder/internal/system/declarative_resource"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
 	"github.com/asgardeo/thunder/internal/system/log"
@@ -46,7 +47,9 @@ import (
 	"github.com/asgardeo/thunder/tests/mocks/userschemamock"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // HandlerTestSuite contains comprehensive tests for the export handler functions.
@@ -63,11 +66,14 @@ type HandlerTestSuite struct {
 func (suite *HandlerTestSuite) SetupTest() {
 	// Initialize config for tests
 	config.ResetThunderRuntime()
+	var allowedOrigins cors.OriginEntries
+	suite.Require().NoError(yaml.Unmarshal([]byte(`
+- https://localhost:3000
+`), &allowedOrigins))
 	testConfig := &config.Config{
-		CORS: config.CORSConfig{
-			AllowedOrigins: []string{"https://localhost:3000"},
-		},
+		CORS: config.CORSConfig{AllowedOrigins: allowedOrigins},
 	}
+	suite.Require().NoError(cors.InitializeMatcher(testConfig.CORS.AllowedOrigins))
 	err := config.InitializeThunderRuntime("/tmp/test", testConfig)
 	suite.Require().NoError(err)
 
@@ -371,11 +377,14 @@ func TestGenerateAndSendZipResponse_Standalone(t *testing.T) {
 	logger := log.GetLogger()
 	// Setup config
 	config.ResetThunderRuntime()
+	var allowedOrigins cors.OriginEntries
+	assert.NoError(t, yaml.Unmarshal([]byte(`
+- https://localhost:3000
+`), &allowedOrigins))
 	testConfig := &config.Config{
-		CORS: config.CORSConfig{
-			AllowedOrigins: []string{"*"},
-		},
+		CORS: config.CORSConfig{AllowedOrigins: allowedOrigins},
 	}
+	require.NoError(t, cors.InitializeMatcher(testConfig.CORS.AllowedOrigins))
 	err := config.InitializeThunderRuntime("/tmp/test", testConfig)
 	assert.NoError(t, err)
 	defer config.ResetThunderRuntime()
@@ -477,6 +486,7 @@ func (suite *HandlerTestSuite) TestHandleExportRequest_Success() {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Contains(suite.T(), response.Resources, "# File: Test_App_1.yaml")
+	assert.Contains(suite.T(), response.Resources, "# resource_type: application")
 	assert.Contains(suite.T(), response.Resources, "name: Test App 1")
 	assert.Equal(suite.T(), "", response.EnvironmentVariables)
 }
@@ -581,6 +591,9 @@ func (suite *HandlerTestSuite) TestHandleExportRequest_MultipleFiles() {
 	assert.Contains(suite.T(), response.Resources, "name: App Two")
 	assert.Contains(suite.T(), response.Resources, "---")
 	assert.Equal(suite.T(), "", response.EnvironmentVariables)
+
+	resourceTypeHeaders := strings.Count(response.Resources, "# resource_type: application")
+	assert.Equal(suite.T(), 2, resourceTypeHeaders)
 }
 
 // TestHandleExportJSONRequest_Success tests successful JSON export.

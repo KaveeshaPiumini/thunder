@@ -26,17 +26,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	yaml "gopkg.in/yaml.v3"
 
 	"github.com/asgardeo/thunder/internal/system/config"
-	"github.com/asgardeo/thunder/tests/mocks/applicationmock"
+	"github.com/asgardeo/thunder/internal/system/cors"
 	"github.com/asgardeo/thunder/tests/mocks/flow/flowexecmock"
+	"github.com/asgardeo/thunder/tests/mocks/inboundclientmock"
 	"github.com/asgardeo/thunder/tests/mocks/jose/jwtmock"
 	"github.com/asgardeo/thunder/tests/mocks/resourcemock"
 )
 
 type InitTestSuite struct {
 	suite.Suite
-	mockAppService      *applicationmock.ApplicationServiceInterfaceMock
+	mockInboundClient   *inboundclientmock.InboundClientServiceInterfaceMock
 	mockResourceService *resourcemock.ResourceServiceInterfaceMock
 	mockJWTService      *jwtmock.JWTServiceInterfaceMock
 	mockFlowExecService *flowexecmock.FlowExecServiceInterfaceMock
@@ -47,7 +49,11 @@ func TestInitTestSuite(t *testing.T) {
 }
 
 func (suite *InitTestSuite) SetupTest() {
-	// Initialize Thunder Runtime config with basic test config
+	// Initialize Runtime config with basic test config
+	var allowedOrigins cors.OriginEntries
+	suite.Require().NoError(yaml.Unmarshal([]byte(`
+- https://example.com
+`), &allowedOrigins))
 	testConfig := &config.Config{
 		Database: config.DatabaseConfig{
 			Config: config.DataSource{
@@ -66,13 +72,12 @@ func (suite *InitTestSuite) SetupTest() {
 			LoginPath: "/login",
 			ErrorPath: "/error",
 		},
-		CORS: config.CORSConfig{
-			AllowedOrigins: []string{"https://example.com"},
-		},
+		CORS: config.CORSConfig{AllowedOrigins: allowedOrigins},
 	}
+	suite.Require().NoError(cors.InitializeMatcher(testConfig.CORS.AllowedOrigins))
 	_ = config.InitializeThunderRuntime("", testConfig)
 
-	suite.mockAppService = applicationmock.NewApplicationServiceInterfaceMock(suite.T())
+	suite.mockInboundClient = inboundclientmock.NewInboundClientServiceInterfaceMock(suite.T())
 	suite.mockResourceService = resourcemock.NewResourceServiceInterfaceMock(suite.T())
 	suite.mockJWTService = jwtmock.NewJWTServiceInterfaceMock(suite.T())
 	suite.mockFlowExecService = flowexecmock.NewFlowExecServiceInterfaceMock(suite.T())
@@ -86,8 +91,8 @@ func (suite *InitTestSuite) TestInitialize() {
 	mux := http.NewServeMux()
 
 	service, err := Initialize(
-		mux, suite.mockAppService, suite.mockResourceService,
-		suite.mockJWTService, suite.mockFlowExecService,
+		mux, suite.mockInboundClient, suite.mockResourceService,
+		suite.mockJWTService, suite.mockFlowExecService, nil,
 	)
 
 	assert.NoError(suite.T(), err)
@@ -99,8 +104,8 @@ func (suite *InitTestSuite) TestInitialize_RegistersRoutes() {
 	mux := http.NewServeMux()
 
 	_, err := Initialize(
-		mux, suite.mockAppService, suite.mockResourceService,
-		suite.mockJWTService, suite.mockFlowExecService,
+		mux, suite.mockInboundClient, suite.mockResourceService,
+		suite.mockJWTService, suite.mockFlowExecService, nil,
 	)
 	assert.NoError(suite.T(), err)
 
@@ -120,8 +125,8 @@ func (suite *InitTestSuite) TestRegisterRoutes_CORSConfiguration() {
 	mux := http.NewServeMux()
 
 	_, err := Initialize(
-		mux, suite.mockAppService, suite.mockResourceService,
-		suite.mockJWTService, suite.mockFlowExecService,
+		mux, suite.mockInboundClient, suite.mockResourceService,
+		suite.mockJWTService, suite.mockFlowExecService, nil,
 	)
 	assert.NoError(suite.T(), err)
 
@@ -170,8 +175,8 @@ func (suite *InitTestSuite) TestRegisterRoutes_CORSHeaders() {
 	mux := http.NewServeMux()
 
 	_, err := Initialize(
-		mux, suite.mockAppService, suite.mockResourceService,
-		suite.mockJWTService, suite.mockFlowExecService,
+		mux, suite.mockInboundClient, suite.mockResourceService,
+		suite.mockJWTService, suite.mockFlowExecService, nil,
 	)
 	assert.NoError(suite.T(), err)
 
@@ -197,8 +202,12 @@ func (suite *InitTestSuite) TestRegisterRoutes_CORSHeaders() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
+			// Allow-Methods/Allow-Headers are preflight-only response headers
+			// per the Fetch spec; the request must carry
+			// Access-Control-Request-Method to elicit them.
 			req := httptest.NewRequest(tc.method, tc.path, nil)
 			req.Header.Set("Origin", tc.origin)
+			req.Header.Set("Access-Control-Request-Method", "POST")
 			rec := httptest.NewRecorder()
 
 			mux.ServeHTTP(rec, req)

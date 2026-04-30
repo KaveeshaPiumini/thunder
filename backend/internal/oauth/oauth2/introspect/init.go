@@ -19,10 +19,11 @@
 package introspect
 
 import (
+	"context"
 	"net/http"
 
-	"github.com/asgardeo/thunder/internal/application"
 	authnprovidermgr "github.com/asgardeo/thunder/internal/authnprovider/manager"
+	"github.com/asgardeo/thunder/internal/inboundclient"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/clientauth"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/discovery"
 	"github.com/asgardeo/thunder/internal/system/jose/jwt"
@@ -33,13 +34,13 @@ import (
 func Initialize(
 	mux *http.ServeMux,
 	jwtService jwt.JWTServiceInterface,
-	appService application.ApplicationServiceInterface,
+	inboundClient inboundclient.InboundClientServiceInterface,
 	authnProvider authnprovidermgr.AuthnProviderManagerInterface,
 	discoveryService discovery.DiscoveryServiceInterface,
 ) TokenIntrospectionServiceInterface {
 	introspectionService := newTokenIntrospectionService(jwtService)
 	introspectHandler := newTokenIntrospectionHandler(introspectionService)
-	registerRoutes(mux, introspectHandler, appService, authnProvider, jwtService, discoveryService)
+	registerRoutes(mux, introspectHandler, inboundClient, authnProvider, jwtService, discoveryService)
 	return introspectionService
 }
 
@@ -47,18 +48,20 @@ func Initialize(
 func registerRoutes(
 	mux *http.ServeMux,
 	introspectHandler *tokenIntrospectionHandler,
-	appService application.ApplicationServiceInterface,
+	inboundClient inboundclient.InboundClientServiceInterface,
 	authnProvider authnprovidermgr.AuthnProviderManagerInterface,
 	jwtService jwt.JWTServiceInterface,
 	discoveryService discovery.DiscoveryServiceInterface,
 ) {
 	opts := middleware.CORSOptions{
-		AllowedMethods:   "POST, OPTIONS",
-		AllowedHeaders:   "Content-Type, Authorization",
+		AllowedMethods:   []string{"POST", "OPTIONS"},
+		AllowedHeaders:   middleware.DefaultAllowedHeaders,
 		AllowCredentials: true,
+		MaxAge:           600,
 	}
 
-	clientAuthMiddleware := clientauth.ClientAuthMiddleware(appService, authnProvider, jwtService, discoveryService)
+	endpointURL := discoveryService.GetOAuth2AuthorizationServerMetadata(context.Background()).IntrospectionEndpoint
+	clientAuthMiddleware := clientauth.ClientAuthMiddleware(inboundClient, authnProvider, jwtService, endpointURL)
 	handler := clientAuthMiddleware(http.HandlerFunc(introspectHandler.HandleIntrospect))
 
 	pattern, wrappedHandler := middleware.WithCORS(

@@ -40,7 +40,7 @@ done
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 source "${SCRIPT_DIR}/common.sh"
 
-log_info "Creating default Thunder resources..."
+log_info "Creating default ${PRODUCT_NAME} resources..."
 echo ""
 
 # ============================================================================
@@ -49,7 +49,7 @@ echo ""
 
 log_info "Creating default organization unit..."
 
-RESPONSE=$(thunder_api_call POST "/organization-units" '{
+RESPONSE=$(api_call POST "/organization-units" '{
   "handle": "default",
   "name": "Default",
   "description": "Default organization unit",
@@ -71,7 +71,7 @@ if [[ "$HTTP_CODE" == "201" ]] || [[ "$HTTP_CODE" == "200" ]]; then
 elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "Organization unit already exists, retrieving OU ID..."
     # Get existing OU ID by handle to ensure we get the correct "default" OU
-    RESPONSE=$(thunder_api_call GET "/organization-units/tree/default")
+    RESPONSE=$(api_call GET "/organization-units/tree/default")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -101,7 +101,7 @@ echo ""
 
 log_info "Creating default user schema (person)..."
 
-RESPONSE=$(thunder_api_call POST "/user-schemas" '{
+RESPONSE=$(api_call POST "/user-schemas" '{
   "name": "Person",
   "ouId": "'${DEFAULT_OU_ID}'",
   "schema": {
@@ -117,11 +117,6 @@ RESPONSE=$(thunder_api_call POST "/user-schemas" '{
       "required": true,
       "unique": true,
       "regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-    },
-    "email_verified": {
-      "type": "boolean",
-      "displayName": "Email Verified",
-      "required": false
     },
     "given_name": {
       "type": "string",
@@ -141,11 +136,6 @@ RESPONSE=$(thunder_api_call POST "/user-schemas" '{
     "phone_number": {
       "type": "string",
       "displayName": "Phone Number",
-      "required": false
-    },
-    "phone_number_verified": {
-      "type": "boolean",
-      "displayName": "Phone Number Verified",
       "required": false
     },
     "sub": {
@@ -194,21 +184,19 @@ echo ""
 
 log_info "Creating admin user..."
 
-RESPONSE=$(thunder_api_call POST "/users" '{
+RESPONSE=$(api_call POST "/users" '{
   "type": "Person",
   "ouId": "'${DEFAULT_OU_ID}'",
   "attributes": {
     "username": "admin",
     "password": "admin",
     "sub": "admin",
-    "email": "admin@thunder.dev",
-    "email_verified": true,
+    "email": "admin@example.com",
     "name": "Administrator",
     "given_name": "Admin",
     "family_name": "User",
     "picture": "https://example.com/avatar.jpg",
-    "phone_number": "+12345678920",
-    "phone_number_verified": true
+    "phone_number": "+12345678920"
   }
 }')
 
@@ -231,7 +219,7 @@ elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "Admin user already exists, retrieving user ID..."
 
     # Get existing admin user ID
-    RESPONSE=$(thunder_api_call GET "/users")
+    RESPONSE=$(api_call GET "/users")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -273,7 +261,7 @@ if [[ -z "$DEFAULT_OU_ID" ]]; then
     exit 1
 fi
 
-RESPONSE=$(thunder_api_call POST "/resource-servers" "{
+RESPONSE=$(api_call POST "/resource-servers" "{
   \"name\": \"System\",
   \"description\": \"System resource server\",
   \"identifier\": \"system\",
@@ -295,7 +283,7 @@ if [[ "$HTTP_CODE" == "201" ]] || [[ "$HTTP_CODE" == "200" ]]; then
 elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "Resource server already exists, retrieving ID..."
     # Get existing resource server ID
-    RESPONSE=$(thunder_api_call GET "/resource-servers")
+    RESPONSE=$(api_call GET "/resource-servers")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -349,7 +337,7 @@ if [[ -z "$SYSTEM_RS_ID" ]]; then
     exit 1
 fi
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" '{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" '{
   "name": "System",
   "description": "System resource",
   "handle": "system"
@@ -369,7 +357,7 @@ if [[ "$HTTP_CODE" == "201" ]] || [[ "$HTTP_CODE" == "200" ]]; then
     fi
 elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "System resource already exists, retrieving ID..."
-    RESPONSE=$(thunder_api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources")
+    RESPONSE=$(api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -393,7 +381,7 @@ fi
 
 log_info "Creating 'ou' sub-resource under the 'system' resource..."
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" "{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" "{
   \"name\": \"Organization Unit\",
   \"description\": \"Organization unit resource\",
   \"handle\": \"ou\",
@@ -414,7 +402,7 @@ if [[ "$HTTP_CODE" == "201" ]] || [[ "$HTTP_CODE" == "200" ]]; then
     fi
 elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "OU resource already exists, retrieving ID..."
-    RESPONSE=$(thunder_api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources?parentId=${SYSTEM_RESOURCE_ID}")
+    RESPONSE=$(api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources?parentId=${SYSTEM_RESOURCE_ID}")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -438,7 +426,7 @@ fi
 
 log_info "Creating 'view' action under the 'ou' resource..."
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources/${OU_RESOURCE_ID}/actions" '{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources/${OU_RESOURCE_ID}/actions" '{
   "name": "View",
   "description": "Read-only access to organization units",
   "handle": "view"
@@ -459,7 +447,7 @@ fi
 
 log_info "Creating 'user' sub-resource under the 'system' resource..."
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" "{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" "{
   \"name\": \"User\",
   \"description\": \"User resource\",
   \"handle\": \"user\",
@@ -480,7 +468,7 @@ if [[ "$HTTP_CODE" == "201" ]] || [[ "$HTTP_CODE" == "200" ]]; then
     fi
 elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "User resource already exists, retrieving ID..."
-    RESPONSE=$(thunder_api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources?parentId=${SYSTEM_RESOURCE_ID}")
+    RESPONSE=$(api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources?parentId=${SYSTEM_RESOURCE_ID}")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -504,7 +492,7 @@ fi
 
 log_info "Creating 'view' action under the 'user' resource..."
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources/${USER_RESOURCE_ID}/actions" '{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources/${USER_RESOURCE_ID}/actions" '{
   "name": "View",
   "description": "Read-only access to users",
   "handle": "view"
@@ -525,7 +513,7 @@ fi
 
 log_info "Creating 'userschema' sub-resource under the 'system' resource..."
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" "{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" "{
   \"name\": \"User Schema\",
   \"description\": \"User schema resource\",
   \"handle\": \"userschema\",
@@ -546,7 +534,7 @@ if [[ "$HTTP_CODE" == "201" ]] || [[ "$HTTP_CODE" == "200" ]]; then
     fi
 elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "User schema resource already exists, retrieving ID..."
-    RESPONSE=$(thunder_api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources?parentId=${SYSTEM_RESOURCE_ID}")
+    RESPONSE=$(api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources?parentId=${SYSTEM_RESOURCE_ID}")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -570,7 +558,7 @@ fi
 
 log_info "Creating 'view' action under the 'userschema' resource..."
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources/${USER_SCHEMA_RESOURCE_ID}/actions" '{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources/${USER_SCHEMA_RESOURCE_ID}/actions" '{
   "name": "View",
   "description": "Read-only access to user schemas",
   "handle": "view"
@@ -593,7 +581,7 @@ echo ""
 
 log_info "Creating 'group' sub-resource under the 'system' resource..."
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" "{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources" "{
   \"name\": \"Group\",
   \"description\": \"Group resource\",
   \"handle\": \"group\",
@@ -614,7 +602,7 @@ if [[ "$HTTP_CODE" == "201" ]] || [[ "$HTTP_CODE" == "200" ]]; then
     fi
 elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "Group resource already exists, retrieving ID..."
-    RESPONSE=$(thunder_api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources?parentId=${SYSTEM_RESOURCE_ID}")
+    RESPONSE=$(api_call GET "/resource-servers/${SYSTEM_RS_ID}/resources?parentId=${SYSTEM_RESOURCE_ID}")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -638,7 +626,7 @@ fi
 
 log_info "Creating 'view' action under the 'group' resource..."
 
-RESPONSE=$(thunder_api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources/${GROUP_RESOURCE_ID}/actions" '{
+RESPONSE=$(api_call POST "/resource-servers/${SYSTEM_RS_ID}/resources/${GROUP_RESOURCE_ID}/actions" '{
   "name": "View",
   "description": "Read-only access to groups",
   "handle": "view"
@@ -675,7 +663,7 @@ if [[ -z "$ADMIN_USER_ID" ]]; then
     exit 1
 fi
 
-RESPONSE=$(thunder_api_call POST "/groups" "{
+RESPONSE=$(api_call POST "/groups" "{
   \"name\": \"Administrators\",
   \"description\": \"System administrators group\",
     \"ouId\": \"${DEFAULT_OU_ID}\",
@@ -701,7 +689,7 @@ if [[ "$HTTP_CODE" == "201" ]] || [[ "$HTTP_CODE" == "200" ]]; then
     fi
 elif [[ "$HTTP_CODE" == "409" ]]; then
     log_warning "Administrator group already exists, retrieving ID..."
-    RESPONSE=$(thunder_api_call GET "/groups/tree/default?limit=100")
+    RESPONSE=$(api_call GET "/groups/tree/default?limit=100")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
 
@@ -746,7 +734,7 @@ if [[ -z "$SYSTEM_RS_ID" ]]; then
     exit 1
 fi
 
-RESPONSE=$(thunder_api_call POST "/roles" "{
+RESPONSE=$(api_call POST "/roles" "{
   \"name\": \"Administrator\",
   \"description\": \"System administrator role with full permissions\",
   \"ouId\": \"${DEFAULT_OU_ID}\",
@@ -812,7 +800,7 @@ else
             log_info "Processing authentication flows..."
             
             # Fetch existing auth flows
-            RESPONSE=$(thunder_api_call GET "/flows?flowType=AUTHENTICATION&limit=200")
+            RESPONSE=$(api_call GET "/flows?flowType=AUTHENTICATION&limit=200")
             HTTP_CODE="${RESPONSE: -3}"
             BODY="${RESPONSE%???}"
 
@@ -875,7 +863,7 @@ else
             log_info "Processing registration flows..."
             
             # Fetch existing registration flows
-            RESPONSE=$(thunder_api_call GET "/flows?flowType=REGISTRATION&limit=200")
+            RESPONSE=$(api_call GET "/flows?flowType=REGISTRATION&limit=200")
             HTTP_CODE="${RESPONSE: -3}"
             BODY="${RESPONSE%???}"
 
@@ -934,7 +922,7 @@ else
             log_info "Processing user onboarding flows..."
             
             # Fetch existing user onboarding flows
-            RESPONSE=$(thunder_api_call GET "/flows?flowType=USER_ONBOARDING&limit=200")
+            RESPONSE=$(api_call GET "/flows?flowType=USER_ONBOARDING&limit=200")
             HTTP_CODE="${RESPONSE: -3}"
             BODY="${RESPONSE%???}"
 
@@ -1006,7 +994,7 @@ if [[ -d "$APPS_FLOWS_DIR" ]]; then
     log_info "Fetching existing flows for application flow processing..."
     
     # Get auth flows
-    RESPONSE=$(thunder_api_call GET "/flows?flowType=AUTHENTICATION&limit=200")
+    RESPONSE=$(api_call GET "/flows?flowType=AUTHENTICATION&limit=200")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
     EXISTING_APP_AUTH_FLOWS=""
@@ -1021,7 +1009,7 @@ if [[ -d "$APPS_FLOWS_DIR" ]]; then
     fi
     
     # Get registration flows
-    RESPONSE=$(thunder_api_call GET "/flows?flowType=REGISTRATION&limit=200")
+    RESPONSE=$(api_call GET "/flows?flowType=REGISTRATION&limit=200")
     HTTP_CODE="${RESPONSE: -3}"
     BODY="${RESPONSE%???}"
     EXISTING_APP_REG_FLOWS=""
@@ -1068,7 +1056,7 @@ if [[ -d "$APPS_FLOWS_DIR" ]]; then
             
             # Re-fetch registration flows after creating auth flow
             if [[ -n "$APP_AUTH_FLOW_ID" ]]; then
-                RESPONSE=$(thunder_api_call GET "/flows?flowType=REGISTRATION&limit=200")
+                RESPONSE=$(api_call GET "/flows?flowType=REGISTRATION&limit=200")
                 HTTP_CODE="${RESPONSE: -3}"
                 BODY="${RESPONSE%???}"
                 EXISTING_APP_REG_FLOWS=""
@@ -1141,8 +1129,8 @@ if [[ -z "$CONSOLE_REG_FLOW_ID" ]]; then
     exit 1
 fi
 
-# Use THUNDER_PUBLIC_URL for redirect URIs, fallback to THUNDER_API_BASE if not set
-PUBLIC_URL="${THUNDER_PUBLIC_URL:-$THUNDER_API_BASE}"
+# Use PUBLIC_URL for redirect URIs, fallback to API_BASE if not set
+PUBLIC_URL="${PUBLIC_URL:-$API_BASE}"
 
 # Build redirect URIs array - default + custom if provided
 REDIRECT_URIS="\"${PUBLIC_URL}/console\""
@@ -1157,9 +1145,9 @@ if [[ -n "$CUSTOM_CONSOLE_REDIRECT_URIS" ]]; then
     done
 fi
 
-RESPONSE=$(thunder_api_call POST "/applications" "{
+RESPONSE=$(api_call POST "/applications" "{
   \"name\": \"Console\",
-  \"description\": \"Management application for Thunder\",
+  \"description\": \"Management application for ${PRODUCT_NAME}\",
   \"ouId\": \"${DEFAULT_OU_ID}\",
   \"url\": \"${PUBLIC_URL}/console\",
     \"logoUrl\": \"emoji:👨‍💻\",
@@ -1173,7 +1161,7 @@ RESPONSE=$(thunder_api_call POST "/applications" "{
     \"config\": {
             \"clientId\": \"CONSOLE\",
             \"redirectUris\": [${REDIRECT_URIS}],
-            \"grantTypes\": [\"authorization_code\"],
+            \"grantTypes\": [\"authorization_code\", \"refresh_token\"],
             \"responseTypes\": [\"code\"],
             \"pkceRequired\": true,
             \"tokenEndpointAuthMethod\": \"none\",
@@ -1251,7 +1239,7 @@ else
             THEME_PAYLOAD=$(cat "$THEME_FILE")
 
             log_info "Creating theme: ${THEME_NAME} (from $(basename "$THEME_FILE"))"
-            RESPONSE=$(thunder_api_call POST "/design/themes" "${THEME_PAYLOAD}")
+            RESPONSE=$(api_call POST "/design/themes" "${THEME_PAYLOAD}")
             HTTP_CODE="${RESPONSE: -3}"
             BODY="${RESPONSE%???}"
 
@@ -1264,7 +1252,7 @@ else
                 THEME_CREATED=$((THEME_CREATED + 1))
             elif [[ "$HTTP_CODE" == "409" ]] || (echo "$BODY" | grep -q '"THM-1015"'); then
                 log_warning "Theme '${THEME_NAME}' already exists, updating..."
-                RESPONSE=$(thunder_api_call GET "/design/themes")
+                RESPONSE=$(api_call GET "/design/themes")
                 HTTP_CODE="${RESPONSE: -3}"
                 BODY="${RESPONSE%???}"
                 THEME_ID=$(echo "$BODY" | grep -o '"id":"[^"]*","handle":"'"${THEME_HANDLE}"'"' | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
@@ -1273,7 +1261,7 @@ else
                     exit 1
                 fi
                 log_info "Found existing theme ID: $THEME_ID"
-                RESPONSE=$(thunder_api_call PUT "/design/themes/${THEME_ID}" "${THEME_PAYLOAD}")
+                RESPONSE=$(api_call PUT "/design/themes/${THEME_ID}" "${THEME_PAYLOAD}")
                 HTTP_CODE="${RESPONSE: -3}"
                 BODY="${RESPONSE%???}"
                 if [[ "$HTTP_CODE" == "200" ]]; then
@@ -1333,7 +1321,7 @@ else
 
             PAYLOAD=$(cat "$I18N_FILE")
 
-            RESPONSE=$(thunder_api_call POST "/i18n/languages/${LANGUAGE}/translations" "$PAYLOAD")
+            RESPONSE=$(api_call POST "/i18n/languages/${LANGUAGE}/translations" "$PAYLOAD")
             HTTP_CODE="${RESPONSE: -3}"
             BODY="${RESPONSE%???}"
 

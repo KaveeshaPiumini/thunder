@@ -21,11 +21,16 @@ package userinfo
 
 import (
 	"context"
+	"crypto"
+	"encoding/json"
+	"io"
+	"net/http"
 	"slices"
 
-	"github.com/asgardeo/thunder/internal/application"
-	appmodel "github.com/asgardeo/thunder/internal/application/model"
 	"github.com/asgardeo/thunder/internal/attributecache"
+	certmodel "github.com/asgardeo/thunder/internal/cert"
+	"github.com/asgardeo/thunder/internal/inboundclient"
+	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/model"
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/tokenservice"
@@ -33,6 +38,9 @@ import (
 	"github.com/asgardeo/thunder/internal/ou"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
+	syshttp "github.com/asgardeo/thunder/internal/system/http"
+	"github.com/asgardeo/thunder/internal/system/jose/jwe"
+	"github.com/asgardeo/thunder/internal/system/jose/jws"
 	"github.com/asgardeo/thunder/internal/system/jose/jwt"
 	"github.com/asgardeo/thunder/internal/system/log"
 	"github.com/asgardeo/thunder/internal/system/transaction"
@@ -47,32 +55,38 @@ type userInfoServiceInterface interface {
 
 // userInfoService implements the userInfoServiceInterface.
 type userInfoService struct {
-	jwtService         jwt.JWTServiceInterface
-	tokenValidator     tokenservice.TokenValidatorInterface
-	applicationService application.ApplicationServiceInterface
-	ouService          ou.OrganizationUnitServiceInterface
-	attributeCacheSvc  attributecache.AttributeCacheServiceInterface
-	transactioner      transaction.Transactioner
-	logger             *log.Logger
+	jwtService        jwt.JWTServiceInterface
+	jweService        jwe.JWEServiceInterface
+	httpClient        syshttp.HTTPClientInterface
+	tokenValidator    tokenservice.TokenValidatorInterface
+	inboundClient     inboundclient.InboundClientServiceInterface
+	ouService         ou.OrganizationUnitServiceInterface
+	attributeCacheSvc attributecache.AttributeCacheServiceInterface
+	transactioner     transaction.Transactioner
+	logger            *log.Logger
 }
 
 // newUserInfoService creates a new userInfoService instance.
 func newUserInfoService(
 	jwtService jwt.JWTServiceInterface,
+	jweService jwe.JWEServiceInterface,
+	httpClient syshttp.HTTPClientInterface,
 	tokenValidator tokenservice.TokenValidatorInterface,
-	applicationService application.ApplicationServiceInterface,
+	inboundClient inboundclient.InboundClientServiceInterface,
 	ouService ou.OrganizationUnitServiceInterface,
 	attributeCacheSvc attributecache.AttributeCacheServiceInterface,
 	transactioner transaction.Transactioner,
 ) userInfoServiceInterface {
 	return &userInfoService{
-		jwtService:         jwtService,
-		tokenValidator:     tokenValidator,
-		applicationService: applicationService,
-		ouService:          ouService,
-		attributeCacheSvc:  attributeCacheSvc,
-		transactioner:      transactioner,
-		logger:             log.GetLogger().With(log.String(log.LoggerKeyComponentName, serviceLoggerComponentName)),
+		jwtService:        jwtService,
+		jweService:        jweService,
+		httpClient:        httpClient,
+		tokenValidator:    tokenValidator,
+		inboundClient:     inboundClient,
+		ouService:         ouService,
+		attributeCacheSvc: attributeCacheSvc,
+		transactioner:     transactioner,
+		logger:            log.GetLogger().With(log.String(log.LoggerKeyComponentName, serviceLoggerComponentName)),
 	}
 }
 
@@ -129,20 +143,196 @@ func (s *userInfoService) GetUserInfo(
 		return nil, svcErr
 	}
 
-	// Decide response type
-	responseType := appmodel.UserInfoResponseTypeJSON
-	if oauthApp != nil && oauthApp.UserInfo != nil {
-		responseType = oauthApp.UserInfo.ResponseType
+	var userInfoCfg *inboundmodel.UserInfoConfig
+	var certificate *inboundmodel.Certificate
+	if oauthApp != nil {
+		userInfoCfg = oauthApp.UserInfo
+		certificate = oauthApp.Certificate
 	}
 
-	if responseType == appmodel.UserInfoResponseTypeJWS {
-		return s.generateJWSUserInfo(sub, tokenClaims, response)
+	responseType := inboundmodel.UserInfoResponseTypeJSON
+	if userInfoCfg != nil {
+		responseType = userInfoCfg.ResponseType
+	}
+	switch responseType {
+	case inboundmodel.UserInfoResponseTypeNESTEDJWT:
+		return s.generateNestedJWTUserInfo(ctx, sub, tokenClaims, response, userInfoCfg, certificate)
+	case inboundmodel.UserInfoResponseTypeJWE:
+		return s.generateJWEUserInfo(ctx, response, userInfoCfg, certificate)
+	case inboundmodel.UserInfoResponseTypeJWS:
+		return s.generateJWSUserInfo(sub, tokenClaims, response, userInfoCfg)
+	default:
+		return &UserInfoResponse{Type: inboundmodel.UserInfoResponseTypeJSON, JSONBody: response}, nil
+	}
+}
+
+// resolveRPPublicKey resolves the RP's public key from the application certificate.
+// It returns the public key and the kid from the matching JWK entry (empty string when absent).
+// encryptionAlg is the key-management algorithm (e.g. "RSA-OAEP-256") used to filter incompatible keys.
+func (s *userInfoService) resolveRPPublicKey(
+	ctx context.Context, certificate *inboundmodel.Certificate, encryptionAlg string,
+) (crypto.PublicKey, string, *serviceerror.ServiceError) {
+	if certificate == nil || certificate.Type == "" {
+		s.logger.Error("No certificate configured for userinfo encryption")
+		return nil, "", &serviceerror.InternalServerError
 	}
 
-	return &UserInfoResponse{
-		Type:     appmodel.UserInfoResponseTypeJSON,
-		JSONBody: response,
-	}, nil
+	var jwksData []byte
+	switch certificate.Type {
+	case certmodel.CertificateTypeJWKS:
+		jwksData = []byte(certificate.Value)
+	case certmodel.CertificateTypeJWKSURI:
+		body, svcErr := s.fetchJWKS(ctx, certificate.Value)
+		if svcErr != nil {
+			return nil, "", svcErr
+		}
+		jwksData = body
+	default:
+		s.logger.Error("Unsupported certificate type for userinfo encryption",
+			log.String("type", string(certificate.Type)))
+		return nil, "", &serviceerror.InternalServerError
+	}
+
+	return s.parseEncryptionKeyFromJWKS(jwksData, encryptionAlg)
+}
+
+// fetchJWKS fetches the JWKS document from the given URI with SSRF protection and a 1 MB size cap.
+func (s *userInfoService) fetchJWKS(ctx context.Context, jwksURI string) ([]byte, *serviceerror.ServiceError) {
+	if err := syshttp.IsSSRFSafeURL(jwksURI); err != nil {
+		s.logger.Error("JWKS URI is not SSRF-safe", log.String("uri", jwksURI), log.Error(err))
+		return nil, &serviceerror.InternalServerError
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jwksURI, nil)
+	if err != nil {
+		s.logger.Error("Failed to build JWKS request", log.Error(err))
+		return nil, &serviceerror.InternalServerError
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		s.logger.Error("Failed to fetch JWKS from URI", log.String("uri", jwksURI), log.Error(err))
+		return nil, &serviceerror.InternalServerError
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		s.logger.Error("JWKS URI returned non-200 status",
+			log.String("uri", jwksURI), log.Int("statusCode", resp.StatusCode))
+		return nil, &serviceerror.InternalServerError
+	}
+	const maxJWKSBytes = 1 << 20 // 1 MB — guards against OOM from a malicious endpoint
+	limitedReader := io.LimitReader(resp.Body, maxJWKSBytes+1)
+	body, err := io.ReadAll(limitedReader)
+	if err != nil {
+		s.logger.Error("Failed to read JWKS response body", log.Error(err))
+		return nil, &serviceerror.InternalServerError
+	}
+	if len(body) > maxJWKSBytes {
+		s.logger.Error("JWKS URI response exceeds 1 MB size limit", log.String("uri", jwksURI))
+		return nil, &serviceerror.InternalServerError
+	}
+	return body, nil
+}
+
+// parseEncryptionKeyFromJWKS finds the first RSA enc key in the JWKS that matches encryptionAlg.
+// Returns the public key and its kid (empty when absent in the JWK entry).
+func (s *userInfoService) parseEncryptionKeyFromJWKS(
+	jwksData []byte, encryptionAlg string,
+) (crypto.PublicKey, string, *serviceerror.ServiceError) {
+	var jwksObj struct {
+		Keys []map[string]interface{} `json:"keys"`
+	}
+	if err := json.Unmarshal(jwksData, &jwksObj); err != nil {
+		s.logger.Error("Failed to parse JWKS for userinfo encryption", log.Error(err))
+		return nil, "", &serviceerror.InternalServerError
+	}
+
+	for _, key := range jwksObj.Keys {
+		use, _ := key["use"].(string)
+		if use != "enc" {
+			continue
+		}
+		kty, _ := key["kty"].(string)
+		if kty != "RSA" {
+			continue
+		}
+		if keyAlg, _ := key["alg"].(string); keyAlg != "" && keyAlg != encryptionAlg {
+			continue
+		}
+		pub, err := jws.JWKToPublicKey(key)
+		if err == nil && pub != nil {
+			kid, _ := key["kid"].(string)
+			return pub, kid, nil
+		}
+	}
+
+	s.logger.Error("No suitable encryption key found in JWKS")
+	return nil, "", &serviceerror.InternalServerError
+}
+
+// generateJWEUserInfo creates an encrypted JWE UserInfo response.
+func (s *userInfoService) generateJWEUserInfo(
+	ctx context.Context,
+	response map[string]interface{},
+	cfg *inboundmodel.UserInfoConfig,
+	certificate *inboundmodel.Certificate,
+) (*UserInfoResponse, *serviceerror.ServiceError) {
+	rpKey, rpKID, svcErr := s.resolveRPPublicKey(ctx, certificate, cfg.EncryptionAlg)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	payload, err := json.Marshal(response)
+	if err != nil {
+		s.logger.Error("Failed to marshal userinfo claims for JWE")
+		return nil, &serviceerror.InternalServerError
+	}
+
+	compact, svcErr := s.jweService.Encrypt(
+		payload, rpKey,
+		jwe.KeyEncAlgorithm(cfg.EncryptionAlg),
+		jwe.ContentEncAlgorithm(cfg.EncryptionEnc),
+		"json",
+		rpKID,
+	)
+	if svcErr != nil {
+		s.logger.Error("Failed to encrypt userinfo JWE")
+		return nil, svcErr
+	}
+
+	return &UserInfoResponse{Type: inboundmodel.UserInfoResponseTypeJWE, JWTBody: compact}, nil
+}
+
+// generateNestedJWTUserInfo creates a sign-then-encrypt Nested JWT UserInfo response.
+func (s *userInfoService) generateNestedJWTUserInfo(
+	ctx context.Context,
+	sub string,
+	tokenClaims map[string]interface{},
+	response map[string]interface{},
+	cfg *inboundmodel.UserInfoConfig,
+	certificate *inboundmodel.Certificate,
+) (*UserInfoResponse, *serviceerror.ServiceError) {
+	jwsResp, svcErr := s.generateJWSUserInfo(sub, tokenClaims, response, cfg)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	rpKey, rpKID, svcErr := s.resolveRPPublicKey(ctx, certificate, cfg.EncryptionAlg)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	compact, svcErr := s.jweService.Encrypt(
+		[]byte(jwsResp.JWTBody), rpKey,
+		jwe.KeyEncAlgorithm(cfg.EncryptionAlg),
+		jwe.ContentEncAlgorithm(cfg.EncryptionEnc),
+		"JWT",
+		rpKID,
+	)
+	if svcErr != nil {
+		s.logger.Error("Failed to encrypt nested JWT userinfo JWE")
+		return nil, svcErr
+	}
+
+	return &UserInfoResponse{Type: inboundmodel.UserInfoResponseTypeNESTEDJWT, JWTBody: compact}, nil
 }
 
 // generateJWSUserInfo creates a signed JWT UserInfo response
@@ -151,6 +341,7 @@ func (s *userInfoService) generateJWSUserInfo(
 	sub string,
 	tokenClaims map[string]interface{},
 	response map[string]interface{},
+	cfg *inboundmodel.UserInfoConfig,
 ) (*UserInfoResponse, *serviceerror.ServiceError) {
 	clientID := ""
 	if cid, ok := tokenClaims["client_id"].(string); ok {
@@ -163,6 +354,10 @@ func (s *userInfoService) generateJWSUserInfo(
 	validity := runtime.Config.JWT.ValidityPeriod
 
 	response["aud"] = clientID
+	signingAlg := ""
+	if cfg != nil {
+		signingAlg = cfg.SigningAlg
+	}
 
 	signedJWT, _, err := s.jwtService.GenerateJWT(
 		sub,
@@ -170,14 +365,21 @@ func (s *userInfoService) generateJWSUserInfo(
 		validity,
 		response,
 		jwt.TokenTypeJWT,
+		signingAlg,
 	)
 	if err != nil {
-		s.logger.Error("Failed to generate signed UserInfo JWT")
+		if err.Code == jwt.ErrorUnsupportedJWSAlgorithm.Code {
+			s.logger.Error("UserInfo signing algorithm is not supported by the server key",
+				log.String("alg", signingAlg), log.String("error", err.Error.DefaultValue))
+		} else {
+			s.logger.Error("Failed to generate signed UserInfo JWT",
+				log.String("error", err.Error.DefaultValue))
+		}
 		return nil, &serviceerror.InternalServerError
 	}
 
 	return &UserInfoResponse{
-		Type:    appmodel.UserInfoResponseTypeJWS,
+		Type:    inboundmodel.UserInfoResponseTypeJWS,
 		JWTBody: signedJWT,
 	}, nil
 }
@@ -228,15 +430,17 @@ func (s *userInfoService) validateOpenIDScope(scopes []string) *serviceerror.Ser
 	return nil
 }
 
-// getOAuthApp retrieves the OAuth application configuration if client_id is present in claims.
+// getOAuthApp retrieves the OAuth client configuration if client_id is present in claims.
+// Returns nil when no client_id is present, on error, or when the app is not found.
 func (s *userInfoService) getOAuthApp(
-	ctx context.Context, claims map[string]interface{}) *appmodel.OAuthAppConfigProcessedDTO {
+	ctx context.Context, claims map[string]interface{},
+) *inboundmodel.OAuthClient {
 	clientID, ok := claims["client_id"].(string)
 	if !ok || clientID == "" {
 		return nil
 	}
 
-	app, err := s.applicationService.GetOAuthApplication(ctx, clientID)
+	app, err := s.inboundClient.GetOAuthClientByClientID(ctx, clientID)
 	if err != nil || app == nil {
 		return nil
 	}
@@ -250,7 +454,7 @@ func (s *userInfoService) buildUserInfoResponse(
 	sub string,
 	scopes []string,
 	userAttributes map[string]interface{},
-	oauthApp *appmodel.OAuthAppConfigProcessedDTO,
+	oauthApp *inboundmodel.OAuthClient,
 	tokenClaims map[string]interface{},
 ) (map[string]interface{}, *serviceerror.ServiceError) {
 	response := map[string]interface{}{

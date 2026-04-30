@@ -117,7 +117,12 @@
     },
     "dcr": {
       "insecure": false
-    }
+    },
+    "par": {
+      "require_par": false,
+      "expires_in": 60
+    },
+    "allow_wildcard_redirect_uri": false
   },
   "flow": {
     "default_auth_flow_handle": "default-basic-flow",

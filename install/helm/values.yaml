@@ -61,7 +61,7 @@ deployment:
     requests:
       cpu: 100m
       memory: 50Mi
-  # Controls the THUNDER_SKIP_SECURITY environment variable. Set this to true only
+  # Controls the SKIP_SECURITY environment variable. Set this to true only
   # in non-production environments for testing purposes to bypass REST API security checks.
   skipSecurity: false
   # Additional environment variables with plain values.
@@ -242,8 +242,8 @@ configuration:
         hostname: "localhost"
         port: "5432"
         name: "configdb"
-        username: "asgthunder"
-        password: "asgthunder"
+        username: "dbuser"
+        password: "dbpassword"
         passwordRef:
           name: ""
           key: ""
@@ -271,8 +271,8 @@ configuration:
         hostname: "localhost"
         port: "5432"
         name: "runtimedb"
-        username: "asgthunder"
-        password: "asgthunder"
+        username: "dbuser"
+        password: "dbpassword"
         passwordRef:
           name: ""
           key: ""
@@ -308,8 +308,8 @@ configuration:
         hostname: "localhost"
         port: "5432"
         name: "userdb"
-        username: "asgthunder"
-        password: "asgthunder"
+        username: "dbuser"
+        password: "dbpassword"
         passwordRef:
           name: ""
           key: ""
@@ -398,8 +398,8 @@ configuration:
       name: "consentdb"
       host: "localhost"
       port: "5432"
-      username: "asgthunder"
-      password: "asgthunder"
+      username: "dbuser"
+      password: "dbpassword"
       sslmode: "require"
       max_open_conns: 500
       max_idle_conns: 100
@@ -493,7 +493,7 @@ setup:
   # Example:
   # secretEnv:
   #   - name: BOOTSTRAP_API_KEY
-  #     secretName: thunder-setup-secrets
+  #     secretName: server-setup-secrets
   #     secretKey: bootstrap-api-key
   #     optional: false
   secretEnv: []

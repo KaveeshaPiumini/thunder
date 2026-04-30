@@ -25,6 +25,12 @@ import (
 	"github.com/asgardeo/thunder/internal/oauth/oauth2/pkce"
 	"github.com/asgardeo/thunder/internal/system/config"
 	"github.com/asgardeo/thunder/internal/system/crypto/pki"
+	"github.com/asgardeo/thunder/internal/system/jose/jwe"
+)
+
+var (
+	supportedUserInfoEncryptionAlgs = []string{string(jwe.RSAOAEP), string(jwe.RSAOAEP256)}
+	supportedUserInfoEncryptionEncs = []string{string(jwe.A128CBCHS256), string(jwe.A256GCM)}
 )
 
 // DiscoveryServiceInterface defines the interface for discovery services
@@ -51,20 +57,25 @@ func newDiscoveryService(pkiService pki.PKIServiceInterface) DiscoveryServiceInt
 func (ds *discoveryService) GetOAuth2AuthorizationServerMetadata(
 	ctx context.Context,
 ) *OAuth2AuthorizationServerMetadata {
-	return &OAuth2AuthorizationServerMetadata{
-		Issuer:                            ds.getIssuer(),
-		AuthorizationEndpoint:             ds.getAuthorizationEndpoint(),
-		TokenEndpoint:                     ds.getTokenEndpoint(),
-		UserInfoEndpoint:                  ds.getUserInfoEndpoint(),
-		JWKSUri:                           ds.getJWKSUri(),
-		RegistrationEndpoint:              ds.getRegistrationEndpoint(),
-		IntrospectionEndpoint:             ds.getIntrospectionEndpoint(),
-		ScopesSupported:                   ds.getSupportedScopes(),
-		ResponseTypesSupported:            ds.getSupportedResponseTypes(),
-		GrantTypesSupported:               ds.getSupportedGrantTypes(),
-		TokenEndpointAuthMethodsSupported: ds.getSupportedTokenEndpointAuthMethods(),
-		CodeChallengeMethodsSupported:     ds.getSupportedCodeChallengeMethods(),
+	metadata := &OAuth2AuthorizationServerMetadata{
+		Issuer:                                     ds.getIssuer(),
+		AuthorizationEndpoint:                      ds.getAuthorizationEndpoint(),
+		TokenEndpoint:                              ds.getTokenEndpoint(),
+		UserInfoEndpoint:                           ds.getUserInfoEndpoint(),
+		JWKSUri:                                    ds.getJWKSUri(),
+		RegistrationEndpoint:                       ds.getRegistrationEndpoint(),
+		IntrospectionEndpoint:                      ds.getIntrospectionEndpoint(),
+		PushedAuthorizationRequestEndpoint:         ds.getPAREndpoint(),
+		RequirePushedAuthorizationRequests:         ds.isGlobalPARRequired(),
+		ScopesSupported:                            ds.getSupportedScopes(),
+		ResponseTypesSupported:                     ds.getSupportedResponseTypes(),
+		GrantTypesSupported:                        ds.getSupportedGrantTypes(),
+		TokenEndpointAuthMethodsSupported:          ds.getSupportedTokenEndpointAuthMethods(),
+		CodeChallengeMethodsSupported:              ds.getSupportedCodeChallengeMethods(),
+		AuthorizationResponseIssParameterSupported: true,
 	}
+
+	return metadata
 }
 
 // GetOIDCMetadata returns OpenID Connect Provider Metadata
@@ -72,11 +83,14 @@ func (ds *discoveryService) GetOIDCMetadata(ctx context.Context) *OIDCProviderMe
 	oauth2Meta := ds.GetOAuth2AuthorizationServerMetadata(ctx)
 
 	return &OIDCProviderMetadata{
-		OAuth2AuthorizationServerMetadata: *oauth2Meta,
-		SubjectTypesSupported:             ds.getSupportedSubjectTypes(),
-		IDTokenSigningAlgValuesSupported:  ds.pkiService.GetSupportedSigningAlgorithms(),
-		ClaimsSupported:                   ds.getSupportedClaims(),
-		ClaimsParameterSupported:          true,
+		OAuth2AuthorizationServerMetadata:    *oauth2Meta,
+		SubjectTypesSupported:                ds.getSupportedSubjectTypes(),
+		IDTokenSigningAlgValuesSupported:     ds.pkiService.GetSupportedSigningAlgorithms(),
+		UserInfoSigningAlgValuesSupported:    ds.pkiService.GetSupportedSigningAlgorithms(),
+		UserInfoEncryptionAlgValuesSupported: supportedUserInfoEncryptionAlgs,
+		UserInfoEncryptionEncValuesSupported: supportedUserInfoEncryptionEncs,
+		ClaimsSupported:                      ds.getSupportedClaims(),
+		ClaimsParameterSupported:             true,
 	}
 }
 
@@ -130,6 +144,14 @@ func (ds *discoveryService) getSupportedTokenEndpointAuthMethods() []string {
 
 func (ds *discoveryService) getSupportedCodeChallengeMethods() []string {
 	return pkce.GetSupportedCodeChallengeMethods()
+}
+
+func (ds *discoveryService) getPAREndpoint() string {
+	return ds.baseURL + constants.OAuth2PAREndpoint
+}
+
+func (ds *discoveryService) isGlobalPARRequired() bool {
+	return config.GetThunderRuntime().Config.OAuth.PAR.RequirePAR
 }
 
 func (ds *discoveryService) getSupportedSubjectTypes() []string {

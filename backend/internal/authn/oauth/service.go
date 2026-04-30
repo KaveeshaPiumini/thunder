@@ -47,6 +47,7 @@ type OAuthAuthnCoreServiceInterface interface {
 		map[string]interface{}, *serviceerror.ServiceError)
 	GetInternalUser(sub string) (*entityprovider.Entity, *serviceerror.ServiceError)
 	GetOAuthClientConfig(ctx context.Context, idpID string) (*OAuthClientConfig, *serviceerror.ServiceError)
+	Authenticate(ctx context.Context, idpID, code string) (*common.FederatedAuthResult, *serviceerror.ServiceError)
 }
 
 // OAuthAuthnServiceInterface defines the contract for OAuth based authenticator services.
@@ -69,23 +70,12 @@ type oAuthAuthnService struct {
 func newOAuthAuthnService(httpClient syshttp.HTTPClientInterface,
 	idpSvc idp.IDPServiceInterface, entityProvider entityprovider.EntityProviderInterface,
 ) OAuthAuthnServiceInterface {
-	service := &oAuthAuthnService{
+	return &oAuthAuthnService{
 		httpClient:     httpClient,
 		idpService:     idpSvc,
 		entityProvider: entityProvider,
 		logger:         log.GetLogger().With(log.String(log.LoggerKeyComponentName, loggerComponentName)),
 	}
-	common.RegisterAuthenticator(service.getMetadata())
-
-	return service
-}
-
-// NewOAuthAuthnService creates a new instance of OAuth authenticator service.
-// [Deprecated: use dependency injection to get the instance instead].
-// TODO: Should be removed when executors are migrated to di pattern.
-func NewOAuthAuthnService(httpClient syshttp.HTTPClientInterface,
-	idpSvc idp.IDPServiceInterface, entityProvider entityprovider.EntityProviderInterface) OAuthAuthnServiceInterface {
-	return newOAuthAuthnService(httpClient, idpSvc, entityProvider)
 }
 
 // GetOAuthClientConfig retrieves the OAuth client configuration for the given identity provider ID.
@@ -308,11 +298,50 @@ func (s *oAuthAuthnService) GetInternalUser(sub string) (*entityprovider.Entity,
 	return user, nil
 }
 
-// getMetadata returns the authenticator metadata for OAuth authenticator.
-func (s *oAuthAuthnService) getMetadata() common.AuthenticatorMeta {
-	return common.AuthenticatorMeta{
-		Name:          common.AuthenticatorOAuth,
-		Factors:       []common.AuthenticationFactor{common.FactorKnowledge},
-		AssociatedIDP: idp.IDPTypeOAuth,
+// Authenticate performs the full OAuth authentication flow: exchanges the code for a token,
+// fetches user info, extracts the subject claim, and resolves the internal user.
+// A missing internal user is NOT an error — the caller decides how to handle it.
+func (s *oAuthAuthnService) Authenticate(ctx context.Context, idpID, code string) (
+	*common.FederatedAuthResult, *serviceerror.ServiceError) {
+	logger := s.logger.With(log.String("idpId", idpID))
+	logger.Debug("Performing federated OAuth authentication")
+
+	tokenResp, svcErr := s.ExchangeCodeForToken(ctx, idpID, code, true)
+	if svcErr != nil {
+		return nil, svcErr
 	}
+
+	userInfo, svcErr := s.FetchUserInfo(ctx, idpID, tokenResp.AccessToken)
+	if svcErr != nil {
+		return nil, svcErr
+	}
+
+	sub := ""
+	if subVal, ok := userInfo["sub"]; ok && subVal != nil {
+		if subStr, ok := subVal.(string); ok && subStr != "" {
+			sub = subStr
+		}
+	}
+	if sub == "" {
+		logger.Debug("sub claim not found in user info")
+		return nil, &common.ErrorSubClaimNotFound
+	}
+
+	result := &common.FederatedAuthResult{
+		Sub:    sub,
+		Claims: userInfo,
+	}
+	user, svcErr := s.GetInternalUser(sub)
+	if svcErr != nil {
+		if svcErr.Code == common.ErrorUserNotFound.Code {
+			return result, nil
+		}
+		if svcErr.Code == common.ErrorAmbiguousUser.Code {
+			result.IsAmbiguousUser = true
+			return result, nil
+		}
+		return nil, svcErr
+	}
+	result.InternalEntity = user
+	return result, nil
 }
