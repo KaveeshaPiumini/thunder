@@ -26,11 +26,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	oupkg "github.com/asgardeo/thunder/internal/ou"
-	"github.com/asgardeo/thunder/internal/system/config"
-	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
-	"github.com/asgardeo/thunder/internal/system/i18n/core"
-	"github.com/asgardeo/thunder/tests/mocks/oumock"
+	oupkg "github.com/thunder-id/thunder-id/internal/ou"
+	"github.com/thunder-id/thunder-id/internal/system/config"
+	"github.com/thunder-id/thunder-id/internal/system/error/serviceerror"
+	"github.com/thunder-id/thunder-id/internal/system/i18n/core"
+	"github.com/thunder-id/thunder-id/tests/mocks/oumock"
 )
 
 // TestValidateEntityType tests the validateEntityType function with various scenarios.
@@ -407,7 +407,7 @@ func TestGetAllResourceIDs_WithReadOnlyFilter(t *testing.T) {
 	exporter := newEntityTypeExporter(mockService)
 
 	response := &EntityTypeListResponse{
-		Schemas: []EntityTypeListItem{
+		Types: []EntityTypeListItem{
 			{ID: "schema1", Name: "Schema 1", IsReadOnly: false}, // Mutable - should be included
 			{ID: "schema2", Name: "Schema 2", IsReadOnly: true},  // Immutable - should be excluded
 			{ID: "schema3", Name: "Schema 3", IsReadOnly: false}, // Mutable - should be included

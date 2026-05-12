@@ -215,15 +215,15 @@ func findDefaultAgentTypeID() (string, error) {
 	}
 
 	var list struct {
-		Schemas []struct {
+		Types []struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
-		} `json:"schemas"`
+		} `json:"types"`
 	}
 	if err := json.Unmarshal(body, &list); err != nil {
 		return "", fmt.Errorf("failed to parse list response: %w. Response: %s", err, string(body))
 	}
-	for _, s := range list.Schemas {
+	for _, s := range list.Types {
 		if s.Name == "default" {
 			return s.ID, nil
 		}

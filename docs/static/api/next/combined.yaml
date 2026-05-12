@@ -1443,7 +1443,7 @@ paths:
                 totalResults: 2
                 startIndex: 1
                 count: 2
-                schemas:
+                types:
                   - id: 660e8400-e29b-41d4-a716-446655440001
                     name: service-agent
                     ouId: a839f4bd-39dc-4eaa-b5cc-210d8ecaee87
@@ -11905,7 +11905,7 @@ paths:
                 totalResults: 3
                 startIndex: 1
                 count: 3
-                schemas:
+                types:
                   - id: 660e8400-e29b-41d4-a716-446655440001
                     name: employee
                     ouId: a839f4bd-39dc-4eaa-b5cc-210d8ecaee87
@@ -13402,7 +13402,7 @@ components:
           type: integer
           description: Number of elements in the returned page.
           example: 3
-        schemas:
+        types:
           type: array
           items:
             type: object
@@ -18314,7 +18314,7 @@ components:
           type: integer
           description: Number of elements in the returned page.
           example: 3
-        schemas:
+        types:
           type: array
           items:
             type: object

@@ -25,11 +25,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/asgardeo/thunder/internal/entityprovider"
-	"github.com/asgardeo/thunder/internal/flow/common"
-	"github.com/asgardeo/thunder/internal/flow/core"
-	"github.com/asgardeo/thunder/tests/mocks/entityprovidermock"
-	"github.com/asgardeo/thunder/tests/mocks/flow/coremock"
+	"github.com/thunder-id/thunder-id/internal/entityprovider"
+	"github.com/thunder-id/thunder-id/internal/flow/common"
+	"github.com/thunder-id/thunder-id/internal/flow/core"
+	"github.com/thunder-id/thunder-id/tests/mocks/entityprovidermock"
+	"github.com/thunder-id/thunder-id/tests/mocks/flow/coremock"
 )
 
 type CredentialSetterTestSuite struct {
@@ -186,7 +186,7 @@ func (suite *CredentialSetterTestSuite) TestExecute_ServiceError() {
 
 func (suite *CredentialSetterTestSuite) TestExecute_CustomAttribute() {
 	userID := testUserID
-	customAttr := "pin"
+	const customAttr = "pin"
 	pinValue := "1234"
 
 	ctx := &core.NodeContext{

@@ -59,7 +59,7 @@ const config: Config = {
 
   // Prevent search engine indexing
   // TODO: Remove this flag when the docs are ready for public access
-  // Tracker: https://github.com/asgardeo/thunder/issues/1209
+  // Tracker: https://github.com/thunder-id/thunder-id/issues/1209
   noIndex: true,
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -245,7 +245,7 @@ const config: Config = {
               value: '<hr style="margin: 0.3rem 0;">',
             },
             {
-              href: 'https://github.com/asgardeo/thunder/issues/1912',
+              href: 'https://github.com/thunder-id/thunder-id/issues/1912',
               label: '🌍 Help translate',
             },
           ],

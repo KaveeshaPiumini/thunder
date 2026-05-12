@@ -26,24 +26,24 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/asgardeo/thunder/internal/cert"
-	"github.com/asgardeo/thunder/internal/consent"
-	layoutmgt "github.com/asgardeo/thunder/internal/design/layout/mgt"
-	thememgt "github.com/asgardeo/thunder/internal/design/theme/mgt"
-	"github.com/asgardeo/thunder/internal/entityprovider"
-	"github.com/asgardeo/thunder/internal/entitytype"
-	flowcommon "github.com/asgardeo/thunder/internal/flow/common"
-	flowmgt "github.com/asgardeo/thunder/internal/flow/mgt"
-	inboundmodel "github.com/asgardeo/thunder/internal/inboundclient/model"
-	oauth2const "github.com/asgardeo/thunder/internal/oauth/oauth2/constants"
-	"github.com/asgardeo/thunder/internal/system/config"
-	serverconst "github.com/asgardeo/thunder/internal/system/constants"
-	"github.com/asgardeo/thunder/internal/system/error/serviceerror"
-	syshttp "github.com/asgardeo/thunder/internal/system/http"
-	"github.com/asgardeo/thunder/internal/system/log"
-	"github.com/asgardeo/thunder/internal/system/security"
-	"github.com/asgardeo/thunder/internal/system/transaction"
-	sysutils "github.com/asgardeo/thunder/internal/system/utils"
+	"github.com/thunder-id/thunder-id/internal/cert"
+	"github.com/thunder-id/thunder-id/internal/consent"
+	layoutmgt "github.com/thunder-id/thunder-id/internal/design/layout/mgt"
+	thememgt "github.com/thunder-id/thunder-id/internal/design/theme/mgt"
+	"github.com/thunder-id/thunder-id/internal/entityprovider"
+	"github.com/thunder-id/thunder-id/internal/entitytype"
+	flowcommon "github.com/thunder-id/thunder-id/internal/flow/common"
+	flowmgt "github.com/thunder-id/thunder-id/internal/flow/mgt"
+	inboundmodel "github.com/thunder-id/thunder-id/internal/inboundclient/model"
+	oauth2const "github.com/thunder-id/thunder-id/internal/oauth/oauth2/constants"
+	"github.com/thunder-id/thunder-id/internal/system/config"
+	serverconst "github.com/thunder-id/thunder-id/internal/system/constants"
+	"github.com/thunder-id/thunder-id/internal/system/error/serviceerror"
+	syshttp "github.com/thunder-id/thunder-id/internal/system/http"
+	"github.com/thunder-id/thunder-id/internal/system/log"
+	"github.com/thunder-id/thunder-id/internal/system/security"
+	"github.com/thunder-id/thunder-id/internal/system/transaction"
+	sysutils "github.com/thunder-id/thunder-id/internal/system/utils"
 )
 
 // InboundClientServiceInterface is the public API of the inbound client subsystem.
@@ -993,11 +993,11 @@ func (s *inboundClientService) validateAllowedUserTypes(
 				log.String("error", svcErr.Error.DefaultValue), log.String("code", svcErr.Code))
 			return ErrUserSchemaLookupFailed
 		}
-		for _, schema := range entityTypeList.Schemas {
+		for _, schema := range entityTypeList.Types {
 			existingUserTypes[schema.Name] = true
 		}
-		if len(entityTypeList.Schemas) == 0 ||
-			offset+len(entityTypeList.Schemas) >= entityTypeList.TotalResults {
+		if len(entityTypeList.Types) == 0 ||
+			offset+len(entityTypeList.Types) >= entityTypeList.TotalResults {
 			break
 		}
 		offset += limit
@@ -1031,8 +1031,8 @@ func (s *inboundClientService) validateUserAttributesAgainstAllowedTypes(
 
 	validAttrs := make(map[string]bool)
 	for _, entityTypeName := range allowedEntityTypes {
-		attrInfos, svcErr := s.entityType.GetNonCredentialAttributes(
-			security.WithRuntimeContext(ctx), entitytype.TypeCategoryUser, entityTypeName, false)
+		attrInfos, svcErr := s.entityType.GetAttributes(
+			security.WithRuntimeContext(ctx), entitytype.TypeCategoryUser, entityTypeName, false, true, false)
 		if svcErr != nil {
 			if svcErr.Type == serviceerror.ServerErrorType {
 				return ErrUserSchemaLookupFailed

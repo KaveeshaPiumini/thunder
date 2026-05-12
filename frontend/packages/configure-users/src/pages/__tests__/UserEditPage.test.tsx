@@ -159,7 +159,7 @@ describe('UserEditPage', () => {
     totalResults: 1,
     startIndex: 1,
     count: 1,
-    schemas: [{id: 'employee', name: 'Employee', ouId: 'test-ou'}],
+    types: [{id: 'employee', name: 'Employee', ouId: 'test-ou'}],
   };
 
   const mockSchemaData: ApiUserType = {
@@ -513,7 +513,7 @@ describe('UserEditPage', () => {
       mockUseGetUserTypes.mockReturnValue({
         data: {
           ...mockSchemasData,
-          schemas: [{...mockSchemasData.schemas[0], ouId: ''}],
+          types: [{...mockSchemasData.types[0], ouId: ''}],
         },
         isLoading: false,
         error: null,
@@ -809,7 +809,7 @@ describe('UserEditPage', () => {
       mockUseGetUserTypes.mockReturnValue({
         data: {
           ...mockSchemasData,
-          schemas: [{...mockSchemasData.schemas[0], ouId: 'schema-ou'}],
+          types: [{...mockSchemasData.types[0], ouId: 'schema-ou'}],
         },
         isLoading: false,
         error: null,
@@ -832,7 +832,7 @@ describe('UserEditPage', () => {
       mockUseGetUserTypes.mockReturnValue({
         data: {
           ...mockSchemasData,
-          schemas: [{...mockSchemasData.schemas[0], ouId: ''}],
+          types: [{...mockSchemasData.types[0], ouId: ''}],
         },
         isLoading: false,
         error: null,

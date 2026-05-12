@@ -72,7 +72,7 @@ vi.mock('../../api/useCreateApplication', () => ({
 vi.mock('../../../user-types/api/useGetUserTypes', () => ({
   default: () => ({
     data: {
-      schemas: [
+      types: [
         {name: 'customer', displayName: 'Customer'},
         {name: 'employee', displayName: 'Employee'},
       ],

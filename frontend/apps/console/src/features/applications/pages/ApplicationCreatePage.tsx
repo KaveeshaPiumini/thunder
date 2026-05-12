@@ -171,7 +171,7 @@ export default function ApplicationCreatePage(): JSX.Element {
       return;
     }
 
-    const userTypes = userTypesData?.schemas ?? [];
+    const userTypes = userTypesData?.types ?? [];
     const allowedUserTypes = (() => {
       // If there's exactly 1 user type, automatically include it
       if (userTypes.length === 1) {
@@ -493,7 +493,7 @@ export default function ApplicationCreatePage(): JSX.Element {
             selectedApproach={signInApproach}
             onApproachChange={setSignInApproach}
             onReadyChange={handleApproachStepReadyChange}
-            userTypes={userTypesData?.schemas ?? []}
+            userTypes={userTypesData?.types ?? []}
             selectedUserTypes={selectedUserTypes}
             onUserTypesChange={setSelectedUserTypes}
           />

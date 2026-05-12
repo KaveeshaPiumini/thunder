@@ -77,7 +77,7 @@ export default function UserCreatePage(): JSX.Element {
   const tokenOuId = user?.ouId ?? null;
   const isChildOuForbidden = (childOuError as {response?: {status?: number}} | null)?.response?.status === 403;
   const isChildOuProbeFailed = !!childOuError && !isChildOuForbidden;
-  const userTypes = useMemo(() => userTypesData?.schemas ?? [], [userTypesData]);
+  const userTypes = useMemo(() => userTypesData?.types ?? [], [userTypesData]);
   const hasChildOUs = !isChildOuLoading && !childOuError && (childOuData?.totalResults ?? 0) > 0;
 
   const activeSteps = useMemo((): UserCreateFlowStep[] => {

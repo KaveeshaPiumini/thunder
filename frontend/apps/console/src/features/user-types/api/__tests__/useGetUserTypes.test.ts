@@ -46,7 +46,7 @@ describe('useGetUserTypes', () => {
     totalResults: 2,
     startIndex: 1,
     count: 2,
-    schemas: [
+    types: [
       {id: '123', name: 'UserType1', ouId: 'root-ou', allowSelfRegistration: false},
       {id: '456', name: 'UserType2', ouId: 'child-ou', allowSelfRegistration: true},
     ],
@@ -94,7 +94,7 @@ describe('useGetUserTypes', () => {
     });
 
     expect(result.current.data).toEqual(mockUserTypeListResponse);
-    expect(result.current.data?.schemas).toHaveLength(2);
+    expect(result.current.data?.types).toHaveLength(2);
     expect(result.current.data?.totalResults).toBe(2);
     expect(result.current.data?.count).toBe(2);
   });
@@ -290,7 +290,7 @@ describe('useGetUserTypes', () => {
       totalResults: 0,
       startIndex: 0,
       count: 0,
-      schemas: [],
+      types: [],
     };
 
     mockHttpRequest.mockResolvedValueOnce({
@@ -304,7 +304,7 @@ describe('useGetUserTypes', () => {
     });
 
     expect(result.current.data).toEqual(emptyResponse);
-    expect(result.current.data?.schemas).toHaveLength(0);
+    expect(result.current.data?.types).toHaveLength(0);
     expect(result.current.data?.totalResults).toBe(0);
   });
 });

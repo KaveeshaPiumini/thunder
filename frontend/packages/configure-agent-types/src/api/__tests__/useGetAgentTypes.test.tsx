@@ -43,7 +43,7 @@ describe('useGetAgentTypes', () => {
     totalResults: 1,
     startIndex: 1,
     count: 1,
-    schemas: [
+    types: [
       {
         id: 'aaa-bbb-ccc',
         name: 'default',

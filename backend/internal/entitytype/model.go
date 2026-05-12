@@ -87,7 +87,7 @@ type EntityTypeListResponse struct {
 	TotalResults int                  `json:"totalResults"`
 	StartIndex   int                  `json:"startIndex"`
 	Count        int                  `json:"count"`
-	Schemas      []EntityTypeListItem `json:"schemas"`
+	Types        []EntityTypeListItem `json:"types"`
 	Links        []Link               `json:"links"`
 }
 

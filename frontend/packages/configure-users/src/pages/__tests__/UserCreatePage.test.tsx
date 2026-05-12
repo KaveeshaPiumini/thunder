@@ -251,7 +251,7 @@ const mockSchemasData: UserTypeListResponse = {
   totalResults: 2,
   startIndex: 1,
   count: 2,
-  schemas: [
+  types: [
     {id: 'schema1', name: 'Employee', ouId: 'root-ou'},
     {id: 'schema2', name: 'Contractor', ouId: 'child-ou'},
   ],
@@ -607,7 +607,7 @@ describe('UserCreatePage', () => {
     mockUseGetUserTypes.mockReturnValue({
       data: {
         ...mockSchemasData,
-        schemas: [{id: 'schema1', name: 'Employee', ouId: ''}],
+        types: [{id: 'schema1', name: 'Employee', ouId: ''}],
       },
       isLoading: false,
       error: null,
@@ -665,7 +665,7 @@ describe('UserCreatePage', () => {
     mockUseGetUserTypes.mockReturnValue({
       data: {
         ...mockSchemasData,
-        schemas: [{id: 'schema1', name: 'Employee', ouId: ''}],
+        types: [{id: 'schema1', name: 'Employee', ouId: ''}],
       },
       isLoading: false,
       error: null,

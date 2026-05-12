@@ -33,7 +33,7 @@ const {mockHttp, mockGetServerUrl, mockLogger} = vi.hoisted(() => {
         totalResults: 1,
         startIndex: 0,
         count: 1,
-        schemas: [
+        types: [
           {
             id: 'schema-1',
             name: 'default',
@@ -405,7 +405,7 @@ describe('EditTokenSettings', () => {
         }
 
         return Promise.resolve({
-          data: {totalResults: 1, startIndex: 0, count: 1, schemas: [{id: 'schema-1', name: 'default'}]},
+          data: {totalResults: 1, startIndex: 0, count: 1, types: [{id: 'schema-1', name: 'default'}]},
         });
       });
     };

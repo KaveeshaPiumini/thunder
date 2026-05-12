@@ -26,14 +26,14 @@ import (
 	"sort"
 	"strings"
 
-	authncm "github.com/asgardeo/thunder/internal/authn/common"
-	"github.com/asgardeo/thunder/internal/entityprovider"
-	"github.com/asgardeo/thunder/internal/entitytype"
-	"github.com/asgardeo/thunder/internal/flow/common"
-	"github.com/asgardeo/thunder/internal/flow/core"
-	"github.com/asgardeo/thunder/internal/group"
-	"github.com/asgardeo/thunder/internal/role"
-	"github.com/asgardeo/thunder/internal/system/log"
+	authncm "github.com/thunder-id/thunder-id/internal/authn/common"
+	"github.com/thunder-id/thunder-id/internal/entityprovider"
+	"github.com/thunder-id/thunder-id/internal/entitytype"
+	"github.com/thunder-id/thunder-id/internal/flow/common"
+	"github.com/thunder-id/thunder-id/internal/flow/core"
+	"github.com/thunder-id/thunder-id/internal/group"
+	"github.com/thunder-id/thunder-id/internal/role"
+	"github.com/thunder-id/thunder-id/internal/system/log"
 )
 
 // provisioningExecutor implements the ExecutorInterface for user provisioning in a flow.
@@ -108,18 +108,18 @@ func (p *provisioningExecutor) Execute(ctx *core.NodeContext) (*common.ExecutorR
 		return execResp, nil
 	}
 
-	userAttributes, err := p.getAttributesForProvisioning(ctx)
+	identifyingAttrs, credentialAttrs, err := p.getAttributesForProvisioning(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(userAttributes) == 0 {
+	if len(identifyingAttrs) == 0 && len(credentialAttrs) == 0 {
 		logger.Debug("No user attributes provided for provisioning")
 		execResp.Status = common.ExecFailure
 		execResp.FailureReason = "No user attributes provided for provisioning"
 		return execResp, nil
 	}
 
-	userID, err := p.IdentifyUser(userAttributes, execResp)
+	userID, err := p.IdentifyUser(identifyingAttrs, execResp)
 	if err != nil {
 		logger.Error("Failed to identify user", log.Error(err))
 		execResp.Status = common.ExecFailure
@@ -139,9 +139,13 @@ func (p *provisioningExecutor) Execute(ctx *core.NodeContext) (*common.ExecutorR
 		}
 	}
 
-	// Create the user in the store.
-	if err := p.appendCredentialAttributes(ctx, &userAttributes); err != nil {
-		return nil, err
+	// Merge identifying and credential attributes for user creation.
+	userAttributes := make(map[string]interface{}, len(identifyingAttrs)+len(credentialAttrs))
+	for k, v := range identifyingAttrs {
+		userAttributes[k] = v
+	}
+	for k, v := range credentialAttrs {
+		userAttributes[k] = v
 	}
 	createdEntity, err := p.createUserInStore(ctx, userAttributes)
 	if err != nil {
@@ -264,9 +268,14 @@ func (p *provisioningExecutor) handleExistingUser(ctx *core.NodeContext, userID 
 	return true, nil
 }
 
-// HasRequiredInputs checks if the required inputs are provided in the context and appends any
-// missing inputs to the executor response. Returns true if all required inputs — both
-// node-defined and schema-derived — are satisfied, otherwise false.
+// HasRequiredInputs checks whether all schema-driven provisioning inputs are satisfied and appends
+// any missing promptable schema attrs to the executor response. Node inputs influence requiredness
+// and prompt metadata for schema attrs, but schema-absent node inputs are ignored.
+//
+// Missing inputs are ordered as: required non-credentials -> optional non-credentials ->
+// required credentials -> optional credentials. maxPerPrompt caps the forwarded
+// prompt batch after this list is built. includeOptional only affects optional
+// non-credential attrs.
 func (p *provisioningExecutor) HasRequiredInputs(ctx *core.NodeContext,
 	execResp *common.ExecutorResponse) bool {
 	logger := p.logger.With(log.String(log.LoggerKeyExecutionID, ctx.ExecutionID))
@@ -276,102 +285,143 @@ func (p *provisioningExecutor) HasRequiredInputs(ctx *core.NodeContext,
 		execResp.RuntimeData = make(map[string]string)
 	}
 
-	// run the base executor check for node-defined inputs.
-	nodeInputsSatisfied := p.checkNodeInputs(ctx, execResp, logger)
+	// Build a lookup map of node-defined inputs for the required/optional override rule:
+	// node can upgrade optional → required, but cannot lower schema-required to optional.
+	nodeInputMap := make(map[string]common.Input, len(ctx.NodeInputs))
+	for _, inp := range ctx.NodeInputs {
+		nodeInputMap[inp.Identifier] = inp
+	}
 
-	// fetch required non-credential attributes from the user type.
-	schemaAttrs, err := p.fetchSchemaAttributes(ctx, logger)
+	// Fetch all schema attributes (credential and non-credential) in a single call.
+	allSchemaAttrs, err := p.fetchSchemaAttributes(ctx, true, true)
 	if err != nil {
+		logger.Warn("Failed to fetch schema attributes for provisioning", log.Any("error", err))
 		execResp.Status = common.ExecFailure
 		return false
 	}
-	if len(schemaAttrs) == 0 {
-		return nodeInputsSatisfied
+	if len(allSchemaAttrs) == 0 {
+		return true
 	}
 
 	// Load the set of optional attrs already prompted in previous iterations so they are not
 	// re-prompted even when the user left them empty.
 	alreadyPromptedOptionalAttrs := p.getPresentedOptionalAttrs(ctx)
 
-	// Build required and optional missing lists separately so required ones are always shown first.
-	requiredMissing := make([]common.Input, 0, len(schemaAttrs))
-	optionalMissing := make([]common.Input, 0, len(schemaAttrs))
+	credRequiredMissing, credOptionalMissing, ncRequiredMissing, ncOptionalMissing :=
+		p.buildMissingInputs(ctx, allSchemaAttrs, nodeInputMap, alreadyPromptedOptionalAttrs)
+
+	// Build the full schema missing list: required non-creds first, then optional non-creds,
+	// followed by required creds, then optional creds.
+	// Node-defined inputs not present in the schema are ignored — provisioning is schema-driven
+	// and can only store attributes defined by the entity type.
+	allSchemaMissing := make([]common.Input, 0,
+		len(ncRequiredMissing)+len(credRequiredMissing)+len(ncOptionalMissing)+len(credOptionalMissing))
+	allSchemaMissing = append(allSchemaMissing, ncRequiredMissing...)
+	allSchemaMissing = append(allSchemaMissing, ncOptionalMissing...)
+	allSchemaMissing = append(allSchemaMissing, credRequiredMissing...)
+	allSchemaMissing = append(allSchemaMissing, credOptionalMissing...)
+
+	if len(allSchemaMissing) == 0 {
+		return true
+	}
+
+	// Apply maxPerPrompt to the forwarded prompt batch.
+	toForward := allSchemaMissing
+	if maxInputs := p.getMaxDynamicInputs(ctx); maxInputs > 0 && len(toForward) > maxInputs {
+		toForward = toForward[:maxInputs]
+	}
+
+	// Record which optional schema attrs are being presented this iteration so future
+	// iterations know not to re-prompt them if the user left them empty.
+	p.storePresentedOptionalAttrs(execResp, toForward, alreadyPromptedOptionalAttrs)
+
+	execResp.Inputs = allSchemaMissing
+	if execResp.ForwardedData == nil {
+		execResp.ForwardedData = make(map[string]interface{})
+	}
+	execResp.ForwardedData[common.ForwardedDataKeyInputs] = toForward
+	logger.Debug("Schema attributes are missing, requesting via prompt",
+		log.Int("missingCount", len(allSchemaMissing)))
+	return false
+}
+
+// buildMissingInputs categorizes all schema attributes into four missing-input buckets in a single
+// pass. attr.Credential drives the input type (password vs text) and optional-inclusion rules.
+func (p *provisioningExecutor) buildMissingInputs(
+	ctx *core.NodeContext,
+	schemaAttrs []entitytype.AttributeInfo,
+	nodeInputMap map[string]common.Input,
+	alreadyPromptedOptionalAttrs map[string]bool,
+) (credRequired, credOptional, ncRequired, ncOptional []common.Input) {
+	promptOptional := p.isPromptOptionalAttributesEnabled(ctx)
+	promptOptionalCredentials := p.isPromptOptionalCredentialsEnabled(ctx)
+
 	for _, attr := range schemaAttrs {
 		if p.isAttrSatisfied(ctx, attr.Attribute) {
 			continue
 		}
-		if !attr.Required && alreadyPromptedOptionalAttrs[attr.Attribute] {
-			continue
+		nodeInp, inNodeInputs := nodeInputMap[attr.Attribute]
+		effectiveRequired := attr.Required
+		if inNodeInputs {
+			effectiveRequired = attr.Required || nodeInp.Required
 		}
-		input := common.Input{
-			Identifier:  attr.Attribute,
-			Type:        common.InputTypeText,
-			Required:    attr.Required,
-			DisplayName: attr.DisplayName,
-		}
-		if attr.Required {
-			requiredMissing = append(requiredMissing, input)
+
+		if attr.Credential {
+			if !effectiveRequired && !promptOptionalCredentials && !inNodeInputs {
+				continue
+			}
+			if !effectiveRequired && alreadyPromptedOptionalAttrs[attr.Attribute] {
+				continue
+			}
+			input := common.Input{
+				Identifier:  attr.Attribute,
+				Type:        common.InputTypePassword,
+				Required:    effectiveRequired,
+				DisplayName: attr.DisplayName,
+			}
+			if effectiveRequired {
+				credRequired = append(credRequired, input)
+			} else {
+				credOptional = append(credOptional, input)
+			}
 		} else {
-			optionalMissing = append(optionalMissing, input)
+			if !attr.Required && !promptOptional && !inNodeInputs {
+				continue
+			}
+			if !effectiveRequired && alreadyPromptedOptionalAttrs[attr.Attribute] {
+				continue
+			}
+			input := common.Input{
+				Identifier:  attr.Attribute,
+				Type:        common.InputTypeText,
+				DisplayName: attr.DisplayName,
+			}
+			if inNodeInputs {
+				input = nodeInp
+				input.Identifier = attr.Attribute
+				if input.Type == "" {
+					input.Type = common.InputTypeText
+				}
+				if input.DisplayName == "" {
+					input.DisplayName = attr.DisplayName
+				}
+			}
+			input.Required = effectiveRequired
+			if effectiveRequired {
+				ncRequired = append(ncRequired, input)
+			} else {
+				ncOptional = append(ncOptional, input)
+			}
 		}
 	}
-
-	schemaMissingAttrs := make([]common.Input, 0, len(requiredMissing)+len(optionalMissing))
-	schemaMissingAttrs = append(schemaMissingAttrs, requiredMissing...)
-	schemaMissingAttrs = append(schemaMissingAttrs, optionalMissing...)
-	if len(schemaMissingAttrs) == 0 {
-		return nodeInputsSatisfied
-	}
-
-	if maxInputs := p.getMaxDynamicInputs(ctx); maxInputs > 0 && len(schemaMissingAttrs) > maxInputs {
-		schemaMissingAttrs = schemaMissingAttrs[:maxInputs]
-	}
-
-	// Record which optional attrs are being presented in this iteration so future iterations
-	// know not to re-prompt them even if the user left the value empty.
-	p.storePresentedOptionalAttrs(execResp, schemaMissingAttrs, alreadyPromptedOptionalAttrs)
-
-	execResp.Inputs = upsertInputs(execResp.Inputs, schemaMissingAttrs)
-	if execResp.ForwardedData == nil {
-		execResp.ForwardedData = make(map[string]interface{})
-	}
-	execResp.ForwardedData[common.ForwardedDataKeyInputs] = schemaMissingAttrs
-	logger.Debug("Schema attributes are missing, requesting via prompt",
-		log.Int("missingCount", len(schemaMissingAttrs)))
-	return false
+	return credRequired, credOptional, ncRequired, ncOptional
 }
 
-// checkNodeInputs runs the base executor's input check, then clears any inputs satisfied by authenticated user attrs.
-func (p *provisioningExecutor) checkNodeInputs(ctx *core.NodeContext,
-	execResp *common.ExecutorResponse, logger *log.Logger) bool {
-	nodeInputsSatisfied := p.ExecutorInterface.HasRequiredInputs(ctx, execResp)
-	if nodeInputsSatisfied || len(execResp.Inputs) == 0 {
-		return nodeInputsSatisfied
-	}
-
-	authnAttrs := ctx.AuthenticatedUser.Attributes
-	if len(authnAttrs) == 0 {
-		return false
-	}
-
-	logger.Debug("Authenticated user attributes found, checking missing node inputs")
-	remaining := execResp.Inputs[:0]
-	for _, input := range execResp.Inputs {
-		val, exists := authnAttrs[input.Identifier]
-		strVal, isStr := val.(string)
-		if exists && isStr && strVal != "" {
-			continue
-		}
-		remaining = append(remaining, input)
-	}
-	execResp.Inputs = remaining
-	return len(remaining) == 0
-}
-
-// fetchSchemaAttributes retrieves non-credential attributes from the entity type service.
-// When promptOptionalAttributes is true it fetches all attributes; otherwise only required ones.
+// fetchSchemaAttributes retrieves schema attributes from the entity type service for the
+// current user type. allowCredential and allowNonCredential control which attribute classes
+// are returned.
 func (p *provisioningExecutor) fetchSchemaAttributes(
-	ctx *core.NodeContext, logger *log.Logger,
+	ctx *core.NodeContext, allowCredential, allowNonCredential bool,
 ) ([]entitytype.AttributeInfo, error) {
 	if p.entityTypeService == nil {
 		return nil, nil
@@ -380,13 +430,11 @@ func (p *provisioningExecutor) fetchSchemaAttributes(
 	if userType == "" {
 		return nil, fmt.Errorf("user type not found")
 	}
-	requiredOnly := !p.isPromptOptionalAttributesEnabled(ctx)
-	attrs, svcErr := p.entityTypeService.GetNonCredentialAttributes(ctx.Context,
-		entitytype.TypeCategoryUser, userType, requiredOnly)
+	attrs, svcErr := p.entityTypeService.GetAttributes(ctx.Context,
+		entitytype.TypeCategoryUser, userType, allowCredential, allowNonCredential, false)
 	if svcErr != nil {
-		logger.Warn("Failed to fetch schema attributes for provisioning, skipping schema check",
-			log.Any("error", svcErr))
-		return nil, nil
+		return nil, fmt.Errorf("failed to fetch schema attributes for user type %q: %s",
+			userType, svcErr.Error.DefaultValue)
 	}
 	return attrs, nil
 }
@@ -395,6 +443,17 @@ func (p *provisioningExecutor) fetchSchemaAttributes(
 // Returns false when the property is absent, preserving the default behavior of prompting only required attributes.
 func (p *provisioningExecutor) isPromptOptionalAttributesEnabled(ctx *core.NodeContext) bool {
 	if val, ok := ctx.NodeProperties[propertyKeyDynamicInputsIncludeOptional]; ok {
+		if boolVal, ok := val.(bool); ok {
+			return boolVal
+		}
+	}
+	return false
+}
+
+// isPromptOptionalCredentialsEnabled reads the includeOptionalCredentials node property.
+// Returns false when the property is absent. Only the required credentials are prompted by default.
+func (p *provisioningExecutor) isPromptOptionalCredentialsEnabled(ctx *core.NodeContext) bool {
+	if val, ok := ctx.NodeProperties[propertyKeyDynamicInputsIncludeOptionalCredentials]; ok {
 		if boolVal, ok := val.(bool); ok {
 			return boolVal
 		}
@@ -471,121 +530,47 @@ func (p *provisioningExecutor) isAttrSatisfied(ctx *core.NodeContext, attr strin
 	return false
 }
 
-// getAttributesForProvisioning returns the user profile attributes to store.
-// Schema is the whitelist: required attrs always collected, optional attrs only if in node inputs
-// or if promptOptionalAttributes is enabled.
-func (p *provisioningExecutor) getAttributesForProvisioning(ctx *core.NodeContext) (map[string]interface{}, error) {
-	nodeInputAttrs := p.GetRequiredInputs(ctx)
-	schemaAttrs, err := p.fetchAllNonCredentialAttributes(ctx)
-	if err != nil {
-		return nil, err
+// getAttributesForProvisioning collects user attributes from context in a single schema pass,
+// returning identifying (non-credential) and credential attributes as separate maps.
+// Schema is the whitelist for both maps.
+// Credential values are resolved from UserInputs then RuntimeData only.
+// Non-credential values additionally fall back to AuthenticatedUser.Attributes.
+func (p *provisioningExecutor) getAttributesForProvisioning(
+	ctx *core.NodeContext,
+) (identifyingAttrs map[string]interface{}, credentialAttrs map[string]interface{}, err error) {
+	schemaAttrs, fetchErr := p.fetchSchemaAttributes(ctx, true, true)
+	if fetchErr != nil {
+		return nil, nil, fetchErr
 	}
+
+	identifyingAttrs = make(map[string]interface{})
+	credentialAttrs = make(map[string]interface{})
+
 	if len(schemaAttrs) == 0 {
-		return make(map[string]interface{}), nil
+		return identifyingAttrs, credentialAttrs, nil
 	}
-	nodeInputSet := make(map[string]struct{}, len(nodeInputAttrs))
-	for _, inp := range nodeInputAttrs {
-		nodeInputSet[inp.Identifier] = struct{}{}
-	}
-	promptOptional := p.isPromptOptionalAttributesEnabled(ctx)
 
-	attributesMap := make(map[string]interface{})
 	for _, a := range schemaAttrs {
-		_, inNodeInputs := nodeInputSet[a.Attribute]
-		if len(nodeInputSet) > 0 && !a.Required && !inNodeInputs && !promptOptional {
-			continue
-		}
-
-		if value, exists := ctx.UserInputs[a.Attribute]; exists && value != "" {
-			attributesMap[a.Attribute] = value
-		} else if runtimeValue, exists := ctx.RuntimeData[a.Attribute]; exists && runtimeValue != "" {
-			attributesMap[a.Attribute] = runtimeValue
-		} else if authnValue, exists := ctx.AuthenticatedUser.Attributes[a.Attribute]; exists {
-			if strVal, ok := authnValue.(string); ok && strVal != "" {
-				attributesMap[a.Attribute] = authnValue
+		if a.Credential {
+			if value, exists := ctx.UserInputs[a.Attribute]; exists {
+				credentialAttrs[a.Attribute] = value
+			} else if runtimeValue, exists := ctx.RuntimeData[a.Attribute]; exists {
+				credentialAttrs[a.Attribute] = runtimeValue
+			}
+		} else {
+			if value, exists := ctx.UserInputs[a.Attribute]; exists && value != "" {
+				identifyingAttrs[a.Attribute] = value
+			} else if runtimeValue, exists := ctx.RuntimeData[a.Attribute]; exists && runtimeValue != "" {
+				identifyingAttrs[a.Attribute] = runtimeValue
+			} else if authnValue, exists := ctx.AuthenticatedUser.Attributes[a.Attribute]; exists {
+				if strVal, ok := authnValue.(string); ok && strVal != "" {
+					identifyingAttrs[a.Attribute] = authnValue
+				}
 			}
 		}
 	}
 
-	return attributesMap, nil
-}
-
-// fetchAllNonCredentialAttributes retrieves all non-credential schema attributes with their required status.
-func (p *provisioningExecutor) fetchAllNonCredentialAttributes(
-	ctx *core.NodeContext,
-) ([]entitytype.AttributeInfo, error) {
-	if p.entityTypeService == nil {
-		return nil, nil
-	}
-	userType := p.getUserType(ctx)
-	if userType == "" {
-		return nil, fmt.Errorf("user type not found")
-	}
-	attrs, svcErr := p.entityTypeService.GetNonCredentialAttributes(ctx.Context,
-		entitytype.TypeCategoryUser, userType, false)
-	if svcErr != nil {
-		return nil, fmt.Errorf("failed to fetch schema attributes for user type %q: %s",
-			userType, svcErr.Error.DefaultValue)
-	}
-	return attrs, nil
-}
-
-// appendCredentialAttributes appends credential attributes defined in the user type to the provided
-// attributes map. If the node declares specific credential inputs, only those are collected; otherwise
-// all schema credential attributes are collected. Values are resolved from UserInputs then RuntimeData.
-func (p *provisioningExecutor) appendCredentialAttributes(ctx *core.NodeContext,
-	attributes *map[string]interface{}) error {
-	schemaCredAttrs, err := p.fetchCredentialAttributes(ctx)
-	if err != nil {
-		return err
-	}
-	if len(schemaCredAttrs) == 0 {
-		return nil
-	}
-
-	credentialAttrSet := make(map[string]struct{}, len(schemaCredAttrs))
-	for _, attr := range schemaCredAttrs {
-		credentialAttrSet[attr] = struct{}{}
-	}
-
-	var nodeCredentialInputs []string
-	for _, input := range ctx.NodeInputs {
-		if _, ok := credentialAttrSet[input.Identifier]; ok {
-			nodeCredentialInputs = append(nodeCredentialInputs, input.Identifier)
-		}
-	}
-
-	attrsToPopulate := schemaCredAttrs
-	if len(nodeCredentialInputs) > 0 {
-		attrsToPopulate = nodeCredentialInputs
-	}
-
-	for _, attr := range attrsToPopulate {
-		if value, exists := ctx.UserInputs[attr]; exists {
-			(*attributes)[attr] = value
-		} else if runtimeValue, exists := ctx.RuntimeData[attr]; exists {
-			(*attributes)[attr] = runtimeValue
-		}
-	}
-
-	return nil
-}
-
-// fetchCredentialAttributes retrieves credential attribute names from the entity type service.
-func (p *provisioningExecutor) fetchCredentialAttributes(ctx *core.NodeContext) ([]string, error) {
-	if p.entityTypeService == nil {
-		return nil, nil
-	}
-	userType := p.getUserType(ctx)
-	if userType == "" {
-		return nil, fmt.Errorf("user type not found")
-	}
-	attrs, svcErr := p.entityTypeService.GetCredentialAttributes(ctx.Context, entitytype.TypeCategoryUser, userType)
-	if svcErr != nil {
-		return nil, fmt.Errorf("failed to fetch credential attributes for user type %q: %s",
-			userType, svcErr.Error.DefaultValue)
-	}
-	return attrs, nil
+	return identifyingAttrs, credentialAttrs, nil
 }
 
 // createUserInStore creates a new user in the user store with the provided attributes.

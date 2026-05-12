@@ -146,11 +146,11 @@ export default function EditTokenSettings({
 
   // Get schema IDs for allowed user types
   const schemaIds = useMemo(() => {
-    if (!userTypesData?.schemas || allowedUserTypes.length === 0) {
+    if (!userTypesData?.types || allowedUserTypes.length === 0) {
       return [];
     }
 
-    return userTypesData.schemas.filter((schema) => allowedUserTypes.includes(schema.name)).map((schema) => schema.id);
+    return userTypesData.types.filter((schema) => allowedUserTypes.includes(schema.name)).map((schema) => schema.id);
   }, [userTypesData, allowedUserTypes]);
 
   // Determine if this is OAuth/OIDC mode (has separate token configs) or Native mode
