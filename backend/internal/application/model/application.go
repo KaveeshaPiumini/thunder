@@ -22,7 +22,7 @@
 package model
 
 import (
-	inboundmodel "github.com/thunder-id/thunder-id/internal/inboundclient/model"
+	inboundmodel "github.com/thunder-id/thunderid/internal/inboundclient/model"
 )
 
 // ApplicationDTO represents the data transfer object for application service operations.
@@ -52,6 +52,8 @@ type BasicApplicationDTO struct {
 	AuthFlowID                string
 	RegistrationFlowID        string
 	IsRegistrationFlowEnabled bool
+	RecoveryFlowID            string
+	IsRecoveryFlowEnabled     bool
 	ThemeID                   string
 	LayoutID                  string
 	Template                  string
@@ -186,6 +188,8 @@ type BasicApplicationResponse struct {
 	AuthFlowID                string `json:"authFlowId,omitempty" jsonschema:"Authentication Flow ID."`
 	RegistrationFlowID        string `json:"registrationFlowId,omitempty" jsonschema:"Registration Flow ID."`
 	IsRegistrationFlowEnabled bool   `json:"isRegistrationFlowEnabled" jsonschema:"Registration enabled status."`
+	RecoveryFlowID            string `json:"recoveryFlowId,omitempty" jsonschema:"Recovery Flow ID."`
+	IsRecoveryFlowEnabled     bool   `json:"isRecoveryFlowEnabled" jsonschema:"Recovery enabled status."`
 	ThemeID                   string `json:"themeId,omitempty" jsonschema:"Theme ID."`
 	LayoutID                  string `json:"layoutId,omitempty" jsonschema:"Layout ID."`
 	Template                  string `json:"template,omitempty" jsonschema:"Application Template."`

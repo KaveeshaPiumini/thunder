@@ -21,8 +21,8 @@ package inboundclient
 import (
 	"errors"
 
-	"github.com/thunder-id/thunder-id/internal/cert"
-	"github.com/thunder-id/thunder-id/internal/system/error/serviceerror"
+	"github.com/thunder-id/thunderid/internal/cert"
+	"github.com/thunder-id/thunderid/internal/system/error/serviceerror"
 )
 
 var (
@@ -48,6 +48,8 @@ var (
 	ErrFKInvalidAuthFlow = errors.New("invalid auth flow ID")
 	// ErrFKInvalidRegistrationFlow is returned when the registration flow ID does not exist.
 	ErrFKInvalidRegistrationFlow = errors.New("invalid registration flow ID")
+	// ErrFKInvalidRecoveryFlow is returned when the recovery flow ID does not exist.
+	ErrFKInvalidRecoveryFlow = errors.New("invalid recovery flow ID")
 	// ErrFKFlowDefinitionRetrievalFailed is returned when a flow definition cannot be retrieved.
 	ErrFKFlowDefinitionRetrievalFailed = errors.New("error retrieving flow definition")
 	// ErrFKFlowServerError is returned when a server error occurs while resolving a flow.

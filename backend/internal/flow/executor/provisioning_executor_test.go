@@ -19,7 +19,7 @@
 package executor
 
 import (
-	i18ncore "github.com/thunder-id/thunder-id/internal/system/i18n/core"
+	i18ncore "github.com/thunder-id/thunderid/internal/system/i18n/core"
 
 	"encoding/json"
 	"testing"
@@ -29,19 +29,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	authncm "github.com/thunder-id/thunder-id/internal/authn/common"
-	"github.com/thunder-id/thunder-id/internal/entityprovider"
-	"github.com/thunder-id/thunder-id/internal/entitytype/model"
-	"github.com/thunder-id/thunder-id/internal/flow/common"
-	"github.com/thunder-id/thunder-id/internal/flow/core"
-	"github.com/thunder-id/thunder-id/internal/group"
-	"github.com/thunder-id/thunder-id/internal/role"
-	"github.com/thunder-id/thunder-id/internal/system/error/serviceerror"
-	"github.com/thunder-id/thunder-id/tests/mocks/entityprovidermock"
-	"github.com/thunder-id/thunder-id/tests/mocks/entitytypemock"
-	"github.com/thunder-id/thunder-id/tests/mocks/flow/coremock"
-	"github.com/thunder-id/thunder-id/tests/mocks/groupmock"
-	"github.com/thunder-id/thunder-id/tests/mocks/rolemock"
+	authncm "github.com/thunder-id/thunderid/internal/authn/common"
+	"github.com/thunder-id/thunderid/internal/entityprovider"
+	"github.com/thunder-id/thunderid/internal/entitytype/model"
+	"github.com/thunder-id/thunderid/internal/flow/common"
+	"github.com/thunder-id/thunderid/internal/flow/core"
+	"github.com/thunder-id/thunderid/internal/group"
+	"github.com/thunder-id/thunderid/internal/role"
+	"github.com/thunder-id/thunderid/internal/system/error/serviceerror"
+	"github.com/thunder-id/thunderid/tests/mocks/entityprovidermock"
+	"github.com/thunder-id/thunderid/tests/mocks/entitytypemock"
+	"github.com/thunder-id/thunderid/tests/mocks/flow/coremock"
+	"github.com/thunder-id/thunderid/tests/mocks/groupmock"
+	"github.com/thunder-id/thunderid/tests/mocks/rolemock"
 )
 
 const (
@@ -55,12 +55,13 @@ const (
 
 type ProvisioningExecutorTestSuite struct {
 	suite.Suite
-	mockGroupService      *groupmock.GroupServiceInterfaceMock
-	mockRoleService       *rolemock.RoleServiceInterfaceMock
-	mockFlowFactory       *coremock.FlowFactoryInterfaceMock
-	mockEntityProvider    *entityprovidermock.EntityProviderInterfaceMock
-	mockEntityTypeService *entitytypemock.EntityTypeServiceInterfaceMock
-	executor              *provisioningExecutor
+	mockGroupService          *groupmock.GroupServiceInterfaceMock
+	mockRoleService           *rolemock.RoleServiceInterfaceMock
+	mockRoleAssignmentService *rolemock.RoleAssignmentServiceInterfaceMock
+	mockFlowFactory           *coremock.FlowFactoryInterfaceMock
+	mockEntityProvider        *entityprovidermock.EntityProviderInterfaceMock
+	mockEntityTypeService     *entitytypemock.EntityTypeServiceInterfaceMock
+	executor                  *provisioningExecutor
 }
 
 func TestProvisioningExecutorSuite(t *testing.T) {
@@ -70,6 +71,7 @@ func TestProvisioningExecutorSuite(t *testing.T) {
 func (suite *ProvisioningExecutorTestSuite) SetupTest() {
 	suite.mockGroupService = groupmock.NewGroupServiceInterfaceMock(suite.T())
 	suite.mockRoleService = rolemock.NewRoleServiceInterfaceMock(suite.T())
+	suite.mockRoleAssignmentService = rolemock.NewRoleAssignmentServiceInterfaceMock(suite.T())
 	suite.mockFlowFactory = coremock.NewFlowFactoryInterfaceMock(suite.T())
 	suite.mockEntityProvider = entityprovidermock.NewEntityProviderInterfaceMock(suite.T())
 	suite.mockEntityTypeService = entitytypemock.NewEntityTypeServiceInterfaceMock(suite.T())
@@ -84,7 +86,7 @@ func (suite *ProvisioningExecutorTestSuite) SetupTest() {
 		[]common.Input{}, []common.Input{}).Return(mockExec)
 
 	suite.executor = newProvisioningExecutor(suite.mockFlowFactory,
-		suite.mockGroupService, suite.mockRoleService, suite.mockEntityProvider,
+		suite.mockGroupService, suite.mockRoleService, suite.mockRoleAssignmentService, suite.mockEntityProvider,
 		suite.mockEntityTypeService)
 }
 
@@ -198,7 +200,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_Success() {
 		})).Return(nil, nil)
 
 	// Mock role assignment
-	suite.mockRoleService.On("AddAssignments", mock.Anything, "test-role-id",
+	suite.mockRoleAssignmentService.On("AddAssignments", mock.Anything, "test-role-id",
 		mock.MatchedBy(func(assignments []role.RoleAssignment) bool {
 			return len(assignments) == 1 &&
 				assignments[0].ID == testNewUserID &&
@@ -215,6 +217,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_Success() {
 	suite.mockEntityProvider.AssertExpectations(suite.T())
 	suite.mockGroupService.AssertExpectations(suite.T())
 	suite.mockRoleService.AssertExpectations(suite.T())
+	suite.mockRoleAssignmentService.AssertExpectations(suite.T())
 }
 
 func (suite *ProvisioningExecutorTestSuite) TestExecute_UserAlreadyExists() {
@@ -493,7 +496,7 @@ func (suite *ProvisioningExecutorTestSuite) newExecutorWithNodeInputs(inputs []c
 		mock.Anything, mock.Anything).Return(identifyingMock).Maybe()
 
 	return newProvisioningExecutor(mockFlowFactory,
-		suite.mockGroupService, suite.mockRoleService, suite.mockEntityProvider,
+		suite.mockGroupService, suite.mockRoleService, suite.mockRoleAssignmentService, suite.mockEntityProvider,
 		suite.mockEntityTypeService)
 }
 
@@ -688,7 +691,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_SkipProvisioning_Proceed
 
 	// Verify no group/role methods were called
 	suite.mockGroupService.AssertNotCalled(suite.T(), "GetGroup")
-	suite.mockRoleService.AssertNotCalled(suite.T(), "AddAssignments")
+	suite.mockRoleAssignmentService.AssertNotCalled(suite.T(), "AddAssignments")
 }
 
 func (suite *ProvisioningExecutorTestSuite) TestExecute_UserEligibleForProvisioning() {
@@ -1094,7 +1097,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_Failure_GroupAssignmentF
 		})
 
 	// Role assignment should still be attempted
-	suite.mockRoleService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).Return(nil)
+	suite.mockRoleAssignmentService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).Return(nil)
 
 	resp, err := suite.executor.Execute(ctx)
 
@@ -1152,7 +1155,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_Failure_BothGroupAndRole
 		})
 
 	// Mock role assignment also fails
-	suite.mockRoleService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).
+	suite.mockRoleAssignmentService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).
 		Return(&serviceerror.ServiceError{
 			Error: i18ncore.I18nMessage{Key: "error.test.role_not_found", DefaultValue: "Role not found"},
 		})
@@ -1211,7 +1214,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_Failure_RoleAssignmentFa
 		Return(nil, nil)
 
 	// Role assignment fails (e.g., role doesn't exist)
-	suite.mockRoleService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).
+	suite.mockRoleAssignmentService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).
 		Return(&serviceerror.ServiceError{
 			Error: i18ncore.I18nMessage{Key: "error.test.role_not_found", DefaultValue: "Role not found"},
 		})
@@ -1274,7 +1277,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_GroupWithExistingMembers
 				members[0].Type == group.MemberTypeUser
 		})).Return(nil, nil)
 
-	suite.mockRoleService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).Return(nil)
+	suite.mockRoleAssignmentService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).Return(nil)
 
 	resp, err := suite.executor.Execute(ctx)
 
@@ -1325,7 +1328,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_AuthFlow_AutoProvisionin
 	// Mock successful group and role assignment
 	suite.mockGroupService.On("AddGroupMembers", mock.Anything, "test-group-id", mock.Anything).
 		Return(nil, nil)
-	suite.mockRoleService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).Return(nil)
+	suite.mockRoleAssignmentService.On("AddAssignments", mock.Anything, "test-role-id", mock.Anything).Return(nil)
 
 	resp, err := suite.executor.Execute(ctx)
 
@@ -1390,7 +1393,7 @@ func (suite *ProvisioningExecutorTestSuite) TestExecute_Success_WithGroupAndRole
 		})).Return(nil, nil)
 
 	// Mock role assignment
-	suite.mockRoleService.On("AddAssignments", mock.Anything, "test-role-id",
+	suite.mockRoleAssignmentService.On("AddAssignments", mock.Anything, "test-role-id",
 		mock.MatchedBy(func(assignments []role.RoleAssignment) bool {
 			return len(assignments) == 1 &&
 				assignments[0].ID == testNewUserID &&
@@ -3156,4 +3159,170 @@ func (suite *ProvisioningExecutorTestSuite) TestHasRequiredInputs_NoProperties_D
 	assert.Contains(suite.T(), ids, "lastName")
 	assert.Len(suite.T(), execResp.Inputs, 2,
 		"all required missing inputs must be prompted at once when maxPerPrompt is absent")
+}
+
+// Ambiguous user (exists in multiple OUs) + cross-OU allowed + no match in target OU → create.
+func (suite *ProvisioningExecutorTestSuite) TestExecute_CrossOU_AmbiguousUser_NoMatchInTargetOU_Creates() {
+	suite.expectSchemaForProvisioning()
+	attrs := map[string]interface{}{"sub": "user-sub-123"}
+	attrsJSON, _ := json.Marshal(attrs)
+
+	createdUser := &entityprovider.Entity{
+		ID:         testNewUserID,
+		Type:       testUserType,
+		OUID:       testOUID,
+		Attributes: attrsJSON,
+	}
+
+	ctx := &core.NodeContext{
+		ExecutionID: "flow-123",
+		FlowType:    common.FlowTypeRegistration,
+		UserInputs:  map[string]string{"sub": "user-sub-123"},
+		RuntimeData: map[string]string{
+			ouIDKey:     testOUID,
+			userTypeKey: testUserType,
+		},
+		NodeProperties: map[string]interface{}{
+			common.NodePropertyAllowCrossOUProvisioning: true,
+		},
+	}
+
+	suite.mockEntityProvider.On("IdentifyEntity", attrs).
+		Return(nil, entityprovider.NewEntityProviderError(entityprovider.ErrorCodeAmbiguousEntity, "ambiguous", ""))
+	suite.mockEntityProvider.On("SearchEntities", attrs).
+		Return([]*entityprovider.Entity{
+			{ID: testExistingUserID, OUID: "ou-toyota"},
+			{ID: "other-user-id", OUID: "ou-honda"},
+		}, nil)
+	suite.mockEntityProvider.On("CreateEntity", mock.MatchedBy(func(u *entityprovider.Entity) bool {
+		return u.OUID == testOUID
+	}), mock.Anything).Return(createdUser, nil)
+
+	resp, err := suite.executor.Execute(ctx)
+
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), resp)
+	assert.Equal(suite.T(), common.ExecComplete, resp.Status)
+	assert.Equal(suite.T(), testNewUserID, resp.RuntimeData[userAttributeUserID])
+}
+
+// Ambiguous user + cross-OU allowed + match found in target OU → fail "already exists in target".
+func (suite *ProvisioningExecutorTestSuite) TestExecute_CrossOU_AmbiguousUser_MatchInTargetOU_Fails() {
+	suite.expectSchemaForProvisioning()
+	attrs := map[string]interface{}{"sub": "user-sub-123"}
+
+	ctx := &core.NodeContext{
+		ExecutionID: "flow-123",
+		FlowType:    common.FlowTypeRegistration,
+		UserInputs:  map[string]string{"sub": "user-sub-123"},
+		RuntimeData: map[string]string{
+			ouIDKey:     testOUID,
+			userTypeKey: testUserType,
+		},
+		NodeProperties: map[string]interface{}{
+			common.NodePropertyAllowCrossOUProvisioning: true,
+		},
+	}
+
+	suite.mockEntityProvider.On("IdentifyEntity", attrs).
+		Return(nil, entityprovider.NewEntityProviderError(entityprovider.ErrorCodeAmbiguousEntity, "ambiguous", ""))
+	suite.mockEntityProvider.On("SearchEntities", attrs).
+		Return([]*entityprovider.Entity{
+			{ID: testExistingUserID, OUID: testOUID},
+			{ID: "other-user-id", OUID: "ou-honda"},
+		}, nil)
+	suite.mockEntityProvider.On("GetEntity", testExistingUserID).
+		Return(&entityprovider.Entity{ID: testExistingUserID, OUID: testOUID}, nil)
+
+	resp, err := suite.executor.Execute(ctx)
+
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), resp)
+	assert.Equal(suite.T(), "User already exists in the target organization", resp.FailureReason)
+}
+
+// Ambiguous user + cross-OU NOT allowed → fail immediately without searching.
+func (suite *ProvisioningExecutorTestSuite) TestExecute_CrossOU_AmbiguousUser_CrossOUNotAllowed_Fails() {
+	suite.expectSchemaForProvisioning()
+	attrs := map[string]interface{}{"sub": "user-sub-123"}
+
+	ctx := &core.NodeContext{
+		ExecutionID: "flow-123",
+		FlowType:    common.FlowTypeRegistration,
+		UserInputs:  map[string]string{"sub": "user-sub-123"},
+		RuntimeData: map[string]string{
+			ouIDKey:     testOUID,
+			userTypeKey: testUserType,
+		},
+		NodeProperties: map[string]interface{}{},
+	}
+
+	suite.mockEntityProvider.On("IdentifyEntity", attrs).
+		Return(nil, entityprovider.NewEntityProviderError(entityprovider.ErrorCodeAmbiguousEntity, "ambiguous", ""))
+
+	resp, err := suite.executor.Execute(ctx)
+
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), resp)
+	assert.Equal(suite.T(), common.ExecFailure, resp.Status)
+	assert.Equal(suite.T(), failureReasonAmbiguousUser, resp.FailureReason)
+}
+
+// Ambiguous user + cross-OU allowed + SearchEntities returns error
+func (suite *ProvisioningExecutorTestSuite) TestExecute_CrossOU_AmbiguousUser_SearchError_ReturnsServerError() {
+	suite.expectSchemaForProvisioning()
+	attrs := map[string]interface{}{"sub": "user-sub-123"}
+
+	ctx := &core.NodeContext{
+		ExecutionID: "flow-123",
+		FlowType:    common.FlowTypeRegistration,
+		UserInputs:  map[string]string{"sub": "user-sub-123"},
+		RuntimeData: map[string]string{
+			ouIDKey:     testOUID,
+			userTypeKey: testUserType,
+		},
+		NodeProperties: map[string]interface{}{
+			common.NodePropertyAllowCrossOUProvisioning: true,
+		},
+	}
+
+	suite.mockEntityProvider.On("IdentifyEntity", attrs).
+		Return(nil, entityprovider.NewEntityProviderError(entityprovider.ErrorCodeAmbiguousEntity, "ambiguous", ""))
+	suite.mockEntityProvider.On("SearchEntities", attrs).
+		Return(nil, entityprovider.NewEntityProviderError(entityprovider.ErrorCodeSystemError, "search failed", ""))
+
+	resp, err := suite.executor.Execute(ctx)
+
+	assert.Error(suite.T(), err)
+	assert.Nil(suite.T(), resp)
+}
+
+// Non-ambiguous system error + cross-OU allowed → fail immediately, no search attempted.
+func (suite *ProvisioningExecutorTestSuite) TestExecute_CrossOU_SystemError_NoSearchAttempted() {
+	suite.expectSchemaForProvisioning()
+	attrs := map[string]interface{}{"sub": "user-sub-123"}
+
+	ctx := &core.NodeContext{
+		ExecutionID: "flow-123",
+		FlowType:    common.FlowTypeRegistration,
+		UserInputs:  map[string]string{"sub": "user-sub-123"},
+		RuntimeData: map[string]string{
+			ouIDKey:     testOUID,
+			userTypeKey: testUserType,
+		},
+		NodeProperties: map[string]interface{}{
+			common.NodePropertyAllowCrossOUProvisioning: true,
+		},
+	}
+
+	suite.mockEntityProvider.On("IdentifyEntity", attrs).
+		Return(nil, entityprovider.NewEntityProviderError(entityprovider.ErrorCodeSystemError, "db error", ""))
+
+	resp, err := suite.executor.Execute(ctx)
+
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), resp)
+	assert.Equal(suite.T(), common.ExecFailure, resp.Status)
+	assert.Equal(suite.T(), failureReasonFailedToIdentifyUser, resp.FailureReason)
+	suite.mockEntityProvider.AssertNotCalled(suite.T(), "SearchEntities", mock.Anything)
 }

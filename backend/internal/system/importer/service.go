@@ -25,25 +25,25 @@ import (
 	"sort"
 	"time"
 
-	inboundmodel "github.com/thunder-id/thunder-id/internal/inboundclient/model"
+	inboundmodel "github.com/thunder-id/thunderid/internal/inboundclient/model"
 
-	appmodel "github.com/thunder-id/thunder-id/internal/application/model"
-	layoutmgt "github.com/thunder-id/thunder-id/internal/design/layout/mgt"
-	thememgt "github.com/thunder-id/thunder-id/internal/design/theme/mgt"
-	"github.com/thunder-id/thunder-id/internal/entitytype"
-	"github.com/thunder-id/thunder-id/internal/flow/common"
-	flowmgt "github.com/thunder-id/thunder-id/internal/flow/mgt"
-	"github.com/thunder-id/thunder-id/internal/group"
-	"github.com/thunder-id/thunder-id/internal/idp"
-	oauth2const "github.com/thunder-id/thunder-id/internal/oauth/oauth2/constants"
-	"github.com/thunder-id/thunder-id/internal/ou"
-	"github.com/thunder-id/thunder-id/internal/resource"
-	"github.com/thunder-id/thunder-id/internal/role"
-	"github.com/thunder-id/thunder-id/internal/system/error/serviceerror"
-	"github.com/thunder-id/thunder-id/internal/system/i18n/core"
-	i18nmgt "github.com/thunder-id/thunder-id/internal/system/i18n/mgt"
-	"github.com/thunder-id/thunder-id/internal/system/log"
-	"github.com/thunder-id/thunder-id/internal/user"
+	appmodel "github.com/thunder-id/thunderid/internal/application/model"
+	layoutmgt "github.com/thunder-id/thunderid/internal/design/layout/mgt"
+	thememgt "github.com/thunder-id/thunderid/internal/design/theme/mgt"
+	"github.com/thunder-id/thunderid/internal/entitytype"
+	"github.com/thunder-id/thunderid/internal/flow/common"
+	flowmgt "github.com/thunder-id/thunderid/internal/flow/mgt"
+	"github.com/thunder-id/thunderid/internal/group"
+	"github.com/thunder-id/thunderid/internal/idp"
+	oauth2const "github.com/thunder-id/thunderid/internal/oauth/oauth2/constants"
+	"github.com/thunder-id/thunderid/internal/ou"
+	"github.com/thunder-id/thunderid/internal/resource"
+	"github.com/thunder-id/thunderid/internal/role"
+	"github.com/thunder-id/thunderid/internal/system/error/serviceerror"
+	"github.com/thunder-id/thunderid/internal/system/i18n/core"
+	i18nmgt "github.com/thunder-id/thunderid/internal/system/i18n/mgt"
+	"github.com/thunder-id/thunderid/internal/system/log"
+	"github.com/thunder-id/thunderid/internal/user"
 )
 
 type applicationAdapter interface {
@@ -112,6 +112,9 @@ type roleAdapter interface {
 	GetRoleWithPermissions(ctx context.Context, id string) (*role.RoleWithPermissions, *serviceerror.ServiceError)
 	UpdateRoleWithPermissions(ctx context.Context, id string, role role.RoleUpdateDetail) (*role.RoleWithPermissions,
 		*serviceerror.ServiceError)
+}
+
+type roleAssignmentAdapter interface {
 	AddAssignments(ctx context.Context, id string, assignments []role.RoleAssignment) *serviceerror.ServiceError
 }
 
@@ -180,18 +183,19 @@ const (
 )
 
 type importService struct {
-	applicationService applicationAdapter
-	idpService         idpAdapter
-	flowService        flowAdapter
-	ouService          ouAdapter
-	entityTypeService  entityTypeAdapter
-	roleService        roleAdapter
-	groupService       groupAdapter
-	resourceService    resourceServerAdapter
-	themeService       themeAdapter
-	layoutService      layoutAdapter
-	userService        userAdapter
-	translationService translationAdapter
+	applicationService    applicationAdapter
+	idpService            idpAdapter
+	flowService           flowAdapter
+	ouService             ouAdapter
+	entityTypeService     entityTypeAdapter
+	roleService           roleAdapter
+	roleAssignmentService roleAssignmentAdapter
+	groupService          groupAdapter
+	resourceService       resourceServerAdapter
+	themeService          themeAdapter
+	layoutService         layoutAdapter
+	userService           userAdapter
+	translationService    translationAdapter
 }
 
 func newImportService(
@@ -201,6 +205,7 @@ func newImportService(
 	ouService ouAdapter,
 	entityTypeService entityTypeAdapter,
 	roleService roleAdapter,
+	roleAssignmentService roleAssignmentAdapter,
 	groupService groupAdapter,
 	resourceService resourceServerAdapter,
 	themeService themeAdapter,
@@ -209,18 +214,19 @@ func newImportService(
 	translationService translationAdapter,
 ) ImportServiceInterface {
 	return &importService{
-		applicationService: applicationService,
-		idpService:         idpService,
-		flowService:        flowService,
-		ouService:          ouService,
-		entityTypeService:  entityTypeService,
-		roleService:        roleService,
-		groupService:       groupService,
-		resourceService:    resourceService,
-		themeService:       themeService,
-		layoutService:      layoutService,
-		userService:        userService,
-		translationService: translationService,
+		applicationService:    applicationService,
+		idpService:            idpService,
+		flowService:           flowService,
+		ouService:             ouService,
+		entityTypeService:     entityTypeService,
+		roleService:           roleService,
+		roleAssignmentService: roleAssignmentService,
+		groupService:          groupService,
+		resourceService:       resourceService,
+		themeService:          themeService,
+		layoutService:         layoutService,
+		userService:           userService,
+		translationService:    translationService,
 	}
 }
 
@@ -831,6 +837,7 @@ func applicationRequestToDTO(req *appmodel.ApplicationRequestWithID) *appmodel.A
 					UserInfo:                           config.OAuthConfig.UserInfo,
 					ScopeClaims:                        config.OAuthConfig.ScopeClaims,
 					Certificate:                        config.OAuthConfig.Certificate,
+					AcrValues:                          config.OAuthConfig.AcrValues,
 				},
 			})
 		}

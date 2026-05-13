@@ -112,6 +112,7 @@ const (
 	failureReasonUserNotFound         = "User not found"
 	failureReasonInvalidCredentials   = "Invalid credentials provided" // #nosec G101
 	failureReasonFailedToIdentifyUser = "Failed to identify user"
+	failureReasonAmbiguousUser        = "User identity is ambiguous"
 	failureReasonInvalidOTP           = "invalid OTP provided"
 	failureReasonInvalidMagicLink     = "Invalid magic link token"
 )

@@ -23,11 +23,11 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/thunder-id/thunder-id/internal/entityprovider"
-	"github.com/thunder-id/thunder-id/internal/flow/common"
-	"github.com/thunder-id/thunder-id/internal/flow/core"
-	"github.com/thunder-id/thunder-id/internal/system/log"
-	"github.com/thunder-id/thunder-id/internal/system/utils"
+	"github.com/thunder-id/thunderid/internal/entityprovider"
+	"github.com/thunder-id/thunderid/internal/flow/common"
+	"github.com/thunder-id/thunderid/internal/flow/core"
+	"github.com/thunder-id/thunderid/internal/system/log"
+	"github.com/thunder-id/thunderid/internal/system/utils"
 )
 
 const (
@@ -96,7 +96,7 @@ func (i *identifyingExecutor) IdentifyUser(filters map[string]interface{},
 		} else if err.Code == entityprovider.ErrorCodeAmbiguousEntity {
 			logger.Debug("Multiple users found for the provided filters")
 			execResp.Status = common.ExecFailure
-			execResp.FailureReason = failureReasonFailedToIdentifyUser
+			execResp.FailureReason = failureReasonAmbiguousUser
 			return nil, nil
 		} else {
 			logger.Debug("Failed to identify user due to error: " + err.Error())
@@ -437,6 +437,7 @@ func extractDisambiguationOptions(candidates []*entityprovider.Entity) []common.
 		}
 		inputs = append(inputs, common.Input{
 			Identifier: key,
+			Type:       common.InputTypeSelect,
 			Options:    options,
 		})
 	}
