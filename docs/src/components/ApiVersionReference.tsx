@@ -19,9 +19,10 @@
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import {useDocsVersion} from '@docusaurus/plugin-content-docs/client';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import {useEffect, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {createPortal} from 'react-dom';
 import ApiReference from './ApiReference';
+import MobileApiReference from './MobileApiReference';
 import PostmanButton from './PostmanButton';
 
 /**
@@ -44,6 +45,34 @@ import PostmanButton from './PostmanButton';
 
 // Approximate height of Scalar's own toolbar row (Developer Tools / Configure / Share / Deploy).
 const SCALAR_TOOLBAR_HEIGHT = 52;
+
+// Rendered inside BrowserOnly so window is always available.
+// Detects the viewport and switches between the dedicated mobile UI and the
+// full Scalar desktop viewer — initialised eagerly to avoid a layout flash.
+function ApiReferenceSwitch({
+  specUrl,
+  onDesktopLoaded,
+}: {
+  specUrl: string;
+  onDesktopLoaded: () => void;
+}) {
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia('(max-width: 996px)').matches,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 996px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  if (isMobile) {
+    return <MobileApiReference specUrl={specUrl} />;
+  }
+
+  return <ApiReference onLoaded={onDesktopLoaded} specUrl={specUrl} />;
+}
 
 export default function ApiVersionReference() {
   const {siteConfig} = useDocusaurusContext();
@@ -99,20 +128,38 @@ export default function ApiVersionReference() {
 
   const topOffset = scalarScrolled ? 8 : SCALAR_TOOLBAR_HEIGHT + 8;
 
+  // On mobile the CSS hides all tag-section-containers and shows only the one
+  // whose inner <section id="{tag.id}"> matches the URL hash (:target).
+  // When Scalar finishes loading and there is no hash yet (fresh page load),
+  // click the first navigation link so the user lands on a populated view
+  // instead of an empty content area.
+  const handleApiLoaded = useCallback(() => {
+    if (typeof window === 'undefined' || window.location.hash) return;
+    setTimeout(() => {
+      const firstNavLink = document.querySelector<HTMLAnchorElement>(
+        '.apis-page aside a[href^="#"]:not([href="#"])',
+      );
+      firstNavLink?.click();
+    }, 50);
+  }, []);
+
   return (
     <>
+      {/* Postman button — desktop only (mobile has its own self-contained UI) */}
       <BrowserOnly>
-        {() =>
-          createPortal(
+        {() => {
+          if (window.matchMedia('(max-width: 996px)').matches) return null;
+          return createPortal(
             <div
+              className="apis-page-postman-btn"
               style={{
-                position: 'fixed',
-                top: `calc(var(--ifm-navbar-height) + var(--docusaurus-announcement-bar-height) + ${topOffset}px)`,
-                right: '40px',
-                zIndex: 9999,
-                transition: 'top 0.2s ease, opacity 0.15s ease',
                 opacity: clientPanelOpen ? 0 : 1,
                 pointerEvents: clientPanelOpen ? 'none' : 'auto',
+                position: 'fixed',
+                right: '16px',
+                top: `calc(var(--ifm-navbar-height) + var(--docusaurus-announcement-bar-height) + ${topOffset}px)`,
+                transition: 'top 0.2s ease, opacity 0.15s ease',
+                zIndex: 200,
               }}
             >
               <PostmanButton
@@ -121,10 +168,14 @@ export default function ApiVersionReference() {
               />
             </div>,
             document.body,
-          )
-        }
+          );
+        }}
       </BrowserOnly>
-      <ApiReference specUrl={specUrl} />
+
+      {/* API reference — switches between mobile and desktop renderers */}
+      <BrowserOnly>
+        {() => <ApiReferenceSwitch onDesktopLoaded={handleApiLoaded} specUrl={specUrl} />}
+      </BrowserOnly>
     </>
   );
 }
