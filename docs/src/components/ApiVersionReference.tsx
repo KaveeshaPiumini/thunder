@@ -62,13 +62,16 @@ function ApiReferenceSwitch({
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 996px)');
+    // Re-check after mount: the lazy initialiser can read the wrong value on some
+    // mobile browsers before the viewport meta tag has been fully applied.
+    setIsMobile(mq.matches);
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
 
   if (isMobile) {
-    return <MobileApiReference specUrl={specUrl} />;
+    return createPortal(<MobileApiReference specUrl={specUrl} />, document.body);
   }
 
   return <ApiReference onLoaded={onDesktopLoaded} specUrl={specUrl} />;
