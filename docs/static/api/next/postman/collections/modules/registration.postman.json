@@ -1,15 +1,15 @@
 {
   "item": [
     {
-      "id": "92e7bacb-6b75-4ae4-8419-dead4f13ef3d",
-      "name": "Passkey / WebAuthn / FIDO2 Registration",
+      "id": "4f626c13-4bbd-426c-8eac-a33785123942",
+      "name": "Passkeys",
       "description": {
-        "content": "",
+        "content": "Passkey registration start and finish operations.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "2bbfef65-bd4d-4a73-be04-b67a24efac94",
+          "id": "17a86bbc-9384-4373-8623-95d610fe8f49",
           "name": "Start Passkey credential registration",
           "request": {
             "name": "Start Passkey credential registration",
@@ -72,7 +72,7 @@
           },
           "response": [
             {
-              "id": "04f5197f-d819-4c5e-84ba-fd756d324885",
+              "id": "1f2ab740-0afa-4177-9a96-3ef241e725ad",
               "name": "OK",
               "originalRequest": {
                 "url": {
@@ -136,8 +136,8 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5e98d3d2-2f4c-4253-a3ca-1721a2a1c45c",
-              "name": "Bad Request: The request body is malformed or contains invalid data",
+              "id": "3ce09aa9-3ca1-401a-a7ef-ea4e5dcf33a1",
+              "name": "Bad Request: The request body is malformed or contains invalid data, or the user was not found",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -195,76 +195,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "\"<object>\"",
+              "body": "{\n  \"code\": \"<string>\",\n  \"message\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  },\n  \"description\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "319e02ed-4ce9-4024-b795-b98d5076b227",
-              "name": "Not Found: The user could not be found",
-              "originalRequest": {
-                "url": {
-                  "path": [
-                    "register",
-                    "passkey",
-                    "start"
-                  ],
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "query": [],
-                  "variable": [
-                    {
-                      "description": {
-                        "content": "",
-                        "type": "text/plain"
-                      },
-                      "type": "any",
-                      "value": "{{host}}",
-                      "key": "host"
-                    },
-                    {
-                      "description": {
-                        "content": "",
-                        "type": "text/plain"
-                      },
-                      "type": "any",
-                      "value": "{{port}}",
-                      "key": "port"
-                    }
-                  ]
-                },
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"userId\": \"<string>\",\n  \"relyingPartyId\": \"<string>\",\n  \"relyingPartyName\": \"<string>\",\n  \"authenticatorSelection\": {\n    \"authenticatorAttachment\": \"<string>\",\n    \"requireResidentKey\": \"<boolean>\",\n    \"residentKey\": \"<string>\",\n    \"userVerification\": \"<string>\"\n  },\n  \"attestation\": \"<string>\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "status": "Not Found",
-              "code": 404,
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "\"<object>\"",
-              "cookie": [],
-              "_postman_previewlanguage": "json"
-            },
-            {
-              "id": "88fe2496-cc70-4ac1-ac51-e8723189e88c",
+              "id": "b931812e-a7e3-4935-bf9d-495e73d3fbe9",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -323,7 +259,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "\"<object>\"",
+              "body": "{\n  \"code\": \"<string>\",\n  \"message\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  },\n  \"description\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -334,7 +270,7 @@
           }
         },
         {
-          "id": "3cd311b1-02da-440a-9924-026fb5a93014",
+          "id": "662a7a92-4901-4b9c-a64d-3096a632310d",
           "name": "Finish Passkey credential registration",
           "request": {
             "name": "Finish Passkey credential registration",
@@ -387,7 +323,7 @@
             "auth": null,
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"rawId\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\",\n      \"transports\": [\n        \"<string>\",\n        \"<string>\"\n      ]\n    },\n    \"authenticatorAttachment\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
+              "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\"\n    },\n    \"rawId\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -397,7 +333,7 @@
           },
           "response": [
             {
-              "id": "5484b5e1-757d-4a1c-b6be-0704dba6e2d4",
+              "id": "088dd53e-47c4-4a37-a93e-615d8ee9839c",
               "name": "OK",
               "originalRequest": {
                 "url": {
@@ -440,7 +376,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"rawId\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\",\n      \"transports\": [\n        \"<string>\",\n        \"<string>\"\n      ]\n    },\n    \"authenticatorAttachment\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
+                  "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\"\n    },\n    \"rawId\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -461,8 +397,8 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b4a6275e-8cbd-4dd0-82a9-6cca273bffb4",
-              "name": "Bad Request: The request body is malformed or contains invalid data",
+              "id": "c9fdd69f-74c3-4597-9ff2-88e43e89939d",
+              "name": "Bad Request: The request body is malformed, contains invalid data, or the session is invalid",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -504,7 +440,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"rawId\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\",\n      \"transports\": [\n        \"<string>\",\n        \"<string>\"\n      ]\n    },\n    \"authenticatorAttachment\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
+                  "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\"\n    },\n    \"rawId\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -520,140 +456,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "\"<object>\"",
+              "body": "{\n  \"code\": \"<string>\",\n  \"message\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  },\n  \"description\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "4b2dd300-2258-44dc-a069-371ffad1cc27",
-              "name": "Unauthorized: Passkey registration verification failed",
-              "originalRequest": {
-                "url": {
-                  "path": [
-                    "register",
-                    "passkey",
-                    "finish"
-                  ],
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "query": [],
-                  "variable": [
-                    {
-                      "description": {
-                        "content": "",
-                        "type": "text/plain"
-                      },
-                      "type": "any",
-                      "value": "{{host}}",
-                      "key": "host"
-                    },
-                    {
-                      "description": {
-                        "content": "",
-                        "type": "text/plain"
-                      },
-                      "type": "any",
-                      "value": "{{port}}",
-                      "key": "port"
-                    }
-                  ]
-                },
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"rawId\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\",\n      \"transports\": [\n        \"<string>\",\n        \"<string>\"\n      ]\n    },\n    \"authenticatorAttachment\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "status": "Unauthorized",
-              "code": 401,
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "\"<object>\"",
-              "cookie": [],
-              "_postman_previewlanguage": "json"
-            },
-            {
-              "id": "85dc7571-74f3-4672-8f16-302504d9575c",
-              "name": "Not Found: The user could not be found",
-              "originalRequest": {
-                "url": {
-                  "path": [
-                    "register",
-                    "passkey",
-                    "finish"
-                  ],
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "query": [],
-                  "variable": [
-                    {
-                      "description": {
-                        "content": "",
-                        "type": "text/plain"
-                      },
-                      "type": "any",
-                      "value": "{{host}}",
-                      "key": "host"
-                    },
-                    {
-                      "description": {
-                        "content": "",
-                        "type": "text/plain"
-                      },
-                      "type": "any",
-                      "value": "{{port}}",
-                      "key": "port"
-                    }
-                  ]
-                },
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"rawId\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\",\n      \"transports\": [\n        \"<string>\",\n        \"<string>\"\n      ]\n    },\n    \"authenticatorAttachment\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "status": "Not Found",
-              "code": 404,
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "\"<object>\"",
-              "cookie": [],
-              "_postman_previewlanguage": "json"
-            },
-            {
-              "id": "4af354b3-e762-4ca0-aa6c-561ecce9689b",
+              "id": "3d1f7741-7d52-443e-939e-bc376936ab71",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -696,7 +504,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"rawId\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\",\n      \"transports\": [\n        \"<string>\",\n        \"<string>\"\n      ]\n    },\n    \"authenticatorAttachment\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
+                  "raw": "{\n  \"publicKeyCredential\": {\n    \"id\": \"<string>\",\n    \"type\": \"<string>\",\n    \"response\": {\n      \"clientDataJSON\": \"<string>\",\n      \"attestationObject\": \"<string>\"\n    },\n    \"rawId\": \"<string>\"\n  },\n  \"sessionToken\": \"<string>\",\n  \"credentialName\": \"<string>\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -712,7 +520,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "\"<object>\"",
+              "body": "{\n  \"code\": \"<string>\",\n  \"message\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  },\n  \"description\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -753,11 +561,11 @@
     }
   ],
   "info": {
-    "_postman_id": "da46357b-01d0-42f0-8ff3-86efa852e381",
+    "_postman_id": "900fee65-6a5a-492f-bbd9-c4fcc6c220d9",
     "name": "Registration API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
-      "content": "This API is used for user registration operations including Passkey registration.",
+      "content": "Register WebAuthn/FIDO2 passkey credentials for users. Covers the full ceremony: initiate a registration challenge, create the credential on the authenticator, and complete enrollment.",
       "type": "text/plain"
     }
   }

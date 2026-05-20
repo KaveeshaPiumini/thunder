@@ -1,15 +1,15 @@
 {
   "item": [
     {
-      "id": "aed79a56-a96a-4681-8553-a90247421b26",
-      "name": "groups",
+      "id": "39ac9ddc-68c7-4e3a-a49e-6ec814d3e244",
+      "name": "Groups",
       "description": {
-        "content": "Operations related to group management",
+        "content": "CRUD operations for groups, member assignment, and role assignment.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "ad4a5e07-c6eb-47ae-83ca-58e3cd7ad461",
+          "id": "ec265779-5efb-4b95-8554-71bf31397077",
           "name": "List groups",
           "request": {
             "name": "List groups",
@@ -26,13 +26,13 @@
                   "disabled": true,
                   "key": "limit",
                   "value": "30",
-                  "description": "Maximum number of records to return.\n"
+                  "description": "Maximum number of records to return. Must be between 1 and 100 inclusive.\n"
                 },
                 {
                   "disabled": true,
                   "key": "offset",
                   "value": "0",
-                  "description": "Number of records to skip for pagination.\n"
+                  "description": "Number of records to skip for pagination. Must be a non-negative integer.\n"
                 },
                 {
                   "disabled": true,
@@ -73,7 +73,7 @@
           },
           "response": [
             {
-              "id": "7f9f9f0a-b558-484f-9d90-fbfcf51e04b6",
+              "id": "fa9224d4-1a79-4de0-ba93-a277ba5198cd",
               "name": "List of groups",
               "originalRequest": {
                 "url": {
@@ -148,7 +148,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5684cd5d-25e0-4268-92f5-466281677e19",
+              "id": "efb9cd9b-b5ca-48e7-91ea-db92832fd331",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -223,7 +223,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "3d005bd6-55d0-4b25-9ce9-7de99d7ccc7f",
+              "id": "0eafe19a-ad25-4e06-8061-6380dd28e022",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -304,7 +304,7 @@
           }
         },
         {
-          "id": "0883833e-3655-45b2-899a-9ce3217c79a1",
+          "id": "545cd00e-d811-4ca2-86a1-30169596c02b",
           "name": "Create a new group",
           "request": {
             "name": "Create a new group",
@@ -362,7 +362,7 @@
           },
           "response": [
             {
-              "id": "509b651c-3f74-44bf-acec-293705e1d364",
+              "id": "84387279-dc3b-46ae-b666-08658321877c",
               "name": "Group created",
               "originalRequest": {
                 "url": {
@@ -432,7 +432,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "232e2664-6b9f-42bf-a906-1f4b8c69bb1d",
+              "id": "f09329cb-42c6-4e4c-bf39-6c4c7a45e160",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -502,7 +502,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "3f3535e1-d1db-48c9-b0de-d058598db7a0",
+              "id": "1eacd6a5-0ed6-439f-9da5-11bb9146a1e7",
               "name": "Conflict",
               "originalRequest": {
                 "url": {
@@ -572,7 +572,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "fd85f80a-eecb-4c0f-aaec-e80dc275f335",
+              "id": "8511fe96-a5b9-4733-b34a-072d7694774b",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -648,7 +648,7 @@
           }
         },
         {
-          "id": "8d0c1cb2-8a13-4efe-a526-68acf3776668",
+          "id": "3484d15c-274d-4c90-bc12-e037b80c1ecd",
           "name": "Get a group by id",
           "request": {
             "name": "Get a group by id",
@@ -708,7 +708,7 @@
           },
           "response": [
             {
-              "id": "7a6d83bb-4f10-4b67-98a8-6d54adaabb57",
+              "id": "4fe17ea6-c0a2-4761-a043-49e7e94691b9",
               "name": "Group details",
               "originalRequest": {
                 "url": {
@@ -783,7 +783,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "4f1051f8-ecd9-45d3-9290-61f9b7ecf2b8",
+              "id": "a61f3c1a-c683-4b8e-9423-65c690e279ad",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -858,7 +858,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e0b39a4a-0dbf-4892-857e-3db17365ee70",
+              "id": "182f8a15-fd9c-4184-8eb2-5a921891b5ec",
               "name": "Group not found",
               "originalRequest": {
                 "url": {
@@ -933,7 +933,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "93d34a01-64a3-47b2-84a2-ae46d66da98d",
+              "id": "89497045-1b1f-42c1-997e-d4463af6a9f3",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -1014,7 +1014,7 @@
           }
         },
         {
-          "id": "13fc0448-aed2-4a4f-8867-1ce64897052a",
+          "id": "3e68b64b-6d35-4564-96d9-015396718b25",
           "name": "Update a group by id",
           "request": {
             "name": "Update a group by id",
@@ -1080,7 +1080,7 @@
           },
           "response": [
             {
-              "id": "6e8d87c5-6d96-44d5-add9-a36be652ea3e",
+              "id": "26c2890b-2187-40ee-83da-03608483d8c1",
               "name": "Group updated",
               "originalRequest": {
                 "url": {
@@ -1158,7 +1158,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "a2f46083-b652-4b4c-96f5-5fcf8b88e321",
+              "id": "f5e1830b-877d-49a4-abca-7c82d5be8818",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -1236,7 +1236,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "200a6df2-6d95-4c14-82ee-de1d22dc5173",
+              "id": "f058cf97-cf24-4552-be1b-2d51f5fd3b16",
               "name": "Group not found",
               "originalRequest": {
                 "url": {
@@ -1314,7 +1314,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6668e3cb-474f-4641-80ba-e2c21a764be3",
+              "id": "7ad930be-c8dd-4fee-a849-824618865477",
               "name": "Conflict",
               "originalRequest": {
                 "url": {
@@ -1392,7 +1392,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e946c048-fd6c-40d3-83ae-6a3c0505b886",
+              "id": "245451b5-170f-4fd9-b74b-9094791bd4ec",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -1476,7 +1476,7 @@
           }
         },
         {
-          "id": "478f479f-473d-48d9-8748-df6f4b61c53f",
+          "id": "c218cfe5-6cce-4b8b-a89e-2ff21e990caa",
           "name": "Delete a group by id",
           "request": {
             "name": "Delete a group by id",
@@ -1529,7 +1529,7 @@
           },
           "response": [
             {
-              "id": "349c6379-7039-4720-ac28-4109d074abb6",
+              "id": "f9c65527-f295-459a-9cc4-7054b3f7edee",
               "name": "Group deleted",
               "originalRequest": {
                 "url": {
@@ -1595,7 +1595,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "ec6c6818-0741-4182-8f74-48faedb369b7",
+              "id": "7e1a2a0b-4084-4b18-8c8b-b8b0ba68aa78",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -1665,7 +1665,77 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e1cc02e4-b4de-40b9-9c7e-e3d3f2d05108",
+              "id": "5fc27008-0183-43dd-b436-d2f03fb69430",
+              "name": "Group not found",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "groups",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<uuid>",
+                      "key": "id",
+                      "description": "(Required) "
+                    },
+                    {
+                      "description": {
+                        "content": "",
+                        "type": "text/plain"
+                      },
+                      "type": "any",
+                      "value": "{{host}}",
+                      "key": "host"
+                    },
+                    {
+                      "description": {
+                        "content": "",
+                        "type": "text/plain"
+                      },
+                      "type": "any",
+                      "value": "{{port}}",
+                      "key": "port"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: oauth2",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": \"<string>\",\n  \"message\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  },\n  \"description\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "607d3a4c-c932-4dba-8e9e-6c20250edeca",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -1741,7 +1811,7 @@
           }
         },
         {
-          "id": "29921b81-af4e-4d57-80a4-9017dbd1ab0a",
+          "id": "738709d0-21fe-4eb5-83f0-6ad6a8692cfd",
           "name": "List members in group",
           "request": {
             "name": "List members in group",
@@ -1760,13 +1830,13 @@
                   "disabled": true,
                   "key": "limit",
                   "value": "30",
-                  "description": "Maximum number of records to return.\n"
+                  "description": "Maximum number of records to return. Must be between 1 and 100 inclusive.\n"
                 },
                 {
                   "disabled": true,
                   "key": "offset",
                   "value": "0",
-                  "description": "Number of records to skip for pagination.\n"
+                  "description": "Number of records to skip for pagination. Must be a non-negative integer.\n"
                 },
                 {
                   "disabled": true,
@@ -1814,7 +1884,7 @@
           },
           "response": [
             {
-              "id": "8bd6edf9-5042-49c0-99c9-d8f10d6aa1e5",
+              "id": "4506b3ac-a245-46e7-bf4e-3cb7e2f53701",
               "name": "List of members in the group",
               "originalRequest": {
                 "url": {
@@ -1898,7 +1968,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "0a781288-72c8-40c6-8ad9-ef9eadbb90da",
+              "id": "5cdc6d13-f83e-4749-afc2-ee3195bc34a9",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -1982,7 +2052,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e1f8427a-58a1-45f4-906d-a7910b2bf933",
+              "id": "13f3c0b1-964e-4253-8c70-99361143904b",
               "name": "Group not found",
               "originalRequest": {
                 "url": {
@@ -2066,7 +2136,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6aa2e0d2-9eab-4590-b137-e9b3bfae5848",
+              "id": "b724bd4e-6ee6-4e86-8832-e1c6ba0a3d16",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -2156,7 +2226,7 @@
           }
         },
         {
-          "id": "ed0d8c71-0dd5-4b24-b596-8aaec24e644b",
+          "id": "6673543a-4af1-4f97-8c19-cb06308fb43f",
           "name": "Add members to a group",
           "request": {
             "name": "Add members to a group",
@@ -2224,7 +2294,7 @@
           },
           "response": [
             {
-              "id": "59b10889-3019-45cb-87be-13df280d4e88",
+              "id": "f18974e2-0125-48d8-b8f4-89a238e36aac",
               "name": "Members added successfully",
               "originalRequest": {
                 "url": {
@@ -2304,7 +2374,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "476655bf-4728-44ef-83b2-9563b69fd39f",
+              "id": "e1eeda3e-b7db-4679-ba5d-f3bb940b7f9d",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -2384,7 +2454,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "44473806-b919-4108-a46d-3ecd5f826ce9",
+              "id": "7d3b8759-0ae8-466f-8651-22db2f365550",
               "name": "Group not found",
               "originalRequest": {
                 "url": {
@@ -2464,7 +2534,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "06484bdf-c4fc-402e-9a0e-540db0f1a9d8",
+              "id": "54e5b449-e138-4e4f-9a0a-bf3d41f5f745",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -2550,7 +2620,7 @@
           }
         },
         {
-          "id": "6c55b97c-c8eb-433a-826a-25da6b0c3ad6",
+          "id": "f65804cc-8bdd-4a7f-a97b-37f36bb1df7a",
           "name": "Remove members from a group",
           "request": {
             "name": "Remove members from a group",
@@ -2618,7 +2688,7 @@
           },
           "response": [
             {
-              "id": "75ab3ad5-9390-4aab-81fc-574c720f4f34",
+              "id": "4606c32c-42f4-410e-b9fc-79aa4dbd7b52",
               "name": "Members removed successfully",
               "originalRequest": {
                 "url": {
@@ -2698,7 +2768,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "33037e21-66f9-4b4d-831f-b97af766469d",
+              "id": "ff5642b2-9afd-48c4-ac8c-6b08cf3a8305",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -2778,7 +2848,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "750179b3-be63-4323-be98-5fd8e5f97508",
+              "id": "37f90aa4-4c3a-44fd-8f55-15a2603de1ec",
               "name": "Group not found",
               "originalRequest": {
                 "url": {
@@ -2858,7 +2928,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "c37b71ef-eb7c-4d95-8ff8-04a87d78a5f1",
+              "id": "c41daeb0-a766-4e3c-9c5b-e848f0ea502e",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -2947,15 +3017,15 @@
       "event": []
     },
     {
-      "id": "363134bb-d645-4dae-a093-ce9f106b0ced",
+      "id": "ce3fa58f-acce-4b49-9503-8ee6eef8d4f1",
       "name": "groups-by-path",
       "description": {
-        "content": "Operations related to group management using hierarchical handle paths",
+        "content": "Create and list groups within an organization unit identified by its handle path.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "d39e6c68-578a-4b07-b393-fa31b011e8be",
+          "id": "803fce37-247d-45e7-bb5c-70b6a0f3ef16",
           "name": "List groups in organization unit specified by handle path",
           "request": {
             "name": "List groups in organization unit specified by handle path",
@@ -2974,13 +3044,13 @@
                   "disabled": true,
                   "key": "limit",
                   "value": "30",
-                  "description": "Maximum number of records to return.\n"
+                  "description": "Maximum number of records to return. Must be between 1 and 100 inclusive.\n"
                 },
                 {
                   "disabled": true,
                   "key": "offset",
                   "value": "0",
-                  "description": "Number of records to skip for pagination.\n"
+                  "description": "Number of records to skip for pagination. Must be a non-negative integer.\n"
                 },
                 {
                   "disabled": true,
@@ -3028,7 +3098,7 @@
           },
           "response": [
             {
-              "id": "1b99ac0c-7ef9-475d-8384-55b7b7f775bb",
+              "id": "e5aa25e9-1427-4e10-a801-c2f4f600d939",
               "name": "List of groups in the organization unit",
               "originalRequest": {
                 "url": {
@@ -3112,7 +3182,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e1caa0c6-ea1d-46e8-8538-a0d2eef2ac08",
+              "id": "5b72defd-638b-4c44-a46f-10e930a4531a",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -3196,7 +3266,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "897db9bd-b7ff-4553-9623-9550093d370d",
+              "id": "dcc32009-1d75-4943-9022-cee650d2dfd9",
               "name": "Organization unit not found",
               "originalRequest": {
                 "url": {
@@ -3280,7 +3350,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d2b6fa25-bcd1-4ea2-9b96-82ae0bd51838",
+              "id": "a80c1ec4-3506-4a76-82b1-9db6b0cf4763",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -3370,7 +3440,7 @@
           }
         },
         {
-          "id": "1d9c2c5e-89de-43d9-a039-f0067e0c1a93",
+          "id": "1a73363c-6113-4c46-a761-06c81b18ebae",
           "name": "Create a new group under the organization unit specified by the handle path",
           "request": {
             "name": "Create a new group under the organization unit specified by the handle path",
@@ -3437,7 +3507,7 @@
           },
           "response": [
             {
-              "id": "a263461f-8410-4351-8ed8-b2f713ddb154",
+              "id": "69b644ff-4e09-4cb2-beb5-bba4363cb99b",
               "name": "Group created",
               "originalRequest": {
                 "url": {
@@ -3516,7 +3586,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5e020c17-3051-4e03-914b-bb65ac294323",
+              "id": "4d3e77af-8fbb-4e60-b541-1f4e1081cac2",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -3595,7 +3665,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "01461031-711c-4cb8-a3d9-4d42fe7bd6a7",
+              "id": "874bfa5c-2ab5-42af-b6ed-67fae7d08de9",
               "name": "Organization unit not found",
               "originalRequest": {
                 "url": {
@@ -3674,7 +3744,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "1a10c835-bf34-410d-bf9a-2115f3444e35",
+              "id": "d0b369ac-bb55-4747-8ec5-d3619da32dc4",
               "name": "Conflict",
               "originalRequest": {
                 "url": {
@@ -3753,7 +3823,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "9010e509-2fa9-4e1f-bcc2-76b4b1a02223",
+              "id": "7d89409a-f80c-4089-b22b-95939f7eaff4",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -3865,35 +3935,53 @@
       "type": "string",
       "value": "https://{{host}}:{{port}}",
       "key": "baseUrl"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientSecret",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
     "type": "oauth2",
     "oauth2": [
       {
-        "key": "scope",
-        "value": "system"
+        "key": "grant_type",
+        "value": "client_credentials"
       },
       {
         "key": "accessTokenUrl",
         "value": "{{baseUrl}}/oauth2/token"
       },
       {
-        "key": "authUrl",
-        "value": "{{baseUrl}}/oauth2/authorize"
+        "key": "clientId",
+        "value": "{{clientId}}"
       },
       {
-        "key": "grant_type",
-        "value": "authorization_code"
+        "key": "clientSecret",
+        "value": "{{clientSecret}}"
+      },
+      {
+        "key": "scope",
+        "value": "system"
+      },
+      {
+        "key": "addTokenTo",
+        "value": "header"
       }
     ]
   },
   "info": {
-    "_postman_id": "6dc6baa1-d789-457b-bc0c-85257670ffc2",
+    "_postman_id": "91130b35-c78c-464b-98dd-34640fb44c4e",
     "name": "Group Management API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
-      "content": "This API is used to manage groups.",
+      "content": "Create and manage groups for organizing users. Groups can be assigned roles and permissions and are used as the primary unit for access control delegation.",
       "type": "text/plain"
     }
   }

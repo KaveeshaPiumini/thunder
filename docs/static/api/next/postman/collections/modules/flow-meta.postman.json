@@ -1,20 +1,20 @@
 {
   "item": [
     {
-      "id": "038e9849-75f7-493f-9737-3df58787dd67",
-      "name": "flow-meta",
+      "id": "42a6019e-539b-4739-9a7d-dbf7f90646a8",
+      "name": "Flow Meta",
       "description": {
-        "content": "Operations for retrieving flow metadata",
+        "content": "Retrieve aggregated runtime metadata for a flow context: application details, OU, active theme and layout, and i18n translations.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "2d26e9e6-952a-439b-b3f0-0b93d78753fb",
+          "id": "52f8c4c2-bee7-44cd-ba0b-7b31a6414afd",
           "name": "Get flow metadata",
           "request": {
             "name": "Get flow metadata",
             "description": {
-              "content": "Retrieves aggregated metadata for a flow, including:\n- Application or OU details based on type\n- Resolved design configuration (theme and layout)\n- i18n translations based on language and namespace filters\n- Registration flow enablement status\n\n**Note:** When `type=APP`, the OU metadata is only included in the response\nwhen the deployment has exactly one organization unit (i.e., `totalResults == 1`).\nFor deployments with multiple OUs, the OU metadata will be omitted from APP-type responses.\n",
+              "content": "Retrieves aggregated metadata for a flow, including:\n- Application or OU details based on type\n- Resolved design configuration (theme and layout)\n- i18n translations based on language and namespace filters\n- Registration and recovery flow enablement status\n\n**Note:** When `type=APP`, the OU metadata is only included in the response\nwhen the deployment has exactly one organization unit (i.e., `totalResults == 1`).\nFor deployments with multiple OUs, the OU metadata will be omitted from APP-type responses.\n",
               "type": "text/plain"
             },
             "url": {
@@ -83,7 +83,7 @@
           },
           "response": [
             {
-              "id": "8828c5aa-5749-47a1-b23d-d8782e332af3",
+              "id": "d0258022-a8df-489d-93c3-54ce5efc1a8f",
               "name": "Flow metadata retrieved successfully",
               "originalRequest": {
                 "url": {
@@ -150,12 +150,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"isRegistrationFlowEnabled\": \"<boolean>\",\n  \"design\": {\n    \"theme\": {\n      \"Ut881\": \"sint ad\",\n      \"ut9ff\": \"laboris\"\n    },\n    \"layout\": {\n      \"qui_c\": true\n    }\n  },\n  \"i18n\": {\n    \"languages\": [\n      \"<string>\",\n      \"<string>\"\n    ],\n    \"language\": \"<string>\",\n    \"translations\": {\n      \"ut_20\": {\n        \"ea35c\": \"<string>\",\n        \"dolor2d\": \"<string>\"\n      }\n    },\n    \"totalResults\": \"<integer>\"\n  },\n  \"application\": {\n    \"id\": \"<uuid>\",\n    \"name\": \"<string>\",\n    \"description\": \"<string>\",\n    \"logoUrl\": \"<uri>\",\n    \"url\": \"<uri>\",\n    \"tosUri\": \"<uri>\",\n    \"policyUri\": \"<uri>\"\n  },\n  \"ou\": {\n    \"id\": \"<uuid>\",\n    \"handle\": \"<string>\",\n    \"name\": \"<string>\",\n    \"description\": \"<string>\",\n    \"logoUrl\": \"<uri>\",\n    \"tosUri\": \"<uri>\",\n    \"policyUri\": \"<uri>\",\n    \"cookiePolicyUri\": \"<uri>\"\n  }\n}",
+              "body": "{\n  \"isRegistrationFlowEnabled\": \"<boolean>\",\n  \"isRecoveryFlowEnabled\": \"<boolean>\",\n  \"design\": {\n    \"theme\": {\n      \"amet_682\": \"exercitation ut\"\n    },\n    \"layout\": {\n      \"dolord\": -63589928,\n      \"occaecat567\": 72927432.09393221,\n      \"quif0\": 75340288.65067041,\n      \"aliquab\": false\n    }\n  },\n  \"i18n\": {\n    \"languages\": [\n      \"<string>\",\n      \"<string>\"\n    ],\n    \"language\": \"<string>\",\n    \"translations\": {\n      \"dolore_94\": {\n        \"deserunt_e\": \"<string>\"\n      },\n      \"exercitation_2c\": {\n        \"exb\": \"<string>\",\n        \"consectetur_0d\": \"<string>\"\n      },\n      \"Duisbd\": {\n        \"aliquip41\": \"<string>\",\n        \"amet_4a\": \"<string>\",\n        \"est_6\": \"<string>\"\n      },\n      \"dolor55\": {\n        \"magnac\": \"<string>\"\n      }\n    },\n    \"totalResults\": \"<integer>\"\n  },\n  \"application\": {\n    \"id\": \"<uuid>\",\n    \"name\": \"<string>\",\n    \"description\": \"<string>\",\n    \"logoUrl\": \"<uri>\",\n    \"url\": \"<uri>\",\n    \"tosUri\": \"<uri>\",\n    \"policyUri\": \"<uri>\"\n  },\n  \"ou\": {\n    \"id\": \"<uuid>\",\n    \"handle\": \"<string>\",\n    \"name\": \"<string>\",\n    \"description\": \"<string>\",\n    \"logoUrl\": \"<uri>\",\n    \"tosUri\": \"<uri>\",\n    \"policyUri\": \"<uri>\",\n    \"cookiePolicyUri\": \"<uri>\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "84d19fa6-0be6-492c-9d76-63dcef0678b1",
+              "id": "cd2bc2b4-5a9f-49f4-9dd4-3cf43c0f1565",
               "name": "Bad request - Invalid input",
               "originalRequest": {
                 "url": {
@@ -227,7 +227,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5ee43353-1fae-48b1-9af3-9c35630f21b0",
+              "id": "d3eff83e-de81-49f4-bbaa-ef20659c2744",
               "name": "Resource not found",
               "originalRequest": {
                 "url": {
@@ -299,7 +299,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "07a9321c-1e3e-4204-a82f-e156c6cafaf0",
+              "id": "0321eeff-303f-48d0-a51b-0546e0196839",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -407,7 +407,7 @@
     }
   ],
   "info": {
-    "_postman_id": "867da07d-16c3-4b2d-bc87-6b2cd09a1f8e",
+    "_postman_id": "6c31d46d-33de-486c-a608-16920e8b144a",
     "name": "Flow Metadata API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {

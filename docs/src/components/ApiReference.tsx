@@ -44,7 +44,9 @@ export default function ApiReference({specUrl, ...rest}: ApiReferenceProps) {
             left: 0,
             right: 0,
             bottom: 0,
-            overflow: 'auto',
+            overflowY: 'scroll',
+            overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch',
             background: 'var(--oxygen-palette-background-default)',
           }}
         >

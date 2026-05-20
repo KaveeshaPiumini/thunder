@@ -1,19 +1,22 @@
 {
   "item": [
     {
-      "id": "083876b4-2d17-45de-826c-d8a5ca31e19c",
-      "name": "health",
+      "id": "28a3ee9c-e39b-4ff4-a5cb-e7b186f0f367",
+      "name": "Health",
       "description": {
         "content": "Health check operations",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "d2c0d5c1-136f-4ace-99ea-ad2420b6e0ac",
-          "name": "Liveness Check",
+          "id": "d4dcdbeb-3375-4495-b7e7-91c58da7fce8",
+          "name": "Liveness check",
           "request": {
-            "name": "Liveness Check",
-            "description": {},
+            "name": "Liveness check",
+            "description": {
+              "content": "Returns 200 if the server process is alive.",
+              "type": "text/plain"
+            },
             "url": {
               "path": [
                 "health",
@@ -49,8 +52,8 @@
           },
           "response": [
             {
-              "id": "a2938210-93d3-4155-ba4e-48b208f0626e",
-              "name": "OK",
+              "id": "3d8dbc67-5aca-466c-ad38-b4669d4108a1",
+              "name": "Service is alive",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -96,55 +99,6 @@
               "body": "",
               "cookie": [],
               "_postman_previewlanguage": "text"
-            },
-            {
-              "id": "92ede044-0185-47da-82d9-958adedd9906",
-              "name": "Service Unavailable",
-              "originalRequest": {
-                "url": {
-                  "path": [
-                    "health",
-                    "liveness"
-                  ],
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "query": [],
-                  "variable": [
-                    {
-                      "description": {
-                        "content": "",
-                        "type": "text/plain"
-                      },
-                      "type": "any",
-                      "value": "{{host}}",
-                      "key": "host"
-                    },
-                    {
-                      "description": {
-                        "content": "",
-                        "type": "text/plain"
-                      },
-                      "type": "any",
-                      "value": "{{port}}",
-                      "key": "port"
-                    }
-                  ]
-                },
-                "method": "GET",
-                "body": {}
-              },
-              "status": "Service Unavailable",
-              "code": 503,
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "text/plain"
-                }
-              ],
-              "body": "",
-              "cookie": [],
-              "_postman_previewlanguage": "text"
             }
           ],
           "event": [],
@@ -153,12 +107,12 @@
           }
         },
         {
-          "id": "ece65746-815d-49f8-8836-ba26bc20fc62",
+          "id": "f2a459f0-e074-40e0-94ef-1321a184738a",
           "name": "Readiness check",
           "request": {
             "name": "Readiness check",
             "description": {
-              "content": "Returns OK if the service is ready to accept traffic.",
+              "content": "Returns 200 if the service is ready to accept traffic.",
               "type": "text/plain"
             },
             "url": {
@@ -202,7 +156,7 @@
           },
           "response": [
             {
-              "id": "846bf40d-5d5e-4ab7-b580-63dbabbadf26",
+              "id": "a6820e39-75ea-48d6-a1b1-58f903572c21",
               "name": "Service is ready",
               "originalRequest": {
                 "url": {
@@ -257,7 +211,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "fb279771-08e2-4693-898b-3e65f8715827",
+              "id": "8447596f-6a54-403d-81b4-053e33352489",
               "name": "Service is not ready",
               "originalRequest": {
                 "url": {
@@ -348,11 +302,11 @@
     }
   ],
   "info": {
-    "_postman_id": "9cb7124a-6a22-4450-8ebd-0571211ddae4",
+    "_postman_id": "8d3af01e-ecbe-43a6-a9e3-43b0ea20e00b",
     "name": "Health Check API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
-      "content": "This API is used to retrieve health status of the server including readiness and liveness checks.",
+      "content": "Check server health for liveness and readiness probes. Used by load balancers and orchestrators to determine instance availability.",
       "type": "text/plain"
     }
   }

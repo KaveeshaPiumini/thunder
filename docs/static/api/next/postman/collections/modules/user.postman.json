@@ -1,15 +1,15 @@
 {
   "item": [
     {
-      "id": "449b78c5-17ce-4bcd-9681-6afa51e0cd5f",
-      "name": "users",
+      "id": "629b43d9-6007-4aba-a915-c66a7fdd47ca",
+      "name": "Users",
       "description": {
-        "content": "Operations related to user management",
+        "content": "CRUD operations for user accounts including attribute management, role assignment, and group membership.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "05cb1ddd-8919-4e90-95aa-eb30b3faa76d",
+          "id": "05f18e3b-0936-4033-b316-29b924a24e0e",
           "name": "List users",
           "request": {
             "name": "List users",
@@ -79,7 +79,7 @@
           },
           "response": [
             {
-              "id": "0261feab-c7df-44e6-9931-180abcf6e9a2",
+              "id": "250ee571-08c2-4043-bcfa-d1e036b6006d",
               "name": "List of users",
               "originalRequest": {
                 "url": {
@@ -153,12 +153,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"totalResults\": \"<integer>\",\n  \"startIndex\": \"<integer>\",\n  \"count\": \"<integer>\",\n  \"users\": [\n    {\n      \"id\": \"<uuid>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"type\": \"<string>\",\n      \"attributes\": {\n        \"Ut75\": true,\n        \"in9\": -78706901\n      },\n      \"display\": \"<string>\"\n    },\n    {\n      \"id\": \"<uuid>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"type\": \"<string>\",\n      \"attributes\": {\n        \"Excepteur_6_\": \"pariatur nulla sed velit\"\n      },\n      \"display\": \"<string>\"\n    }\n  ],\n  \"links\": [\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    },\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    }\n  ]\n}",
+              "body": "{\n  \"totalResults\": \"<integer>\",\n  \"startIndex\": \"<integer>\",\n  \"count\": \"<integer>\",\n  \"users\": [\n    {\n      \"id\": \"<uuid>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"type\": \"<string>\",\n      \"attributes\": {\n        \"dolord0d\": false,\n        \"officia_1\": 60654351.70579466\n      },\n      \"display\": \"<string>\",\n      \"isReadOnly\": \"<boolean>\"\n    },\n    {\n      \"id\": \"<uuid>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"type\": \"<string>\",\n      \"attributes\": {\n        \"proident3\": 10877177,\n        \"idb3c\": 44619026\n      },\n      \"display\": \"<string>\",\n      \"isReadOnly\": \"<boolean>\"\n    }\n  ],\n  \"links\": [\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    },\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "da565ef2-97f0-4244-bce7-73c8c756d910",
+              "id": "9f0443cc-edc2-4199-8411-82ce9e0ae57e",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -237,7 +237,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "018ed9be-b3e6-4daa-8e80-de2b23b560e7",
+              "id": "9de864eb-d9c3-4e65-8fb7-7e016dc69637",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -318,7 +318,7 @@
           }
         },
         {
-          "id": "17c17015-226e-42de-bbe7-843bd3af2b9b",
+          "id": "55d2610f-ac2e-4126-bf95-24737d20948a",
           "name": "Create a new user",
           "request": {
             "name": "Create a new user",
@@ -366,7 +366,7 @@
             "auth": null,
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"autef\": 48867683,\n    \"do__e\": 58728596\n  }\n}",
+              "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"proident6_9\": -80922763\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -376,7 +376,7 @@
           },
           "response": [
             {
-              "id": "4b593b8e-dcdf-4997-81ee-d05485792d05",
+              "id": "91af1293-3288-4df2-bd1f-e018261533d7",
               "name": "User created",
               "originalRequest": {
                 "url": {
@@ -425,7 +425,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"aliqua_a56\": -93991673\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"proident6_9\": -80922763\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -441,12 +441,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deserunt_7\": -80959916.41447768,\n    \"quis_3fe\": false\n  },\n  \"display\": \"<string>\"\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"Loremf\": \"officia Ut\",\n    \"ipsum1_\": 24321815\n  },\n  \"display\": \"<string>\",\n  \"isReadOnly\": \"<boolean>\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "7e234b48-ce93-467b-a767-e05d53bbe325",
+              "id": "efecafc8-4fb0-4186-8679-40ff0d6461ca",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -495,7 +495,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"aliqua_a56\": -93991673\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"proident6_9\": -80922763\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -516,7 +516,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5a6d09a0-87c6-4e0c-a0dc-5eb6bd0fc0b2",
+              "id": "520241ec-e3cd-4ee1-9b2d-844539547ad9",
               "name": "Conflict",
               "originalRequest": {
                 "url": {
@@ -565,7 +565,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"aliqua_a56\": -93991673\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"proident6_9\": -80922763\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -586,7 +586,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "212eb558-4f4c-46ff-9b6b-dd6b4bb8e2e8",
+              "id": "9b75f153-4e29-4f33-a198-4e48b0a653c9",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -631,7 +631,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"aliqua_a56\": -93991673\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"proident6_9\": -80922763\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -658,7 +658,7 @@
           }
         },
         {
-          "id": "bf29bad2-e3df-44c0-962f-cecb598f0b33",
+          "id": "eba77de4-7a76-424b-ac63-9b024c7fb132",
           "name": "Get a user by id",
           "request": {
             "name": "Get a user by id",
@@ -718,7 +718,7 @@
           },
           "response": [
             {
-              "id": "03cbd020-1b2a-4811-b423-d70680e90877",
+              "id": "5d387e95-b205-43bc-9dd2-750427106fe3",
               "name": "User details",
               "originalRequest": {
                 "url": {
@@ -788,12 +788,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deserunt_7\": -80959916.41447768,\n    \"quis_3fe\": false\n  },\n  \"display\": \"<string>\"\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"Loremf\": \"officia Ut\",\n    \"ipsum1_\": 24321815\n  },\n  \"display\": \"<string>\",\n  \"isReadOnly\": \"<boolean>\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "fde6d61c-1ea8-4753-a137-ee8ff192cbed",
+              "id": "2f6caf24-4f33-401c-8b13-c700eef9c962",
               "name": "User not found",
               "originalRequest": {
                 "url": {
@@ -864,7 +864,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "611bbecc-046e-449e-b44c-9a42a6e71d4f",
+              "id": "ca79ef40-c4d3-4b88-a4de-4f3a65ad77fb",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -941,7 +941,7 @@
           }
         },
         {
-          "id": "da9aa944-ddc5-4ee1-868e-b47a628e43ba",
+          "id": "d1a5d323-d0a9-42dc-882f-1eb49c6aaa28",
           "name": "Update a user by id",
           "request": {
             "name": "Update a user by id",
@@ -997,7 +997,7 @@
             "auth": null,
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"aliqua26\": 94462779\n  }\n}",
+              "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"ullamco_e\": false\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1007,7 +1007,7 @@
           },
           "response": [
             {
-              "id": "1bbe916e-a223-4b3b-bb0b-5c8eef1d1d0e",
+              "id": "57f0a2e5-0f10-4f29-ab97-c5dc04b8bd9e",
               "name": "User updated",
               "originalRequest": {
                 "url": {
@@ -1064,7 +1064,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"ameta56\": \"exercitation dolore esse nulla sunt\",\n    \"aliquip_bf\": \"eu aliqua\",\n    \"nulla8\": -77134040,\n    \"cillum_56\": false\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"ullamco_e\": false\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1080,12 +1080,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deserunt_7\": -80959916.41447768,\n    \"quis_3fe\": false\n  },\n  \"display\": \"<string>\"\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"Loremf\": \"officia Ut\",\n    \"ipsum1_\": 24321815\n  },\n  \"display\": \"<string>\",\n  \"isReadOnly\": \"<boolean>\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e28c5c07-694a-4d16-a660-d685bf770f78",
+              "id": "d640a164-762c-46cc-873b-07e624a325e0",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -1142,7 +1142,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"ameta56\": \"exercitation dolore esse nulla sunt\",\n    \"aliquip_bf\": \"eu aliqua\",\n    \"nulla8\": -77134040,\n    \"cillum_56\": false\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"ullamco_e\": false\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1163,7 +1163,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "bdbbca85-2fdc-471e-a368-578b8f5b5a5b",
+              "id": "6adc747f-35d6-4112-8915-554fa7fcaca8",
               "name": "User not found",
               "originalRequest": {
                 "url": {
@@ -1220,7 +1220,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"ameta56\": \"exercitation dolore esse nulla sunt\",\n    \"aliquip_bf\": \"eu aliqua\",\n    \"nulla8\": -77134040,\n    \"cillum_56\": false\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"ullamco_e\": false\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1241,7 +1241,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b82a2d11-2ba5-4fb7-a927-42d15a88952a",
+              "id": "4050d1b8-97ef-4db5-8868-8d276ea44ed0",
               "name": "Conflict",
               "originalRequest": {
                 "url": {
@@ -1298,7 +1298,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"ameta56\": \"exercitation dolore esse nulla sunt\",\n    \"aliquip_bf\": \"eu aliqua\",\n    \"nulla8\": -77134040,\n    \"cillum_56\": false\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"ullamco_e\": false\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1319,7 +1319,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "361db22f-bd95-4507-a67c-47db0740ee0c",
+              "id": "55e26ee6-942a-4a5d-8760-85c1e33e1416",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -1372,7 +1372,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"ameta56\": \"exercitation dolore esse nulla sunt\",\n    \"aliquip_bf\": \"eu aliqua\",\n    \"nulla8\": -77134040,\n    \"cillum_56\": false\n  }\n}",
+                  "raw": "{\n  \"ouId\": \"<uuid>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"ullamco_e\": false\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1399,7 +1399,7 @@
           }
         },
         {
-          "id": "7a3b8a74-42df-4b97-a342-5e8d2e4c238a",
+          "id": "2c38108b-4221-4da8-96b1-d6d942882cb6",
           "name": "Delete a user by id",
           "request": {
             "name": "Delete a user by id",
@@ -1441,12 +1441,18 @@
                 }
               ]
             },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "method": "DELETE",
             "auth": null
           },
           "response": [
             {
-              "id": "5baf42a2-0441-457b-a7b9-b4e97dbcc53c",
+              "id": "b3cbb710-0e14-4aa8-9a99-422e37a67d0c",
               "name": "User deleted",
               "originalRequest": {
                 "url": {
@@ -1512,7 +1518,77 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "fbf59213-202a-4c87-980e-81948d0050a0",
+              "id": "1782d800-e0ce-4df1-bf25-e048e9107945",
+              "name": "Bad request",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "users",
+                    ":id"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<uuid>",
+                      "key": "id",
+                      "description": "(Required) "
+                    },
+                    {
+                      "description": {
+                        "content": "",
+                        "type": "text/plain"
+                      },
+                      "type": "any",
+                      "value": "{{host}}",
+                      "key": "host"
+                    },
+                    {
+                      "description": {
+                        "content": "",
+                        "type": "text/plain"
+                      },
+                      "type": "any",
+                      "value": "{{port}}",
+                      "key": "port"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: oauth2",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "<token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "body": {}
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": \"<string>\",\n  \"message\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  },\n  \"description\": {\n    \"key\": \"<string>\",\n    \"defaultValue\": \"<string>\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "5e325c69-23cb-4efa-8b5f-0dad800549f5",
               "name": "User not found",
               "originalRequest": {
                 "url": {
@@ -1578,7 +1654,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "ea6df0f0-0a7a-444e-b71e-9009d3995e80",
+              "id": "ca17caa7-556f-4dfe-89c2-7516316a839f",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -1650,7 +1726,7 @@
           }
         },
         {
-          "id": "da1e2f44-b980-4443-8bfc-c799b580592c",
+          "id": "0aceb0b8-5ba7-4daf-be75-b633f53bb274",
           "name": "List groups that the user belongs to",
           "request": {
             "name": "List groups that the user belongs to",
@@ -1717,7 +1793,7 @@
           },
           "response": [
             {
-              "id": "12b8ea60-0c87-452c-b200-675598cb7ab7",
+              "id": "e9449b37-9230-474f-987f-9acca6fbc418",
               "name": "List of groups that the user belongs to",
               "originalRequest": {
                 "url": {
@@ -1797,7 +1873,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "03b7471a-3517-4ebc-944a-d40f341322a1",
+              "id": "95be2f90-f02c-4366-84f0-0b91b850c70d",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -1877,7 +1953,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e36911ce-e58b-4f3a-9348-e1a0830ed552",
+              "id": "15b15be6-edd8-4c0f-84f0-2dac707c3480",
               "name": "User not found",
               "originalRequest": {
                 "url": {
@@ -1957,7 +2033,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "155c5f79-014f-4094-90cc-bec220e10695",
+              "id": "f9dd40a6-33b4-4378-9f61-c496178d083f",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -2046,15 +2122,15 @@
       "event": []
     },
     {
-      "id": "787e095b-8f0b-489b-9b1b-5c4fa1d2b05b",
+      "id": "d8366ada-b7dd-4997-817e-d100128599c9",
       "name": "users-by-path",
       "description": {
-        "content": "Operations related to user management using hierarchical handle paths",
+        "content": "Create and list users within an organization unit identified by its handle path.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "1a8dff66-825d-47ba-a34d-b5fe2c9c1d12",
+          "id": "891062ee-ea9a-4c8a-8a36-ca93fa3c25d4",
           "name": "List users in organization unit specified by handle path",
           "request": {
             "name": "List users in organization unit specified by handle path",
@@ -2133,7 +2209,7 @@
           },
           "response": [
             {
-              "id": "7bde382e-d971-466d-b06d-2b7fbccf6156",
+              "id": "8fdc929f-ddca-4ed4-83f4-c7f3994ded06",
               "name": "List of users in the organization unit",
               "originalRequest": {
                 "url": {
@@ -2216,12 +2292,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"totalResults\": \"<integer>\",\n  \"startIndex\": \"<integer>\",\n  \"count\": \"<integer>\",\n  \"users\": [\n    {\n      \"id\": \"<uuid>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"type\": \"<string>\",\n      \"attributes\": {\n        \"ipsum_3e\": \"dolor in aliquip\",\n        \"irure__\": -94961591\n      },\n      \"display\": \"<string>\"\n    },\n    {\n      \"id\": \"<uuid>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"type\": \"<string>\",\n      \"attributes\": {\n        \"reprehenderit9\": \"cillum pariatur\",\n        \"occaecat___2\": -90583711,\n        \"reprehenderit_4c\": \"et in\"\n      },\n      \"display\": \"<string>\"\n    }\n  ],\n  \"links\": [\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    },\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    }\n  ]\n}",
+              "body": "{\n  \"totalResults\": \"<integer>\",\n  \"startIndex\": \"<integer>\",\n  \"count\": \"<integer>\",\n  \"users\": [\n    {\n      \"id\": \"<uuid>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"type\": \"<string>\",\n      \"attributes\": {\n        \"nulla_57\": 14938096\n      },\n      \"display\": \"<string>\",\n      \"isReadOnly\": \"<boolean>\"\n    },\n    {\n      \"id\": \"<uuid>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"type\": \"<string>\",\n      \"attributes\": {\n        \"velit3d_\": 66389438.80450195\n      },\n      \"display\": \"<string>\",\n      \"isReadOnly\": \"<boolean>\"\n    }\n  ],\n  \"links\": [\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    },\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "86a4819a-2aff-4106-9194-d03f6fad000f",
+              "id": "79b52d2f-a5bb-4898-ac5e-ebc51893f49c",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -2309,7 +2385,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d751cfd7-06ce-4820-b011-4dfdc1ba26ac",
+              "id": "701d07dd-0235-4fa6-a0ab-f282057b15b4",
               "name": "Organization unit not found",
               "originalRequest": {
                 "url": {
@@ -2397,7 +2473,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "91672c33-8d99-4807-ad90-558c54a11130",
+              "id": "e2d0942d-ab40-45fd-92d1-e655e1edbb3d",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -2491,7 +2567,7 @@
           }
         },
         {
-          "id": "499f94b6-0abe-48bd-a709-9d995423b7c8",
+          "id": "9b922cbf-dde9-4e49-afba-307e00e1d690",
           "name": "Create a new user under the organization unit specified by the handle path",
           "request": {
             "name": "Create a new user under the organization unit specified by the handle path",
@@ -2548,7 +2624,7 @@
             "auth": null,
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"enim_0c\": \"laboris magna nostrud\"\n  }\n}",
+              "raw": "{\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deseruntf6\": -26354145.068388537\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2558,7 +2634,7 @@
           },
           "response": [
             {
-              "id": "d9932d92-8b60-4231-8def-7f552d453b0a",
+              "id": "24b5bbf4-9013-4154-a133-193afbceb32b",
               "name": "User created",
               "originalRequest": {
                 "url": {
@@ -2616,7 +2692,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"minim_4b\": 78850203.89211467\n  }\n}",
+                  "raw": "{\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deseruntf6\": -26354145.068388537\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2632,12 +2708,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deserunt_7\": -80959916.41447768,\n    \"quis_3fe\": false\n  },\n  \"display\": \"<string>\"\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"Loremf\": \"officia Ut\",\n    \"ipsum1_\": 24321815\n  },\n  \"display\": \"<string>\",\n  \"isReadOnly\": \"<boolean>\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "090da27c-53f3-4077-a57e-821a7d7f7c72",
+              "id": "52a53a36-7a4b-4e4e-a51f-c06f1fc80a8e",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -2695,7 +2771,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"minim_4b\": 78850203.89211467\n  }\n}",
+                  "raw": "{\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deseruntf6\": -26354145.068388537\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2716,7 +2792,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "91f092f8-66be-4f3c-acfd-ce69f71ef2d4",
+              "id": "5568f1cd-13f9-44ca-8c28-479c6937a5ca",
               "name": "Organization unit not found",
               "originalRequest": {
                 "url": {
@@ -2774,7 +2850,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"minim_4b\": 78850203.89211467\n  }\n}",
+                  "raw": "{\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deseruntf6\": -26354145.068388537\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2795,7 +2871,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "a46ccc33-61f4-4c20-85f5-76f9efe465c7",
+              "id": "f8ac33e8-6a03-4f19-9912-db61c2544d30",
               "name": "Conflict",
               "originalRequest": {
                 "url": {
@@ -2853,7 +2929,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"minim_4b\": 78850203.89211467\n  }\n}",
+                  "raw": "{\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deseruntf6\": -26354145.068388537\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2874,7 +2950,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d5ed2b34-7af0-4a3c-b2c2-e5040bf3db4b",
+              "id": "381bafea-c55f-4d6e-b282-da40f3b49c5e",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -2932,7 +3008,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"type\": \"<string>\",\n  \"groups\": [\n    \"<uuid>\",\n    \"<uuid>\"\n  ],\n  \"attributes\": {\n    \"minim_4b\": 78850203.89211467\n  }\n}",
+                  "raw": "{\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deseruntf6\": -26354145.068388537\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2962,15 +3038,15 @@
       "event": []
     },
     {
-      "id": "192e49be-8307-447a-87c6-6cb8f9941e49",
-      "name": "self",
+      "id": "b259816d-8b3f-4ece-b9f0-a8a5bbe8e3ec",
+      "name": "Self",
       "description": {
-        "content": "Self service operations related to the user",
+        "content": "Self-service operations that the authenticated user performs on their own profile.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "cab9989b-87c7-4357-8225-175dbbbb2c70",
+          "id": "29c3d888-7212-4bb5-bfff-d79ffc3fa896",
           "name": "Get self user profile",
           "request": {
             "name": "Get self user profile",
@@ -3036,7 +3112,7 @@
           },
           "response": [
             {
-              "id": "f9caf9f7-f6c9-4642-8af7-2a8a6e87428b",
+              "id": "4b54adc1-5e32-469c-aa01-6dcb45b44603",
               "name": "User details",
               "originalRequest": {
                 "url": {
@@ -3094,13 +3170,13 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deserunt_7\": -80959916.41447768,\n    \"quis_3fe\": false\n  },\n  \"display\": \"<string>\"\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"Loremf\": \"officia Ut\",\n    \"ipsum1_\": 24321815\n  },\n  \"display\": \"<string>\",\n  \"isReadOnly\": \"<boolean>\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "8f120f73-dbc8-4080-bd6f-14f6e250958d",
-              "name": "Unauthorized - missing or invalid token",
+              "id": "97547597-1f99-4c50-8a85-ca4a62c8dece",
+              "name": "Unauthorized - missing or invalid authentication token",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -3162,7 +3238,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "44496dc7-445d-4523-bafc-c9d1791fe12c",
+              "id": "0a4c1631-c01b-4885-9544-26f345b5f1ff",
               "name": "Authenticated user not found",
               "originalRequest": {
                 "url": {
@@ -3225,7 +3301,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "16196fec-7675-4c0b-ac6a-5a4cfa9b7f47",
+              "id": "a325906e-0810-4d44-9f5a-705fcbd61bc8",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -3294,7 +3370,7 @@
           }
         },
         {
-          "id": "14dceed3-ce3d-4995-8487-1bc881ac62cd",
+          "id": "5888d4e7-b8c1-4d2e-8fdf-768951221071",
           "name": "Update self user profile",
           "request": {
             "name": "Update self user profile",
@@ -3363,7 +3439,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+              "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3373,7 +3449,7 @@
           },
           "response": [
             {
-              "id": "09b7fcaf-6a89-49e4-9dcc-c0517d7089bc",
+              "id": "bfb12c5a-58ba-4ff8-b141-45f1daff19d3",
               "name": "User updated",
               "originalRequest": {
                 "url": {
@@ -3423,7 +3499,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3439,12 +3515,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"deserunt_7\": -80959916.41447768,\n    \"quis_3fe\": false\n  },\n  \"display\": \"<string>\"\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"ouId\": \"<uuid>\",\n  \"ouHandle\": \"<string>\",\n  \"type\": \"<string>\",\n  \"attributes\": {\n    \"Loremf\": \"officia Ut\",\n    \"ipsum1_\": 24321815\n  },\n  \"display\": \"<string>\",\n  \"isReadOnly\": \"<boolean>\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "1a180af3-612c-43af-8055-54876cd5c906",
+              "id": "3419aae8-064b-4baf-af97-beebb4dd2f39",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -3494,7 +3570,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3515,8 +3591,8 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "072b78b3-7664-46b5-ac99-c1d56ed5dfba",
-              "name": "Unauthorized - missing or invalid token",
+              "id": "19ec2e3b-cc86-4e68-b720-076abdf890a3",
+              "name": "Unauthorized - missing or invalid authentication token",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -3565,7 +3641,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3586,7 +3662,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b6684d2c-4476-40e6-aac4-f89d9eb91a53",
+              "id": "3a69828c-9e95-4c01-87bb-e4932ab10ec7",
               "name": "Authenticated user not found",
               "originalRequest": {
                 "url": {
@@ -3636,7 +3712,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3657,7 +3733,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "383656a8-938e-494c-993e-83de82670423",
+              "id": "dea89416-7089-463a-b91e-bbd018729bee",
               "name": "Conflict",
               "originalRequest": {
                 "url": {
@@ -3707,7 +3783,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3728,7 +3804,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "80390ac1-2743-43cb-b255-9849122804af",
+              "id": "cb865b81-b157-4ea3-b697-be1e9712811d",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -3778,7 +3854,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3805,7 +3881,7 @@
           }
         },
         {
-          "id": "9d8dd5c0-7cbb-4a70-9566-3f00f807aa55",
+          "id": "6111fba2-78cf-4440-b1d4-89953280526a",
           "name": "Update self user credentials",
           "request": {
             "name": "Update self user credentials",
@@ -3875,7 +3951,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+              "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3885,7 +3961,7 @@
           },
           "response": [
             {
-              "id": "0a471080-e92d-4967-bcbb-37bbd6cc3af9",
+              "id": "a0c54e84-b801-45b6-a764-85858c27e958",
               "name": "Credentials updated",
               "originalRequest": {
                 "url": {
@@ -3932,7 +4008,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3953,7 +4029,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "2c90b150-0d11-4595-9223-411d2e0f44fd",
+              "id": "2b523b76-2d2f-4edf-8342-594e419cf2bd",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
@@ -4004,7 +4080,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4025,8 +4101,8 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "3c7edac5-9da3-493d-b9c8-cf62853ac36e",
-              "name": "Unauthorized - missing or invalid token",
+              "id": "9dc108f5-ad88-4f24-ac40-b8206f3dc9c8",
+              "name": "Unauthorized - missing or invalid authentication token",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -4076,7 +4152,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4097,7 +4173,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "377763b7-9cc9-4b63-978e-2d1d97577d1d",
+              "id": "e1f83c24-b232-488b-8a41-326c656b7497",
               "name": "Authenticated user not found",
               "originalRequest": {
                 "url": {
@@ -4148,7 +4224,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4169,7 +4245,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5dc48eb9-da5e-4bf1-b525-044b0058292a",
+              "id": "18f02755-4a7f-41a2-9913-c75552f1208e",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
@@ -4220,7 +4296,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"attributes\": {\n    \"reprehenderit01\": \"consequat in velit\",\n    \"do_2\": true,\n    \"id_ca\": 49947657,\n    \"voluptate_7b\": 19794405\n  }\n}",
+                  "raw": "{\n  \"attributes\": {\n    \"do6\": 4846016,\n    \"reprehenderit_fc\": 87520930.75606671\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4250,15 +4326,15 @@
       "event": []
     },
     {
-      "id": "c4869820-aa84-4ea7-a787-c35782c17a9a",
-      "name": "user-schemas",
+      "id": "c7689b61-f655-4456-8b34-54fa3dd55e17",
+      "name": "User Types",
       "description": {
-        "content": "Operations related to user type schema management",
+        "content": "Manage user type schemas that define the attribute structure for different user categories.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "ed8f520f-2bbb-4561-a13f-8750977e8bd9",
+          "id": "3cabbb9a-c464-4757-9bf3-1877b569729c",
           "name": "List user type schemas",
           "request": {
             "name": "List user type schemas",
@@ -4268,7 +4344,7 @@
             },
             "url": {
               "path": [
-                "user-schemas"
+                "user-types"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -4325,12 +4401,12 @@
           },
           "response": [
             {
-              "id": "47ca93cc-e470-4b40-9262-052c8e86b871",
+              "id": "ec93aea8-65b6-46bc-90f4-7939bf6c76c9",
               "name": "List of user type schemas",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas"
+                    "user-types"
                   ],
                   "host": [
                     "{{baseUrl}}"
@@ -4395,17 +4471,17 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"totalResults\": \"<integer>\",\n  \"startIndex\": \"<integer>\",\n  \"count\": \"<integer>\",\n  \"schemas\": [\n    {\n      \"id\": \"<uuid>\",\n      \"name\": \"<string>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"allowSelfRegistration\": false,\n      \"systemAttributes\": {\n        \"display\": \"<string>\"\n      }\n    },\n    {\n      \"id\": \"<uuid>\",\n      \"name\": \"<string>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"allowSelfRegistration\": false,\n      \"systemAttributes\": {\n        \"display\": \"<string>\"\n      }\n    }\n  ],\n  \"links\": [\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    },\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    }\n  ]\n}",
+              "body": "{\n  \"totalResults\": \"<integer>\",\n  \"startIndex\": \"<integer>\",\n  \"count\": \"<integer>\",\n  \"types\": [\n    {\n      \"id\": \"<uuid>\",\n      \"name\": \"<string>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"allowSelfRegistration\": false,\n      \"systemAttributes\": {\n        \"display\": \"<string>\"\n      }\n    },\n    {\n      \"id\": \"<uuid>\",\n      \"name\": \"<string>\",\n      \"ouId\": \"<uuid>\",\n      \"ouHandle\": \"<string>\",\n      \"allowSelfRegistration\": false,\n      \"systemAttributes\": {\n        \"display\": \"<string>\"\n      }\n    }\n  ],\n  \"links\": [\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    },\n    {\n      \"href\": \"<string>\",\n      \"rel\": \"<string>\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d778e636-957d-42c3-b684-94c18e25dc78",
+              "id": "a12c42ce-dbfe-4dc3-a8f8-a60e3a83851b",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas"
+                    "user-types"
                   ],
                   "host": [
                     "{{baseUrl}}"
@@ -4475,12 +4551,12 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "4dcd6912-e708-4e6d-bef0-7336f5b7fa81",
+              "id": "8c1a2cf8-47ad-4313-9cd0-4a219fa1a8d5",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas"
+                    "user-types"
                   ],
                   "host": [
                     "{{baseUrl}}"
@@ -4552,7 +4628,7 @@
           }
         },
         {
-          "id": "4bb6d1c8-4e12-48e4-bce9-e1a20957c9db",
+          "id": "bf4fcda9-a01b-421e-b6b3-ac2f573ca236",
           "name": "Create a new user type schema",
           "request": {
             "name": "Create a new user type schema",
@@ -4562,7 +4638,7 @@
             },
             "url": {
               "path": [
-                "user-schemas"
+                "user-types"
               ],
               "host": [
                 "{{baseUrl}}"
@@ -4603,7 +4679,7 @@
             "auth": null,
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"consequatb80\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"consectetur63e\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+              "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"nulla6\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"quise\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4613,12 +4689,12 @@
           },
           "response": [
             {
-              "id": "2ac6fa4b-6091-472f-ad39-d068a188c59a",
-              "name": "User schema created",
+              "id": "7b3e5bc6-43a4-4906-8b4c-b190ca9a9609",
+              "name": "User type created",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas"
+                    "user-types"
                   ],
                   "host": [
                     "{{baseUrl}}"
@@ -4662,7 +4738,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"ut2e\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"incididunt_1b0\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"doloref\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"labore_e9d\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"consequat_59\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4678,17 +4754,17 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"et7b\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"in33\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"ouHandle\": \"<string>\",\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"nostrud1\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"reprehenderit_cec\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"ouHandle\": \"<string>\",\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "307fbc9d-81d2-440b-941b-4d151278a713",
+              "id": "32057293-26c6-44fe-b8fb-e27489416d9e",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas"
+                    "user-types"
                   ],
                   "host": [
                     "{{baseUrl}}"
@@ -4732,7 +4808,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"ut2e\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"incididunt_1b0\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"doloref\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"labore_e9d\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"consequat_59\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4753,12 +4829,12 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "cbab3ad5-e577-41b4-9573-3f26e8eb68be",
+              "id": "f883c504-1bb5-4493-b54e-8a0f2fb76a96",
               "name": "Conflict",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas"
+                    "user-types"
                   ],
                   "host": [
                     "{{baseUrl}}"
@@ -4802,7 +4878,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"ut2e\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"incididunt_1b0\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"doloref\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"labore_e9d\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"consequat_59\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4823,12 +4899,12 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "a4886fca-cebd-4200-8b13-253f2754c0ae",
+              "id": "b7c2dd9a-4cd7-4035-9f2b-09a6aa8e3a77",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas"
+                    "user-types"
                   ],
                   "host": [
                     "{{baseUrl}}"
@@ -4868,7 +4944,7 @@
                 "method": "POST",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"ut2e\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"incididunt_1b0\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"doloref\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"labore_e9d\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"consequat_59\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4895,7 +4971,7 @@
           }
         },
         {
-          "id": "8abb9344-fd51-498d-8323-feee03960557",
+          "id": "1790362f-ec3f-4032-bb7d-45542efef028",
           "name": "Get a user type schema by ID",
           "request": {
             "name": "Get a user type schema by ID",
@@ -4905,7 +4981,7 @@
             },
             "url": {
               "path": [
-                "user-schemas",
+                "user-types",
                 ":id"
               ],
               "host": [
@@ -4958,12 +5034,12 @@
           },
           "response": [
             {
-              "id": "c671434f-799c-4d75-aba7-038ac63d4cd9",
-              "name": "User schema details",
+              "id": "dad89d10-8b8d-4d81-beb0-a2b4702c5207",
+              "name": "User type details",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5028,17 +5104,17 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"et7b\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"in33\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"ouHandle\": \"<string>\",\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"nostrud1\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"reprehenderit_cec\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"ouHandle\": \"<string>\",\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "8287f8af-0e3a-4793-819f-1180a08e8568",
-              "name": "User schema not found",
+              "id": "f1113fcb-b3c8-4633-a94b-06cd518bf34c",
+              "name": "User type not found",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5108,12 +5184,12 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "35c8cd8d-65b5-4375-b211-338997557f77",
+              "id": "87878aa1-f227-4e06-8ef5-546026e933c6",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5185,7 +5261,7 @@
           }
         },
         {
-          "id": "5248e1bb-7c3f-43f4-88c3-c1ca1b4f5e4a",
+          "id": "77492300-942b-4aa3-a14d-4ac3b0c49a6a",
           "name": "Update a user type schema by ID",
           "request": {
             "name": "Update a user type schema by ID",
@@ -5195,7 +5271,7 @@
             },
             "url": {
               "path": [
-                "user-schemas",
+                "user-types",
                 ":id"
               ],
               "host": [
@@ -5244,7 +5320,7 @@
             "auth": null,
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"id_d_\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"deserunt_91c\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+              "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"aliqua8a2\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"esse_e5f\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5254,12 +5330,12 @@
           },
           "response": [
             {
-              "id": "b84cffd1-13aa-4404-9a70-b8b7fd796007",
-              "name": "User schema updated",
+              "id": "ab0da06a-a518-4e64-9be5-ef0217f846f2",
+              "name": "User type updated",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5311,7 +5387,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"id_d_\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"deserunt_91c\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"aliqua8a2\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"esse_e5f\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5327,17 +5403,17 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"<uuid>\",\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"et7b\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"in33\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"ouHandle\": \"<string>\",\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+              "body": "{\n  \"id\": \"<uuid>\",\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"nostrud1\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"reprehenderit_cec\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"ouHandle\": \"<string>\",\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "4f3265bc-172a-4b37-93ac-60bf18d5e010",
+              "id": "99ffa975-c550-4b86-90fe-4159da45822d",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5389,7 +5465,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"id_d_\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"deserunt_91c\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"aliqua8a2\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"esse_e5f\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5410,12 +5486,12 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b99996cf-be30-4534-bd21-19a2efd7c418",
-              "name": "User schema not found",
+              "id": "5bbdfc3c-d0c6-44f4-a48e-8a72e7a27095",
+              "name": "User type not found",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5467,7 +5543,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"id_d_\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"deserunt_91c\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"aliqua8a2\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"esse_e5f\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5488,12 +5564,12 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "7de8955d-bc48-4bf5-8045-4ba85bad94f1",
-              "name": "User schema name already exists",
+              "id": "2aef21d3-92e9-4fd0-bf40-95fbc7a826fc",
+              "name": "User type name already exists",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5545,7 +5621,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"id_d_\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"deserunt_91c\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"aliqua8a2\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"esse_e5f\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5566,12 +5642,12 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "c5a6c890-7be1-4193-89f6-f8e2c9654a50",
+              "id": "66ce95b8-6fde-4281-a80a-98b5f6f85893",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5619,7 +5695,7 @@
                 "method": "PUT",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"id_d_\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"deserunt_91c\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
+                  "raw": "{\n  \"name\": \"<string>\",\n  \"ouId\": \"<uuid>\",\n  \"schema\": {\n    \"aliqua8a2\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    },\n    \"esse_e5f\": {\n      \"type\": \"<string>\",\n      \"required\": false,\n      \"unique\": false,\n      \"credential\": false,\n      \"enum\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"regex\": \"<string>\"\n    }\n  },\n  \"allowSelfRegistration\": false,\n  \"systemAttributes\": {\n    \"display\": \"<string>\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5646,7 +5722,7 @@
           }
         },
         {
-          "id": "788d0ad4-de44-4ecf-ac5d-5231a59bf29b",
+          "id": "bc219ba9-82b3-4d76-8dec-d69ac03cff51",
           "name": "Delete a user type schema by ID",
           "request": {
             "name": "Delete a user type schema by ID",
@@ -5656,7 +5732,7 @@
             },
             "url": {
               "path": [
-                "user-schemas",
+                "user-types",
                 ":id"
               ],
               "host": [
@@ -5702,12 +5778,12 @@
           },
           "response": [
             {
-              "id": "650c13a8-e032-4b8d-9898-570ae0c4cd20",
-              "name": "User schema deleted",
+              "id": "ed9ce076-da71-45a7-878f-99eb20cf73ef",
+              "name": "User type deleted",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5768,12 +5844,12 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "1d026d10-d383-4759-a432-cd2c9d40ccf3",
+              "id": "677a0f0f-e824-4fc8-b8e6-91a3840a3225",
               "name": "Bad request",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5838,12 +5914,12 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "bbad10ef-cc95-42a2-81b4-df9e644f20fb",
+              "id": "a6e17586-8549-4a41-9333-e79c05680c17",
               "name": "Internal server error",
               "originalRequest": {
                 "url": {
                   "path": [
-                    "user-schemas",
+                    "user-types",
                     ":id"
                   ],
                   "host": [
@@ -5937,35 +6013,53 @@
       "type": "string",
       "value": "https://{{host}}:{{port}}",
       "key": "baseUrl"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientSecret",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
     "type": "oauth2",
     "oauth2": [
       {
-        "key": "scope",
-        "value": "system"
+        "key": "grant_type",
+        "value": "client_credentials"
       },
       {
         "key": "accessTokenUrl",
         "value": "{{baseUrl}}/oauth2/token"
       },
       {
-        "key": "authUrl",
-        "value": "{{baseUrl}}/oauth2/authorize"
+        "key": "clientId",
+        "value": "{{clientId}}"
       },
       {
-        "key": "grant_type",
-        "value": "authorization_code"
+        "key": "clientSecret",
+        "value": "{{clientSecret}}"
+      },
+      {
+        "key": "scope",
+        "value": "system"
+      },
+      {
+        "key": "addTokenTo",
+        "value": "header"
       }
     ]
   },
   "info": {
-    "_postman_id": "2569c9ca-b5b5-4743-9745-33861c6554b4",
+    "_postman_id": "c364cd4a-5c6e-44e5-989e-cab2d9199cae",
     "name": "User Management API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
-      "content": "This API is used to manage users.",
+      "content": "Create, search, and manage user accounts. Covers full lifecycle operations, self-service profile management, and user type schema definitions.",
       "type": "text/plain"
     }
   }

@@ -1,15 +1,15 @@
 {
   "item": [
     {
-      "id": "87e9272a-a83a-4300-83de-9515694d012e",
+      "id": "25a1da37-17de-404c-81f8-b6b866c8caf7",
       "name": "Message Senders",
       "description": {
-        "content": "",
+        "content": "Message notification sender management operations.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "85299b6c-5c57-465a-9a92-ed87d8b130d7",
+          "id": "accc1ddb-ddb7-4dc4-a183-de1d9c230f69",
           "name": "List message notification senders",
           "request": {
             "name": "List message notification senders",
@@ -58,7 +58,7 @@
           },
           "response": [
             {
-              "id": "6d2d4c24-7018-4013-b1e7-d9df15fef9fe",
+              "id": "f268514b-64bc-41b5-9f0d-130f3c56964c",
               "name": "OK",
               "originalRequest": {
                 "url": {
@@ -121,7 +121,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "56121b4f-2501-42c7-b6bc-5e3059a8a765",
+              "id": "443d6206-69eb-462c-bdf2-0174e5d49f58",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -190,7 +190,7 @@
           }
         },
         {
-          "id": "d653f64b-bf14-43a9-8a01-43aac75f05ef",
+          "id": "ae016677-c295-456e-863d-b073e227a851",
           "name": "Create a new message notification sender",
           "request": {
             "name": "Create a new message notification sender",
@@ -252,7 +252,7 @@
           },
           "response": [
             {
-              "id": "87676a2d-c482-4f0a-add9-8de31c0e7804",
+              "id": "8151cd8c-76fd-47e8-a46a-a16bcfa6fd08",
               "name": "Created",
               "originalRequest": {
                 "url": {
@@ -323,7 +323,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "f4fe40a4-7ae1-4ee3-96d4-6d5de4fd051c",
+              "id": "0a2e7e04-26f8-4791-b8c4-5265df231615",
               "name": "Bad Request: The request body is malformed or contains invalid data",
               "originalRequest": {
                 "url": {
@@ -394,7 +394,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "a9f06ca0-a99f-4362-b9ef-9fc1bf713e4e",
+              "id": "a8ef465f-1bd6-4736-8d93-da9f4ebabb1a",
               "name": "Conflict: A message notification sender with the same name already exists",
               "originalRequest": {
                 "url": {
@@ -465,7 +465,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "1f6fa85c-7f53-4e05-88c8-3fdd9b21a155",
+              "id": "8d10d970-8e90-42e0-90dd-c199a600963c",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -542,7 +542,7 @@
           }
         },
         {
-          "id": "e28a7af4-6e30-4138-8398-3132ec4d1091",
+          "id": "72755d27-404c-42aa-8428-fd45d11d1ea1",
           "name": "Get a message notification sender by ID",
           "request": {
             "name": "Get a message notification sender by ID",
@@ -599,7 +599,7 @@
           },
           "response": [
             {
-              "id": "0171e196-9678-475c-8c62-2ad3efca4d99",
+              "id": "0ddb00f3-5286-466d-9dfe-87f2f79532d1",
               "name": "OK",
               "originalRequest": {
                 "url": {
@@ -670,7 +670,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "63b0a4e8-c664-4c67-95b7-d31aaa467bd7",
+              "id": "5f5e32c9-103f-408f-8962-5e803440abb8",
               "name": "Bad Request: Invalid sender ID provided",
               "originalRequest": {
                 "url": {
@@ -741,7 +741,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "62727d5b-ca4e-45a3-a162-54f51fcff6bf",
+              "id": "8047f0f2-df79-4bd8-82bc-283d4ae1239f",
               "name": "Not Found: The specified message notification sender does not exist",
               "originalRequest": {
                 "url": {
@@ -812,7 +812,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e5406faf-5883-4a51-9972-9e2d8687ae48",
+              "id": "60ac0dd7-96e7-4bc8-b13f-6219c8af6365",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -889,7 +889,7 @@
           }
         },
         {
-          "id": "de5c945c-64e5-4e6d-9120-349dbdbb5b89",
+          "id": "2f7e811f-790d-4f56-820b-f220238423e4",
           "name": "Update a message notification sender",
           "request": {
             "name": "Update a message notification sender",
@@ -959,7 +959,7 @@
           },
           "response": [
             {
-              "id": "c290b517-0a01-4e24-ac2e-059fc09ac5a9",
+              "id": "726a91dc-eb43-4f6c-9378-b872fe3d27f0",
               "name": "Updated successfully",
               "originalRequest": {
                 "url": {
@@ -1038,8 +1038,8 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "aa2bb8ef-57fd-4991-b524-6c92d0318de7",
-              "name": "Bad Request: The request body is malformed or contains invalid data",
+              "id": "21297f3a-8604-4900-9e49-f98d8dbe2e63",
+              "name": "Bad Request: Invalid sender ID or request body",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -1117,7 +1117,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "95e4ed0f-5a09-492f-81b3-c81397f4307d",
+              "id": "87cbe067-4c4c-4e03-90e6-c4b9de3f6ff0",
               "name": "Not Found: The specified message notification sender does not exist",
               "originalRequest": {
                 "url": {
@@ -1196,7 +1196,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "524af7db-5e2c-460d-8012-babf633ee9e5",
+              "id": "c504edfc-503d-4f7c-bd85-ecc21502246e",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -1281,7 +1281,7 @@
           }
         },
         {
-          "id": "f62be20e-ce31-4eb1-a0f9-ba236e6c60f0",
+          "id": "7db17f36-7bb3-42e4-9cd4-6826e4b45950",
           "name": "Delete a message notification sender",
           "request": {
             "name": "Delete a message notification sender",
@@ -1338,7 +1338,7 @@
           },
           "response": [
             {
-              "id": "7bd29474-446e-424f-ac6a-787547fd25bc",
+              "id": "79289c98-7a2c-4c39-8b64-c7bbd4f4e010",
               "name": "No Content - Successfully deleted the message notification sender",
               "originalRequest": {
                 "url": {
@@ -1405,7 +1405,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "69e07d6b-eaa6-4ff7-98dd-d1fe7b4fc82f",
+              "id": "a0cb49ec-a51d-4fdc-b8c3-e2eac4b7237d",
               "name": "Bad Request: Invalid sender ID provided",
               "originalRequest": {
                 "url": {
@@ -1476,7 +1476,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5876ede4-94f9-48af-9af5-c00750c0d839",
+              "id": "88d5a837-044d-42e5-adae-8bffc9d9fb43",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -1556,15 +1556,15 @@
       "event": []
     },
     {
-      "id": "d0c4bb2c-5208-4b94-a90b-8bfe2be31fa2",
+      "id": "510107b8-ab7d-49e5-9df7-6459e673ad3d",
       "name": "One Time Password (OTP)",
       "description": {
-        "content": "",
+        "content": "OTP sender and OTP dispatch operations.",
         "type": "text/plain"
       },
       "item": [
         {
-          "id": "d45ced71-9779-4f7f-8c2f-8013504762c0",
+          "id": "c3f5b9d0-b06d-47f1-b533-2ad4638ef688",
           "name": "Send a One Time Password (OTP)",
           "request": {
             "name": "Send a One Time Password (OTP)",
@@ -1627,7 +1627,7 @@
           },
           "response": [
             {
-              "id": "6bafcc7f-a77a-40a6-9f47-ebc3910a560a",
+              "id": "f81632f5-d27f-413c-ac80-ec94ed9131b4",
               "name": "OTP sent successfully",
               "originalRequest": {
                 "url": {
@@ -1694,12 +1694,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"status\": \"<string>\",\n  \"sessionToken\": \"<string>\"\n}",
+              "body": "{\n  \"sessionToken\": \"<string>\",\n  \"status\": \"<string>\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "70df99e0-9a0c-4778-929d-5f1228e7bd7d",
+              "id": "baeb9d27-022e-445f-ae40-3f5ebd2d17f8",
               "name": "Bad Request: The request body is malformed or contains invalid data",
               "originalRequest": {
                 "url": {
@@ -1771,7 +1771,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "1c2c8b92-6bbe-4074-9e5c-a28e0c8dd02b",
+              "id": "53447b29-7dd2-4776-82ae-4599f7962745",
               "name": "Not Found: The specified message notification sender does not exist",
               "originalRequest": {
                 "url": {
@@ -1843,7 +1843,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "c7dbf51f-72ee-4538-ab3d-1542daf563e0",
+              "id": "84d108e0-9b3e-4338-a7aa-ca21be1a9572",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -1921,7 +1921,7 @@
           }
         },
         {
-          "id": "6bfcc4ff-1618-44b2-8e1b-78a3752831be",
+          "id": "1e1d914d-c6c2-494d-8621-7a24c333bb60",
           "name": "Verify a One Time Password (OTP)",
           "request": {
             "name": "Verify a One Time Password (OTP)",
@@ -1984,7 +1984,7 @@
           },
           "response": [
             {
-              "id": "9ea43a9b-694b-49f1-ac3a-7a9717fa44b1",
+              "id": "6eada6f7-9ed5-4422-b47c-e9fbc6d2a628",
               "name": "OTP verified successfully",
               "originalRequest": {
                 "url": {
@@ -2056,8 +2056,8 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "0fb130f2-c25e-4441-a7c3-b76dfab5b6aa",
-              "name": "Bad Request: The request body is malformed or contains invalid data",
+              "id": "bb7f792a-1983-459a-8486-0b38981a9d43",
+              "name": "Bad Request: The request body is malformed or the session token is invalid",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -2128,7 +2128,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "8f5b88a5-75e1-4fb3-90d3-0d6bfa05bce2",
+              "id": "be8788ef-1dbc-4c29-85e1-d67e9801f7ac",
               "name": "Internal Server Error: An unexpected error occurred while processing the request",
               "originalRequest": {
                 "url": {
@@ -2233,35 +2233,53 @@
       "type": "string",
       "value": "https://{{host}}:{{port}}",
       "key": "baseUrl"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientSecret",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {
     "type": "oauth2",
     "oauth2": [
       {
-        "key": "scope",
-        "value": "system"
+        "key": "grant_type",
+        "value": "client_credentials"
       },
       {
         "key": "accessTokenUrl",
         "value": "{{baseUrl}}/oauth2/token"
       },
       {
-        "key": "authUrl",
-        "value": "{{baseUrl}}/oauth2/authorize"
+        "key": "clientId",
+        "value": "{{clientId}}"
       },
       {
-        "key": "grant_type",
-        "value": "authorization_code"
+        "key": "clientSecret",
+        "value": "{{clientSecret}}"
+      },
+      {
+        "key": "scope",
+        "value": "system"
+      },
+      {
+        "key": "addTokenTo",
+        "value": "header"
       }
     ]
   },
   "info": {
-    "_postman_id": "8e894fe0-f6d0-40ed-a596-55063d375834",
+    "_postman_id": "5a7c418e-5459-4a0f-8735-0fdeb44ba912",
     "name": "Notification Sender API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
-      "content": "This API is used to handle notification senders.",
+      "content": "Configure channels for sending OTP codes and notification messages to users. Supported providers include SMS gateways and email services.",
       "type": "text/plain"
     }
   }
