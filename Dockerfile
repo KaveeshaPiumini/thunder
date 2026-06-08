@@ -16,8 +16,26 @@
 # under the License.
 # ----------------------------------------------------------------------------
 
+# Frontend build stage - always runs on linux/amd64 to avoid QEMU pnpm crash on arm64
+FROM --platform=linux/amd64 golang:1.26-alpine3.23 AS frontend-builder
+
+# Install build dependencies including Node.js and npm
+RUN apk add --no-cache git make bash sqlite openssl zip nodejs npm curl
+
+# Set environment variables for CI build
+ENV CI=true
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the entire source code
+COPY . .
+
+# Build frontend applications (platform-independent, avoids QEMU emulation)
+RUN ./build.sh build_frontend
+
 # Product Docker Image
-# Build stage - compile the Go binary and build frontend for the target architecture
+# Build stage - compile the Go binary for the target architecture
 FROM golang:1.26-alpine3.23 AS builder
 
 # Install build dependencies including Node.js and npm
@@ -31,6 +49,11 @@ WORKDIR /app
 
 # Copy the entire source code
 COPY . .
+
+# Copy pre-built frontend artifacts from the native amd64 stage.
+# This avoids running pnpm under QEMU emulation which causes SIGILL crashes on arm64.
+COPY --from=frontend-builder /app/frontend/apps/gate/dist /app/frontend/apps/gate/dist
+COPY --from=frontend-builder /app/frontend/apps/console/dist /app/frontend/apps/console/dist
 
 # Accept build arguments for certificate files
 ARG CERT_FILE
@@ -57,15 +80,16 @@ RUN if [ -n "$CERT_FILE" ] && [ -n "$KEY_FILE" ] && [ -f "$CERT_FILE" ] && [ -f 
         echo "✅ New certificates generated"; \
     fi
 
-# Build both frontend and backend for the target architecture
+# Build backend and package for the target architecture.
+# Frontend is pre-built from the native amd64 stage above.
 ARG TARGETARCH
 ARG WITH_CONSENT=true
 RUN WITHOUT_CONSENT=$([ "$WITH_CONSENT" = "false" ] && echo "true" || echo "false") && \
     export WITHOUT_CONSENT && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        ./build.sh build linux amd64; \
+        ./build.sh build_backend linux amd64; \
     else \
-        ./build.sh build linux arm64; \
+        ./build.sh build_backend linux arm64; \
     fi
 
 # List the contents of the dist directory to verify zip output
