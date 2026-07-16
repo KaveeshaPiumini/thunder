@@ -77,13 +77,9 @@ Visit [Get ThunderID](https://thunderid.dev/docs/next/guides/getting-started/get
 ## Star History
 
 <div align="center">
-  <a href="https://www.star-history.com/?repos=thunder-id%2Fthunderid&type=date&legend=top-left">
-   <picture>
-     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=thunder-id/thunderid&type=date&theme=dark&legend=top-left" width="500" />
-     <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=thunder-id/thunderid&type=date&legend=top-left" width="500" />
-     <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=thunder-id/thunderid&type=date&legend=top-left" width="500" />
-   </picture>
-  </a>
+    <a href="https://repostars.dev/?repos=thunder-id%2Fthunderid&amp;theme=ocean">
+        <img src="https://repostars.dev/api/embed?repo=thunder-id%2Fthunderid&amp;theme=ocean" alt="ThunderID star history" />
+    </a>
 </div>
 
 ## Contributing
