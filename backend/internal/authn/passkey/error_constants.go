@@ -222,3 +222,145 @@ var (
 		},
 	}
 )
+
+// WebAuthn library error codes.
+//
+// These errors wrap the failure categories reported by the underlying go-webauthn library
+// (protocol.Error.Type) into stable internal codes, so that library-specific details are
+// never returned to external clients and a change of the underlying library does not alter
+// the API error contract. mapWebAuthnError performs the translation.
+
+var (
+	// ErrorWebAuthnBadRequest wraps the library "invalid_request" error category.
+	ErrorWebAuthnBadRequest = tidcommon.ServiceError{
+		Type: tidcommon.ClientErrorType,
+		Code: "PSK-1016",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_bad_request",
+			DefaultValue: "Invalid WebAuthn request",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_bad_request_description",
+			DefaultValue: "The WebAuthn request data could not be processed",
+		},
+	}
+	// ErrorWebAuthnPolicyRestriction wraps the library "policy_restriction" error category.
+	ErrorWebAuthnPolicyRestriction = tidcommon.ServiceError{
+		Type: tidcommon.ClientErrorType,
+		Code: "PSK-1017",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_policy_restriction",
+			DefaultValue: "Policy restriction",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_policy_restriction_description",
+			DefaultValue: "The operation was prevented by a policy restriction",
+		},
+	}
+	// ErrorWebAuthnResponseParseError wraps the library "parse_error" error category.
+	ErrorWebAuthnResponseParseError = tidcommon.ServiceError{
+		Type: tidcommon.ClientErrorType,
+		Code: "PSK-1018",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_response_parse_error",
+			DefaultValue: "Malformed authenticator response",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_response_parse_error_description",
+			DefaultValue: "The authenticator response could not be parsed",
+		},
+	}
+	// ErrorWebAuthnAuthenticatorDataInvalid wraps the library "auth_data" error category.
+	ErrorWebAuthnAuthenticatorDataInvalid = tidcommon.ServiceError{
+		Type: tidcommon.ClientErrorType,
+		Code: "PSK-1019",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_authenticator_data_invalid",
+			DefaultValue: "Invalid authenticator data",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_authenticator_data_invalid_description",
+			DefaultValue: "The authenticator data failed verification",
+		},
+	}
+	// ErrorWebAuthnVerificationFailed wraps the library "verification_error" error category.
+	ErrorWebAuthnVerificationFailed = tidcommon.ServiceError{
+		Type: tidcommon.ClientErrorType,
+		Code: "PSK-1020",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_verification_failed",
+			DefaultValue: "Verification failed",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_verification_failed_description",
+			DefaultValue: "The authenticator response failed verification",
+		},
+	}
+	// ErrorWebAuthnInvalidCertificate wraps the library "invalid_certificate" error category.
+	ErrorWebAuthnInvalidCertificate = tidcommon.ServiceError{
+		Type: tidcommon.ClientErrorType,
+		Code: "PSK-1021",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_invalid_certificate",
+			DefaultValue: "Invalid attestation certificate",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_invalid_certificate_description",
+			DefaultValue: "The attestation certificate is invalid",
+		},
+	}
+	// ErrorWebAuthnUnsupportedKeyType wraps the library "invalid_key_type" error category.
+	ErrorWebAuthnUnsupportedKeyType = tidcommon.ServiceError{
+		Type: tidcommon.ClientErrorType,
+		Code: "PSK-1022",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_unsupported_key_type",
+			DefaultValue: "Unsupported key type",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_unsupported_key_type_description",
+			DefaultValue: "The credential public key type is not supported",
+		},
+	}
+	// ErrorWebAuthnUnsupportedAlgorithm wraps the library "unsupported_key_algorithm" error category.
+	ErrorWebAuthnUnsupportedAlgorithm = tidcommon.ServiceError{
+		Type: tidcommon.ClientErrorType,
+		Code: "PSK-1023",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_unsupported_algorithm",
+			DefaultValue: "Unsupported key algorithm",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_unsupported_algorithm_description",
+			DefaultValue: "The credential public key algorithm is not supported",
+		},
+	}
+	// ErrorWebAuthnMetadataError wraps the library "invalid_metadata" error category. This is a
+	// server-side error because attestation metadata validation depends on relying party configuration.
+	ErrorWebAuthnMetadataError = tidcommon.ServiceError{
+		Type: tidcommon.ServerErrorType,
+		Code: "PSK-1024",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_metadata_error",
+			DefaultValue: "Attestation metadata error",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_metadata_error_description",
+			DefaultValue: "Failed to validate the attestation metadata",
+		},
+	}
+	// ErrorWebAuthnNotImplemented wraps the library "not_implemented" and "spec_unimplemented" error
+	// categories. This is a server-side error because it signals a limitation of the library or spec.
+	ErrorWebAuthnNotImplemented = tidcommon.ServiceError{
+		Type: tidcommon.ServerErrorType,
+		Code: "PSK-1025",
+		Error: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_not_implemented",
+			DefaultValue: "Unsupported WebAuthn operation",
+		},
+		ErrorDescription: tidcommon.I18nMessage{
+			Key:          "error.passkeyservice.webauthn_not_implemented_description",
+			DefaultValue: "The requested WebAuthn operation is not supported",
+		},
+	}
+)

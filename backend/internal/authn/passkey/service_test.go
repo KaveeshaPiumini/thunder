@@ -1354,7 +1354,7 @@ func (suite *WebAuthnServiceTestSuite) TestFinishAuthentication_ValidatePasskeyL
 
 	suite.Nil(result)
 	suite.NotNil(err)
-	suite.True(err.Code == ErrorInvalidSignature.Code || err.Code == ErrorInvalidAuthenticatorResponse.Code)
+	suite.Equal(ErrorWebAuthnVerificationFailed.Code, err.Code)
 }
 
 // TestFinishAuthentication_ValidateLogin_ReachesValidation tests that the username-based
@@ -1407,7 +1407,7 @@ func (suite *WebAuthnServiceTestSuite) TestFinishAuthentication_ValidateLogin_Re
 
 	suite.Nil(result)
 	suite.NotNil(err)
-	suite.True(err.Code == ErrorInvalidSignature.Code || err.Code == ErrorInvalidAuthenticatorResponse.Code)
+	suite.Equal(ErrorWebAuthnVerificationFailed.Code, err.Code)
 }
 
 // validAttestationCredentialID is a real credential ID matching validAttestationObject below.
@@ -1584,7 +1584,7 @@ func (suite *WebAuthnServiceTestSuite) TestFinishRegistration_CreateCredentialEr
 
 	suite.Nil(result)
 	suite.NotNil(svcErr)
-	suite.Equal(ErrorInvalidAttestationResponse.Code, svcErr.Code)
+	suite.Equal(ErrorWebAuthnVerificationFailed.Code, svcErr.Code)
 }
 
 func (suite *WebAuthnServiceTestSuite) TestFinishAuthentication_UsernamelessMissingUserHandle() {

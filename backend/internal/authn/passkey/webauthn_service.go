@@ -21,10 +21,13 @@ package passkey
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+
+	tidcommon "github.com/thunder-id/thunderid/pkg/thunderidengine/common"
 )
 
 // Wrapper types to abstract the underlying WebAuthn library.
@@ -365,4 +368,60 @@ func parseAttestationResponse(
 	}
 
 	return parsed, nil
+}
+
+// mapWebAuthnError translates an error returned by the underlying WebAuthn library into a
+// stable internal ServiceError. Recognized go-webauthn protocol error categories
+// (protocol.Error.Type) are mapped to dedicated passkey error codes so that library-specific
+// details are never exposed to external clients. Any error that does not match a known
+// category (including non-protocol errors) is mapped to the supplied fallback, which lets the
+// caller keep a context-appropriate default such as an attestation error during registration
+// or a signature error during login.
+func mapWebAuthnError(err error, fallback tidcommon.ServiceError) *tidcommon.ServiceError {
+	if err == nil {
+		return nil
+	}
+
+	// An unknown credential is reported through a dedicated wrapper type rather than a plain
+	// protocol.Error, so it must be checked before the generic protocol.Error branch.
+	var unknownCredErr *protocol.ErrorUnknownCredential
+	if errors.As(err, &unknownCredErr) {
+		return &ErrorCredentialNotFound
+	}
+
+	var protoErr *protocol.Error
+	if !errors.As(err, &protoErr) {
+		return &fallback
+	}
+
+	switch protoErr.Type {
+	case protocol.ErrBadRequest.Type: // invalid_request
+		return &ErrorWebAuthnBadRequest
+	case protocol.ErrPolicyRestriction.Type: // policy_restriction
+		return &ErrorWebAuthnPolicyRestriction
+	case protocol.ErrChallengeMismatch.Type: // challenge_mismatch
+		return &ErrorInvalidChallenge
+	case protocol.ErrParsingData.Type: // parse_error
+		return &ErrorWebAuthnResponseParseError
+	case protocol.ErrAuthData.Type: // auth_data
+		return &ErrorWebAuthnAuthenticatorDataInvalid
+	case protocol.ErrVerification.Type: // verification_error
+		return &ErrorWebAuthnVerificationFailed
+	case protocol.ErrAttestation.Type, protocol.ErrInvalidAttestation.Type: // attestation_error, invalid_attestation
+		return &ErrorInvalidAttestationResponse
+	case protocol.ErrAttestationCertificate.Type: // invalid_certificate
+		return &ErrorWebAuthnInvalidCertificate
+	case protocol.ErrAssertionSignature.Type: // invalid_signature
+		return &ErrorInvalidSignature
+	case protocol.ErrUnsupportedKey.Type: // invalid_key_type
+		return &ErrorWebAuthnUnsupportedKeyType
+	case protocol.ErrUnsupportedAlgorithm.Type: // unsupported_key_algorithm
+		return &ErrorWebAuthnUnsupportedAlgorithm
+	case protocol.ErrMetadata.Type: // invalid_metadata
+		return &ErrorWebAuthnMetadataError
+	case protocol.ErrNotSpecImplemented.Type, protocol.ErrNotImplemented.Type: // spec_unimplemented, not_implemented
+		return &ErrorWebAuthnNotImplemented
+	default:
+		return &fallback
+	}
 }
