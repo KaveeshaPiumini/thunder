@@ -306,6 +306,7 @@ func (s *FileBasedResourceStoreTestSuite) TestGetResourceAndLists_WithData() {
 		},
 	}
 
+	assert.NoError(s.T(), ProcessResourceServer(rs))
 	err := fileStore.Create("rs-data", rs)
 	assert.NoError(s.T(), err)
 
@@ -330,7 +331,7 @@ func (s *FileBasedResourceStoreTestSuite) TestGetResourceAndLists_WithData() {
 	resources, err = s.store.GetResourceListByParent(s.ctx, "rs-data", &parentID, 10, 0)
 	assert.NoError(s.T(), err)
 	assert.Len(s.T(), resources, 1)
-	assert.Equal(s.T(), "rs-data_child", resources[0].ID)
+	assert.Equal(s.T(), "rs-data_root:child", resources[0].ID)
 
 	count, err := s.store.GetResourceListCount(s.ctx, "rs-data")
 	assert.NoError(s.T(), err)
@@ -371,17 +372,18 @@ func (s *FileBasedResourceStoreTestSuite) TestGetActionListAndCounts_WithData() 
 		},
 	}
 
+	assert.NoError(s.T(), ProcessResourceServer(rs))
 	err := fileStore.Create("rs-data", rs)
 	assert.NoError(s.T(), err)
 
-	rootID := fmt.Sprintf("%s_%s", rs.ID, rs.Resources[0].Handle)
-	rootActionID := fmt.Sprintf("%s_%s_%s", rs.ID, rs.Resources[0].Handle, rs.Resources[0].Actions[0].Handle)
+	rootID := fmt.Sprintf("%s_%s", rs.ID, rs.Resources[0].Permission)
+	rootActionID := fmt.Sprintf("%s_%s", rs.ID, rs.Resources[0].Actions[0].Permission)
 
 	action, err := s.store.GetAction(s.ctx, rootActionID, "rs-data", nil)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), rootActionID, action.ID)
 
-	childID := fmt.Sprintf("%s_%s", rs.ID, rs.Resources[1].Handle)
+	childID := fmt.Sprintf("%s_%s", rs.ID, rs.Resources[1].Permission)
 
 	// A nil resource ID selects resource server level actions, of which there are none because
 	// declarative resource servers declare actions only under resources.
@@ -433,10 +435,11 @@ func (s *FileBasedResourceStoreTestSuite) TestGetActionList_FilterByKind() {
 		},
 	}
 
+	assert.NoError(s.T(), ProcessResourceServer(rs))
 	err := fileStore.Create("rs-mcp", rs)
 	assert.NoError(s.T(), err)
 
-	rootID := fmt.Sprintf("%s_%s", rs.ID, rs.Resources[0].Handle)
+	rootID := fmt.Sprintf("%s_%s", rs.ID, rs.Resources[0].Permission)
 
 	// Empty kind returns all actions.
 	all, err := s.store.GetActionList(s.ctx, "rs-mcp", &rootID, "", 10, 0)
@@ -638,4 +641,89 @@ func (s *FileBasedResourceStoreTestSuite) TestCheckResourceServerIdentifierExist
 	exists, err = s.store.CheckResourceServerIdentifierExists(s.ctx, "non-existent")
 	assert.NoError(s.T(), err)
 	assert.False(s.T(), exists)
+}
+
+// With a "/" delimiter, the synthetic ID must stay a single URL segment, and a handle reused under
+// different parents must still give each resource its own ID.
+func (s *FileBasedResourceStoreTestSuite) TestSlashDelimiterIDsAreEscaped() {
+	fileStore, ok := s.store.(*fileBasedResourceStore)
+	assert.True(s.T(), ok)
+
+	rs := &providers.ResourceServer{
+		ID:        "rs-slash",
+		Name:      "Slash Server",
+		OUID:      "ou1",
+		Delimiter: "/",
+		Resources: []providers.Resource{
+			{Name: "Product A", Handle: "product-a"},
+			{
+				Name:         "Organization",
+				Handle:       "org",
+				ParentHandle: "product-a",
+				Actions:      []providers.Action{{Name: "View", Handle: "view"}},
+			},
+			{Name: "Product B", Handle: "product-b"},
+			{
+				Name:         "Organization",
+				Handle:       "org",
+				ParentHandle: "product-b",
+				Actions:      []providers.Action{{Name: "View", Handle: "view"}},
+			},
+		},
+	}
+	assert.NoError(s.T(), ProcessResourceServer(rs))
+	assert.NoError(s.T(), fileStore.Create("rs-slash", rs))
+
+	for _, product := range []string{"product-a", "product-b"} {
+		parentID := "rs-slash_" + product
+		children, err := s.store.GetResourceListByParent(s.ctx, "rs-slash", &parentID, 10, 0)
+		assert.NoError(s.T(), err)
+		assert.Len(s.T(), children, 1)
+
+		orgID := children[0].ID
+		assert.Equal(s.T(), "rs-slash_"+product+"%2Forg", orgID, "the delimiter must be escaped in the ID")
+		assert.Equal(s.T(), product+"/org", children[0].Permission)
+
+		// The router hands the ID over unescaped; a caller may also pass back the escaped form.
+		for _, lookup := range []string{orgID, "rs-slash_" + product + "/org"} {
+			resource, err := s.store.GetResource(s.ctx, lookup, "rs-slash")
+			assert.NoError(s.T(), err, "lookup by %q", lookup)
+			assert.Equal(s.T(), product+"/org", resource.Permission)
+
+			actions, err := s.store.GetActionList(s.ctx, "rs-slash", &lookup, "", 10, 0)
+			assert.NoError(s.T(), err)
+			assert.Len(s.T(), actions, 1, "lookup by %q", lookup)
+			assert.Equal(s.T(), product+"/org/view", actions[0].Permission)
+			assert.Equal(s.T(), "rs-slash_"+product+"%2Forg%2Fview", actions[0].ID)
+
+			action, err := s.store.GetAction(s.ctx, actions[0].ID, "rs-slash", &lookup)
+			assert.NoError(s.T(), err)
+			assert.Equal(s.T(), product+"/org/view", action.Permission)
+		}
+	}
+}
+
+func TestDeclarativeID(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		id   string
+	}{
+		{name: "root resource", path: "app", id: "rs1_app"},
+		{name: "colon delimiter is left as is", path: "app:project", id: "rs1_app:project"},
+		{name: "dot delimiter is left as is", path: "app.project", id: "rs1_app.project"},
+		{name: "slash delimiter is escaped", path: "app/project", id: "rs1_app%2Fproject"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := declarativeID("rs1", tt.path)
+
+			assert.Equal(t, tt.id, id)
+			assert.True(t, matchesDeclarativeID(id, "rs1", tt.path), "escaped form must match")
+			assert.True(t, matchesDeclarativeID("rs1_"+tt.path, "rs1", tt.path), "unescaped form must match")
+			assert.False(t, matchesDeclarativeID(id, "rs1", tt.path+"x"))
+			assert.False(t, matchesDeclarativeID(id, "rs2", tt.path))
+		})
+	}
 }

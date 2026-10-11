@@ -20,6 +20,8 @@ const (
 	declarativeOUHandleServerID      = "decl-rs-2"
 	declarativeOUHandleServerName    = "Declarative OU Handle Resource Server"
 	declarativeMCPServerID           = "decl-rs-3"
+	declarativeNestedServerID        = "decl-rs-4"
+	declarativeSlashServerID         = "decl-rs-5"
 	declarativeReadActionHandle      = "read"
 	declarativeWriteActionHandle     = "write"
 	declarativeResourcePermission    = "test-resource"
@@ -239,6 +241,73 @@ func (suite *DeclarativeResourceServerTestSuite) TestDeclarativeMCPResourceServe
 	suite.Equal("resource", kinds["fetch"])
 }
 
+// A declarative resource server reusing a sub-resource handle under different parents serves both,
+// each with its own permission and actions.
+func (suite *DeclarativeResourceServerTestSuite) TestDeclarativeSubResourceHandleReusedUnderDifferentParents() {
+	roots, err := listResources(declarativeNestedServerID, "", 0, 100)
+	suite.Require().NoError(err)
+	suite.Require().Equal(1, roots.TotalResults, "Only the top level resource is listed without a parent filter")
+	suite.Equal("app", roots.Resources[0].Handle)
+	appID := roots.Resources[0].ID
+
+	branches, err := listResources(declarativeNestedServerID, appID, 0, 100)
+	suite.Require().NoError(err)
+	suite.Require().Equal(2, branches.TotalResults)
+
+	branchIDs := map[string]string{}
+	for _, res := range branches.Resources {
+		branchIDs[res.Permission] = res.ID
+	}
+	suite.Require().Contains(branchIDs, "app:project")
+	suite.Require().Contains(branchIDs, "app:team")
+
+	for _, branch := range []string{"app:project", "app:team"} {
+		members, err := listResources(declarativeNestedServerID, branchIDs[branch], 0, 100)
+		suite.Require().NoError(err, "Failed to list members under %s", branch)
+		suite.Require().Equal(1, members.TotalResults, "%s should expose exactly one member", branch)
+		suite.Equal("member", members.Resources[0].Handle)
+		suite.Equal(branch+":member", members.Resources[0].Permission,
+			"A reused handle derives its permission from its own parent chain")
+
+		actions, err := listActionsAtResource(declarativeNestedServerID, members.Resources[0].ID, 0, 100)
+		suite.Require().NoError(err)
+		suite.Require().Equal(1, actions.TotalResults, "%s:member should carry its own action", branch)
+		suite.Equal(branch+":member:read", actions.Actions[0].Permission)
+	}
+}
+
+// With a "/" delimiter, the IDs the API returns must work when sent back in a URL, for a sub-resource
+// handle reused under sibling branches.
+func (suite *DeclarativeResourceServerTestSuite) TestDeclarativeSlashDelimiterIDsRoundTrip() {
+	roots, err := listResources(declarativeSlashServerID, "", 0, 100)
+	suite.Require().NoError(err)
+	suite.Require().Equal(2, roots.TotalResults)
+
+	for _, root := range roots.Resources {
+		children, err := listResources(declarativeSlashServerID, root.ID, 0, 100)
+		suite.Require().NoError(err, "Failed to list children of %s", root.Handle)
+		suite.Require().Equal(1, children.TotalResults, "%s should expose exactly one org", root.Handle)
+
+		org := children.Resources[0]
+		suite.Equal(root.Handle+"/org", org.Permission)
+		suite.NotContains(org.ID, "/", "A resource ID must stay a single URL segment")
+
+		fetched, err := getResource(declarativeSlashServerID, org.ID)
+		suite.Require().NoError(err, "Failed to get %s by its returned ID", org.Permission)
+		suite.Equal(org.Permission, fetched.Permission)
+
+		actions, err := listActionsAtResource(declarativeSlashServerID, org.ID, 0, 100)
+		suite.Require().NoError(err)
+		suite.Require().Equal(1, actions.TotalResults)
+		suite.Equal(root.Handle+"/org/view", actions.Actions[0].Permission)
+		suite.NotContains(actions.Actions[0].ID, "/", "An action ID must stay a single URL segment")
+
+		action, err := getActionAtResource(declarativeSlashServerID, org.ID, actions.Actions[0].ID)
+		suite.Require().NoError(err, "Failed to get the action by its returned ID")
+		suite.Equal(root.Handle+"/org/view", action.Permission)
+	}
+}
+
 func (suite *DeclarativeResourceServerTestSuite) TestListDeclarativeActionsFilteredByKind() {
 	list, err := listResources(declarativeMCPServerID, "", 0, 100)
 	suite.Require().NoError(err)
@@ -282,6 +351,9 @@ type ResourceServerExportTestSuite struct {
 	resourceServerID string
 	parentID         string
 	childID          string
+	siblingID        string
+	childEntryID     string
+	siblingEntryID   string
 }
 
 func TestResourceServerExportTestSuite(t *testing.T) {
@@ -331,10 +403,40 @@ func (suite *ResourceServerExportTestSuite) SetupSuite() {
 		Description: "List catalog items",
 	})
 	suite.Require().NoError(err, "Failed to create action")
+
+	siblingID, err := createResource(rsID, CreateResourceRequest{
+		Name:   "Drafts",
+		Handle: "drafts",
+		Parent: &parentID,
+	})
+	suite.Require().NoError(err, "Failed to create sibling resource")
+	suite.siblingID = siblingID
+
+	// The same handle under two parents, which the export has to tell apart.
+	childEntryID, err := createResource(rsID, CreateResourceRequest{
+		Name:   "Entry",
+		Handle: "entry",
+		Parent: &childID,
+	})
+	suite.Require().NoError(err, "Failed to create resource nested under items")
+	suite.childEntryID = childEntryID
+
+	siblingEntryID, err := createResource(rsID, CreateResourceRequest{
+		Name:   "Entry",
+		Handle: "entry",
+		Parent: &siblingID,
+	})
+	suite.Require().NoError(err, "Failed to create resource nested under drafts")
+	suite.siblingEntryID = siblingEntryID
 }
 
 func (suite *ResourceServerExportTestSuite) TearDownSuite() {
 	// Actions and child resources must go before their parents.
+	for _, id := range []string{suite.childEntryID, suite.siblingEntryID, suite.siblingID} {
+		if id != "" {
+			deleteResource(suite.resourceServerID, id)
+		}
+	}
 	if suite.childID != "" {
 		actions, err := listActionsAtResource(suite.resourceServerID, suite.childID, 0, 100)
 		if err == nil {
@@ -367,6 +469,13 @@ func (suite *ResourceServerExportTestSuite) TestExportResourceServerByID() {
 	suite.Contains(yamlContent, "handle: items")
 	suite.Contains(yamlContent, "parent: catalog", "Child resources should reference their parent handle")
 	suite.Contains(yamlContent, "handle: list", "Nested actions should be exported")
+
+	// A deeper resource is referenced by its parent's full path, so both "entry" resources stay
+	// distinct on re-import.
+	suite.Contains(yamlContent, "parent: catalog:items",
+		"Deeper resources should reference the full path of their parent")
+	suite.Contains(yamlContent, "parent: catalog:drafts",
+		"A handle reused under another parent should reference that parent's own path")
 }
 
 func (suite *ResourceServerExportTestSuite) TestExportResourceServersWithWildcard() {

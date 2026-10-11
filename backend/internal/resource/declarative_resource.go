@@ -107,13 +107,14 @@ func (e *resourceServerExporter) GetResourceByID(ctx context.Context, id string)
 		return nil, "", err
 	}
 
-	// First pass: build ID-to-Handle map so parent handles can be resolved regardless of order
-	idToHandleMap := make(map[string]string)
+	// First pass: ID to path, so parents resolve regardless of order. A parent is written as its
+	// full path, since a handle is unique only under its own parent.
+	idToPathMap := make(map[string]string)
 	for _, res := range allResources {
-		idToHandleMap[res.ID] = res.Handle
+		idToPathMap[res.ID] = res.Permission
 	}
 
-	// Second pass: build declarative resources with resolved parent handles and actions
+	// Second pass: build declarative resources with resolved parent paths and actions
 	for _, res := range allResources {
 		resource := providers.Resource{
 			Name:        res.Name,
@@ -123,8 +124,8 @@ func (e *resourceServerExporter) GetResourceByID(ctx context.Context, id string)
 		}
 
 		if res.Parent != nil && *res.Parent != "" {
-			if parentHandle, ok := idToHandleMap[*res.Parent]; ok {
-				resource.ParentHandle = parentHandle
+			if parentPath, ok := idToPathMap[*res.Parent]; ok {
+				resource.ParentHandle = parentPath
 			}
 		}
 
@@ -312,28 +313,9 @@ func ProcessResourceServer(rs *providers.ResourceServer) error {
 	}
 	rs.Delimiter = delimiter
 
-	// Build a map of handle to resource for parent resolution and detect duplicates
-	resourceHandleMap := make(map[string]*providers.Resource)
-	for i := range rs.Resources {
-		handle := rs.Resources[i].Handle
-		if existing, ok := resourceHandleMap[handle]; ok {
-			// Duplicate handle detected
-			return fmt.Errorf(
-				"duplicate resource handle '%s' found: conflicting resources are '%s' and '%s' in resource server '%s'",
-				handle,
-				existing.Name,
-				rs.Resources[i].Name,
-				rs.ID,
-			)
-		}
-		resourceHandleMap[handle] = &rs.Resources[i]
-	}
-
-	// Process resources and compute permissions
-	for i := range rs.Resources {
-		if err := processResource(&rs.Resources[i], resourceHandleMap, delimiter); err != nil {
-			return err
-		}
+	// Resolve the parent chain of every resource and compute permissions.
+	if err := resolveResourcePermissions(rs); err != nil {
+		return err
 	}
 
 	// For MCP resource servers, a resource (group) and an action (tool/resource) in the same parent
@@ -379,71 +361,154 @@ func checkDuplicateMCPPermissions(rs *providers.ResourceServer) error {
 	return nil
 }
 
-// processResource processes a resource and its actions, computing permissions in-place.
-func processResource(
-	res *providers.Resource,
-	resourceHandleMap map[string]*providers.Resource,
-	delimiter string,
-) error {
-	permission, err := buildPermissionString(res, resourceHandleMap, delimiter)
-	if err != nil {
-		return err
+// resolveResourcePermissions sets the permission of every resource and action to its path: the
+// delimiter-joined chain of handles from the root. Handles must be unique per parent, not per
+// resource server.
+//
+// `parent` accepts a full path ("app:project"), or a bare handle while it is unique.
+func resolveResourcePermissions(rs *providers.ResourceServer) error {
+	byPath := make(map[string]*providers.Resource, len(rs.Resources))
+	pending := make([]*providers.Resource, 0, len(rs.Resources))
+	for i := range rs.Resources {
+		pending = append(pending, &rs.Resources[i])
 	}
-	res.Permission = permission
 
-	for i := range res.Actions {
-		actionPermission := permission + delimiter + res.Actions[i].Handle
-		res.Actions[i].Permission = actionPermission
+	// One level per pass, committed only at the end of the pass, so declaration order cannot change
+	// which parent a reference resolves to.
+	for len(pending) > 0 {
+		type resolution struct {
+			res        *providers.Resource
+			path       string
+			parentPath string
+		}
+
+		resolved := make([]resolution, 0, len(pending))
+		unresolved := make([]*providers.Resource, 0, len(pending))
+
+		for _, res := range pending {
+			parentPath, found, err := resolveParentPath(rs, res, byPath)
+			if err != nil {
+				return err
+			}
+			if !found {
+				unresolved = append(unresolved, res)
+				continue
+			}
+			path := res.Handle
+			if res.ParentHandle != "" {
+				path = parentPath + rs.Delimiter + res.Handle
+			}
+			resolved = append(resolved, resolution{res: res, path: path, parentPath: parentPath})
+		}
+
+		if len(resolved) == 0 {
+			return unresolvedParentError(rs, unresolved)
+		}
+
+		for _, r := range resolved {
+			if existing, ok := byPath[r.path]; ok {
+				return duplicateHandleError(rs, existing, r.res, r.parentPath)
+			}
+			byPath[r.path] = r.res
+			r.res.Permission = r.path
+			// Rewrite to the parent's full path so callers can key by path without resolving again.
+			r.res.ParentHandle = r.parentPath
+		}
+
+		pending = unresolved
+	}
+
+	for i := range rs.Resources {
+		res := &rs.Resources[i]
+		for j := range res.Actions {
+			res.Actions[j].Permission = res.Permission + rs.Delimiter + res.Actions[j].Handle
+		}
 	}
 
 	return nil
 }
 
-// buildPermissionString constructs the permission string by traversing parent chain.
-func buildPermissionString(
+// resolveParentPath resolves a `parent` reference to the parent's path. found is false when the
+// parent is not resolved yet, so the caller retries on a later pass.
+func resolveParentPath(
+	rs *providers.ResourceServer,
 	res *providers.Resource,
-	resourceHandleMap map[string]*providers.Resource,
-	delimiter string,
-) (string, error) {
-	var parts []string
+	byPath map[string]*providers.Resource,
+) (string, bool, error) {
+	ref := res.ParentHandle
+	if ref == "" {
+		return "", true, nil
+	}
 
-	parentChain := []string{}
-	visited := make(map[string]bool)
-	current := res
-	for current != nil {
-		if current.Handle != "" {
-			if visited[current.Handle] {
-				return "", fmt.Errorf(
-					"circular parent reference detected at handle '%s' for resource '%s'",
-					current.Handle, res.Handle,
-				)
-			}
-			visited[current.Handle] = true
-			parentChain = append([]string{current.Handle}, parentChain...)
+	// A full path wins; it is the unambiguous form.
+	if _, ok := byPath[ref]; ok {
+		return ref, true, nil
+	}
+
+	// Otherwise a bare handle, which resolves only while it is unique.
+	var match string
+	matches := 0
+	for path, candidate := range byPath {
+		if candidate.Handle == ref {
+			matches++
+			match = path
 		}
+	}
+	switch {
+	case matches == 1:
+		return match, true, nil
+	case matches > 1:
+		return "", false, fmt.Errorf(
+			"ambiguous parent reference '%s' for resource '%s' in resource server '%s': "+
+				"%d resources share this handle, use the full parent path instead",
+			ref, res.Handle, rs.ID, matches,
+		)
+	default:
+		return "", false, nil
+	}
+}
 
-		if current.ParentHandle == "" {
-			break
-		}
+// unresolvedParentError reports why resources could not be attached: a parent that was never
+// declared, or a cycle.
+func unresolvedParentError(rs *providers.ResourceServer, unresolved []*providers.Resource) error {
+	declared := make(map[string]struct{}, len(rs.Resources))
+	for i := range rs.Resources {
+		declared[rs.Resources[i].Handle] = struct{}{}
+	}
 
-		parent, exists := resourceHandleMap[current.ParentHandle]
-		if !exists {
-			return "", fmt.Errorf(
+	for _, res := range unresolved {
+		segments := strings.Split(res.ParentHandle, rs.Delimiter)
+		if _, ok := declared[segments[len(segments)-1]]; !ok {
+			return fmt.Errorf(
 				"parent resource handle '%s' not found for resource '%s': cannot resolve permission chain",
-				current.ParentHandle,
-				res.Handle,
+				res.ParentHandle, res.Handle,
 			)
 		}
-		current = parent
 	}
 
-	if len(parentChain) > 1 {
-		parts = append(parts, parentChain[:len(parentChain)-1]...)
+	return fmt.Errorf(
+		"circular parent reference detected at handle '%s' for resource '%s'",
+		unresolved[0].ParentHandle, unresolved[0].Handle,
+	)
+}
+
+// duplicateHandleError reports two resources sharing a handle under one parent, which storage
+// rejects and which would derive the same permission.
+func duplicateHandleError(
+	rs *providers.ResourceServer,
+	existing, conflicting *providers.Resource,
+	parentPath string,
+) error {
+	scope := "at the root level"
+	if parentPath != "" {
+		scope = fmt.Sprintf("under parent '%s'", parentPath)
 	}
 
-	parts = append(parts, res.Handle)
-
-	return strings.Join(parts, delimiter), nil
+	return fmt.Errorf(
+		"duplicate resource handle '%s' found %s: conflicting resources are '%s' and '%s' "+
+			"in resource server '%s'",
+		conflicting.Handle, scope, existing.Name, conflicting.Name, rs.ID,
+	)
 }
 
 func validateResourceServerWrapper(

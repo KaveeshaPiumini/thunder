@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 
 	tidcommon "github.com/thunder-id/thunderid/pkg/thunderidengine/common"
 	"github.com/thunder-id/thunderid/pkg/thunderidengine/providers"
@@ -862,18 +864,30 @@ func (s *importService) importResourceServerChildren(
 		}
 	}
 
-	// handleToID maps resource handle → created/resolved ID for parent resolution.
-	handleToID := make(map[string]string)
+	// path → created ID, for parent resolution. Keyed by path, not handle, so a handle reused under
+	// different parents stays distinct.
+	pathToID := make(map[string]string)
 
-	for i := range rs.Resources {
-		res := rs.Resources[i]
+	// Create parents before children, since `parent` may point further down the file. Siblings keep
+	// their declared order.
+	ordered := make([]providers.Resource, len(rs.Resources))
+	copy(ordered, rs.Resources)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return strings.Count(ordered[i].Permission, rs.Delimiter) <
+			strings.Count(ordered[j].Permission, rs.Delimiter)
+	})
 
-		// Resolve ParentHandle to the parent ID using handles seen so far in this import.
+	for i := range ordered {
+		res := ordered[i]
+
+		// ProcessResourceServer left ParentHandle as the parent's full path.
+		var parentID *string
 		if res.ParentHandle != "" {
-			if parentID, ok := handleToID[res.ParentHandle]; ok {
-				res.Parent = &parentID
+			if pid, ok := pathToID[res.ParentHandle]; ok {
+				parentID = &pid
 			}
 		}
+		res.Parent = parentID
 
 		created, svcErr := s.resourceService.CreateResource(ctx, serverID, res)
 		if svcErr != nil {
@@ -881,12 +895,6 @@ func (s *importService) importResourceServerChildren(
 				return svcErr
 			}
 			// Resource already exists — look it up under the same parent scope to get its ID.
-			var parentID *string
-			if res.ParentHandle != "" {
-				if pid, ok := handleToID[res.ParentHandle]; ok {
-					parentID = &pid
-				}
-			}
 			list, listErr := s.resourceService.GetResourceList(ctx, serverID, parentID, serverconst.MaxPageSize, 0)
 			if listErr != nil {
 				return listErr
@@ -904,7 +912,7 @@ func (s *importService) importResourceServerChildren(
 			created = &providers.Resource{ID: existingID}
 		}
 
-		handleToID[res.Handle] = created.ID
+		pathToID[res.Permission] = created.ID
 
 		for j := range res.Actions {
 			action := res.Actions[j]

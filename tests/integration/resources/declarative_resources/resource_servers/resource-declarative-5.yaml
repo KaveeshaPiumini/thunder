@@ -1,0 +1,24 @@
+resource_type: resource_server
+id: decl-rs-5
+name: Declarative Slash Delimiter Resource Server
+description: A declarative test resource server using a slash delimiter with a sub-resource handle reused under sibling branches
+identifier: https://localhost:8090/decl-rs-5
+ouId: decl-ou-1
+delimiter: "/"
+resources:
+  - name: Product A
+    handle: product-a
+  - name: Organization
+    handle: org
+    parent: product-a
+    actions:
+      - name: View
+        handle: view
+  - name: Product B
+    handle: product-b
+  - name: Organization
+    handle: org
+    parent: product-b
+    actions:
+      - name: View
+        handle: view
